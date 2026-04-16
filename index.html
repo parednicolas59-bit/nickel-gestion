@@ -1,7 +1,13 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NickGestión</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--blue:#1a6fb5;--blue2:#1e8fcf;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--purple:#8b5cf6;--dark:#0f172a;--dark2:#1e293b;--dark3:#334155;--text:#f1f5f9;--text2:#94a3b8;--border:rgba(255,255,255,0.08)}
+:root{--blue:#1a6fb5;--blue2:#1e8fcf;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--purple:#8b5cf6;--dark:#0f172a;--dark2:#1e293b;--dark3:#334155;--text:#f1f5f9;--text2:#94a3b8;--border:rgba(255,255,255,0.08);--font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;--font-mono:'SF Mono','Fira Code',monospace}
 #app{background:var(--dark);min-height:600px;font-family:var(--font-sans);color:var(--text)}
 .topbar{background:var(--dark2);border-bottom:1px solid var(--border);padding:0 12px;display:flex;align-items:center;gap:4px;height:46px}
 .logo{font-size:15px;font-weight:500;color:#fff;margin-right:8px;white-space:nowrap}.logo span{color:var(--blue2)}
@@ -85,6 +91,12 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .login-wrap{display:flex;align-items:center;justify-content:center;min-height:520px;background:var(--dark)}
 .login-card{background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:28px;width:300px}
 .login-logo{font-size:20px;font-weight:500;text-align:center;margin-bottom:20px}.login-logo span{color:var(--blue2)}
+@media print{
+  .topbar,.nav-tabs,.btn,.actions-cell{display:none!important}
+  .modal-bg{position:static;background:none;padding:0}
+  .modal{max-height:none;overflow:visible;border:none;background:#fff}
+  body,#app,#root{background:#fff!important;color:#111!important}
+}
 </style>
 
 <div id="app"><div id="root"></div></div>
@@ -107,30 +119,17 @@ const db = getFirestore(app);
 const DOC_REF = doc(db, "nickel", "data");
 
 window._fbSave = async function(d) {
-  try {
-    await setDoc(DOC_REF, { payload: JSON.stringify(d) });
-  } catch(e) { console.error("Firebase save error:", e); }
+  try { await setDoc(DOC_REF, { payload: JSON.stringify(d) }); } catch(e) { console.error("Firebase save error:", e); }
 };
-
 window._fbLoad = async function() {
-  try {
-    const snap = await getDoc(DOC_REF);
-    if(snap.exists()) return JSON.parse(snap.data().payload);
-  } catch(e) { console.error("Firebase load error:", e); }
+  try { const snap = await getDoc(DOC_REF); if(snap.exists()) return JSON.parse(snap.data().payload); } catch(e) { console.error("Firebase load error:", e); }
   return null;
 };
-
 window._fbListen = function(callback) {
   return onSnapshot(DOC_REF, (snap) => {
-    if(snap.exists()) {
-      try {
-        const d = JSON.parse(snap.data().payload);
-        callback(d);
-      } catch(e) {}
-    }
+    if(snap.exists()) { try { const d = JSON.parse(snap.data().payload); callback(d); } catch(e) {} }
   });
 };
-
 window._firebaseReady = true;
 document.dispatchEvent(new Event('firebase-ready'));
 </script>
@@ -169,7 +168,7 @@ const def={
   egresos:[{id:1,fecha:'2026-04-10',proveedor:'Distribuidora Norte',concepto:'Compra stock TVs',monto:450000,pagado:true}],
   cierres:[],
   creditos:[],
-  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:5,cierre:1,user:5,credito:1}
+  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1}
 };
 function load(){
   try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;return d;}}catch(e){}
@@ -190,7 +189,7 @@ async function loadFromFirebase(){
 }
 function save(d){
   try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
-  if(window._firebaseReady && window._fbSave) window._fbSave(d);
+  if(window._firebaseReady&&window._fbSave)window._fbSave(d);
 }
 
 let data=load(),currentUser=null,tab='dashboard',modal=null,carrito=[];
@@ -199,25 +198,16 @@ let _fbUnsubscribe=null;
 let _fbInitialized=false;
 
 async function initApp(){
-  // Mostrar pantalla de carga
   document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando con la nube...</div></div></div>';
-  
-  // Intentar cargar desde Firebase
-  try {
-    const fbData = await loadFromFirebase();
-    if(fbData) data = fbData;
-  } catch(e) { console.log("Usando datos locales"); }
-  
-  _fbInitialized = true;
+  try{const fbData=await loadFromFirebase();if(fbData)data=fbData;}catch(e){console.log("Usando datos locales");}
+  _fbInitialized=true;
   render();
-  
-  // Escuchar cambios en tiempo real (solo si no es el usuario actual quien guarda)
-  if(window._fbListen) {
-    _fbUnsubscribe = window._fbListen((newData) => {
-      if(_fbInitialized && currentUser) {
-        data = newData;
-        if(!data.creditos) data.creditos = [];
-        if(!data.nextId.credito) data.nextId.credito = 1;
+  if(window._fbListen){
+    _fbUnsubscribe=window._fbListen((newData)=>{
+      if(_fbInitialized&&currentUser){
+        data=newData;
+        if(!data.creditos)data.creditos=[];
+        if(!data.nextId.credito)data.nextId.credito=1;
         try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
         render();
       }
@@ -225,13 +215,9 @@ async function initApp(){
   }
 }
 
-// Arrancar cuando Firebase esté listo o después de 3 segundos (fallback)
-if(window._firebaseReady) {
-  initApp();
-} else {
-  document.addEventListener('firebase-ready', initApp);
-  setTimeout(() => { if(!_fbInitialized) initApp(); }, 3000);
-}
+if(window._firebaseReady){initApp();}
+else{document.addEventListener('firebase-ready',initApp);setTimeout(()=>{if(!_fbInitialized)initApp();},3000);}
+
 const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
 const fd=d=>d?d.split('-').reverse().join('/'):'';
 const getCat=id=>data.categorias.find(c=>c.id==id);
@@ -741,18 +727,15 @@ function bindApp(){
   q('logout-btn').onclick=()=>{currentUser=null;carrito=[];render();};
   document.querySelectorAll('.nav-tab').forEach(b=>{b.onclick=()=>{tab=b.dataset.tab;render();};});
 
-  // SCAN VENTA
   const svi=q('scan-venta-input');
   if(svi){svi.focus();svi.onkeydown=e=>{if(e.key==='Enter'){const cod=svi.value.trim();if(!cod)return;const prod=getProd(cod);if(!prod){showFeedback('scan-venta-feedback','Código no encontrado: '+cod,'err');svi.value='';return;}if(prod.stock<=0){showFeedback('scan-venta-feedback',prod.nombre+' — sin stock','err');svi.value='';return;}const ex=carrito.find(i=>i.productoId===prod.id);if(ex)ex.qty++;else carrito.push({productoId:prod.id,nombre:prod.nombre,codigo:prod.codigo,categoriaId:prod.categoriaId,precio:prod.precio,qty:1});showFeedback('scan-venta-feedback','✓ '+prod.nombre+' agregado','ok');svi.value='';render();}};}
 
-  // CARRITO
   document.querySelectorAll('.carrito-plus').forEach(b=>{b.onclick=()=>{if(carrito[b.dataset.idx])carrito[b.dataset.idx].qty++;render();};});
   document.querySelectorAll('.carrito-minus').forEach(b=>{b.onclick=()=>{const idx=parseInt(b.dataset.idx);if(carrito[idx]){carrito[idx].qty--;if(carrito[idx].qty<=0)carrito.splice(idx,1);}render();};});
   document.querySelectorAll('.carrito-del').forEach(b=>{b.onclick=()=>{carrito.splice(parseInt(b.dataset.idx),1);render();};});
   const vcb=q('vaciar-carrito-btn');if(vcb)vcb.onclick=()=>{carrito=[];render();};
   const cvsb=q('confirmar-venta-scan-btn');if(cvsb)cvsb.onclick=()=>{if(carrito.length>0){modal={type:'confirmar-venta-scan'};render();}};
 
-  // SCAN STOCK
   const ssi=q('scan-stock-input'),ssb=q('scan-stock-btn');
   if(ssi&&ssb){const doScan=()=>{const cod=ssi.value.trim(),qty=parseInt(q('scan-stock-qty')?.value)||1;if(!cod)return;const prod=getProd(cod);if(!prod){showFeedback('scan-stock-feedback','Código no encontrado: '+cod,'err');ssi.value='';return;}prod.stock+=qty;save(data);showFeedback('scan-stock-feedback',`✓ ${prod.nombre}: +${qty} → stock: ${prod.stock}`,'ok');ssi.value='';render();};ssi.onkeydown=e=>{if(e.key==='Enter')doScan();};ssb.onclick=doScan;}
 
@@ -782,13 +765,13 @@ function bindApp(){
 
   const mc=q('modal-cancel');if(mc)mc.onclick=()=>{modal=null;render();};
 
-  // FINANCIERA BINDINGS
   const ncred=q('nuevo-credito-btn');if(ncred)ncred.onclick=()=>{modal={type:'nuevo-credito'};render();};
   document.querySelectorAll('[data-ver-credito]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.verCredito);modal={type:'ver-credito',credito:c};render();};});
   document.querySelectorAll('[data-cobrar-credito]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.cobrarCredito);modal={type:'cobrar-credito',credito:c};render();};});
   document.querySelectorAll('[data-pagare]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagare);modal={type:'pagare',credito:c};render();};});
   document.querySelectorAll('[data-comp-entrega]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.compEntrega);modal={type:'comp-entrega',credito:c};render();};});
-  document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagarCuota);const q=c.cuotas.find(x=>x.nro==b.dataset.nro);if(q){q.pagada=true;q.fechaPago=new Date().toISOString().split('T')[0];if(c.cuotas.every(x=>x.pagada))c.estado='cancelado';save(data);modal={type:'ver-credito',credito:c};render();}};});
+  document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagarCuota);const cuota=c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=true;cuota.fechaPago=new Date().toISOString().split('T')[0];if(c.cuotas.every(x=>x.pagada))c.estado='cancelado';save(data);modal={type:'ver-credito',credito:c};render();}};});
+
   const msc2=q('modal-save-credito');
   if(msc2)msc2.onclick=()=>{
     const nombre=q('c-nombre').value.trim(),dni=q('c-dni').value.trim(),tel=q('c-tel').value.trim(),domicilio=q('c-domicilio').value.trim(),referencia=q('c-referencia').value.trim(),producto=q('c-producto').value.trim(),fecha=q('c-fecha').value,entrega=parseFloat(q('c-entrega').value)||0,nCuotas=parseInt(q('c-ncuotas').value)||0,montoCuota=parseFloat(q('c-monto-cuota').value)||0,diaCobro=q('c-dia-cobro').value,vendedorId=q('c-vendedor').value?parseInt(q('c-vendedor').value):null;
@@ -808,7 +791,6 @@ function bindApp(){
     save(data);modal={type:'comp-cuota',credito:c,cuota:cuota};render();
   };
 
-  // MODAL SAVES
   const msu=q('modal-save-user');
   if(msu)msu.onclick=()=>{
     const name=q('m-uname').value.trim(),email=q('m-uemail').value.trim(),role=q('m-urole').value,vendId=q('m-uvendedor').value?parseInt(q('m-uvendedor').value):null;
@@ -819,16 +801,12 @@ function bindApp(){
   };
   const msp2=q('modal-save-pass');
   if(msp2)msp2.onclick=()=>{
-    const u=data.users.find(x=>x.id===modal.user.id);
-    const isMe=u.id===currentUser.id;
-    const nueva=q('m-pass-nueva').value,rep=q('m-pass-rep').value;
-    const err=q('pass-err');
+    const u=data.users.find(x=>x.id===modal.user.id);const isMe=u.id===currentUser.id;
+    const nueva=q('m-pass-nueva').value,rep=q('m-pass-rep').value;const err=q('pass-err');
     if(isMe){const actual=q('m-pass-actual').value;if(actual!==u.password){err.textContent='La contraseña actual es incorrecta';err.style.display='block';return;}}
     if(!nueva){err.textContent='Ingresá una contraseña';err.style.display='block';return;}
     if(nueva!==rep){err.textContent='Las contraseñas no coinciden';err.style.display='block';return;}
-    u.password=nueva;if(isMe)currentUser.password=nueva;
-    save(data);modal=null;render();
-    alert('Contraseña actualizada correctamente');
+    u.password=nueva;if(isMe)currentUser.password=nueva;save(data);modal=null;render();alert('Contraseña actualizada correctamente');
   };
   const msvs=q('modal-save-venta-scan');
   if(msvs)msvs.onclick=()=>{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'';data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:q('m-cliente').value,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];save(data);modal=null;render();};
@@ -846,20 +824,17 @@ function bindApp(){
   const mpsel=q('m-prod');if(mpsel){mpsel.onchange=()=>{const p=data.productos.find(x=>x.id===parseInt(mpsel.value));if(p)q('m-precio').value=p.precio;actualizarComPreview();};const mvs=q('m-vendedor');if(mvs)mvs.onchange=actualizarComPreview;const mqt=q('m-qty');if(mqt)mqt.oninput=actualizarComPreview;const mpr=q('m-precio');if(mpr)mpr.oninput=actualizarComPreview;actualizarComPreview();}
 }
 
-
-// ============ FINANCIERA SEMANAL ============
-
+// ============ FINANCIERA ============
 function renderFinanciera(){
   if(!data.creditos)data.creditos=[];
   const hoy=new Date();
   const vencidos=data.creditos.filter(c=>c.estado!='cancelado'&&c.cuotas.some(q=>!q.pagada&&new Date(q.fecha)<hoy));
-  const alDia=data.creditos.filter(c=>c.estado!='cancelado'&&!c.cuotas.some(q=>!q.pagada&&new Date(q.fecha)<hoy));
   const totalCartera=data.creditos.filter(c=>c.estado!='cancelado').reduce((s,c)=>s+c.cuotas.filter(q=>!q.pagada).reduce((a,q)=>a+q.monto,0),0);
   const totalVencido=data.creditos.filter(c=>c.estado!='cancelado').reduce((s,c)=>s+c.cuotas.filter(q=>!q.pagada&&new Date(q.fecha)<hoy).reduce((a,q)=>a+q.monto,0),0);
   return`<div>
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">Financiera Nickel — Créditos Semanales</span>
-      ${currentUser.role==='admin'||currentUser.role==='vendedor'?'<button class="btn primary" id="nuevo-credito-btn">+ Nuevo crédito</button>':''}
+      <button class="btn primary" id="nuevo-credito-btn">+ Nuevo crédito</button>
     </div>
     <div class="metrics">
       <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">📋</div><div class="metric-label">Créditos activos</div><div class="metric-value">${data.creditos.filter(c=>c.estado!='cancelado').length}</div></div>
@@ -918,7 +893,6 @@ function renderFinanciera(){
 }
 
 function renderModalNuevoCredito(){
-  const INP='background:#0f172a;width:100%;padding:7px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:#f1f5f9;font-size:12px';
   const hoy=new Date().toISOString().split('T')[0];
   return`<div class="modal-title">Nuevo Crédito Semanal</div>
     <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;background:rgba(30,143,207,0.08);padding:8px 10px;border-radius:7px;">Completá todos los datos del cliente y el producto financiado</div>
@@ -956,7 +930,7 @@ function renderModalNuevoCredito(){
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-credito">Guardar y generar pagaré</button></div>`;
 }
 
-function calcCreditoPreview(){
+window.calcCreditoPreview=function(){
   const entrega=parseFloat(document.getElementById('c-entrega')?.value)||0;
   const n=parseInt(document.getElementById('c-ncuotas')?.value)||0;
   const mc=parseFloat(document.getElementById('c-monto-cuota')?.value)||0;
@@ -967,26 +941,19 @@ function calcCreditoPreview(){
     document.getElementById('prev-entrega').textContent='$'+entrega.toLocaleString('es-AR');
     document.getElementById('prev-cuotas').textContent='$'+(n*mc).toLocaleString('es-AR')+' ('+n+' x $'+mc.toLocaleString('es-AR')+')';
   }
-}
+};
 
-function generarCuotasSemanales(fechaInicio, nCuotas, montoCuota, diaCobro){
+function generarCuotasSemanales(fechaInicio,nCuotas,montoCuota,diaCobro){
   const cuotas=[];
   let fecha=new Date(fechaInicio+'T12:00:00');
   fecha.setDate(fecha.getDate()+7);
-  // ajustar al día de cobro elegido
   const diaActual=fecha.getDay();
   const diaCob=parseInt(diaCobro);
   let diff=diaCob-diaActual;
   if(diff<0)diff+=7;
   fecha.setDate(fecha.getDate()+diff);
   for(let i=0;i<nCuotas;i++){
-    cuotas.push({
-      nro:i+1,
-      fecha:fecha.toISOString().split('T')[0],
-      monto:montoCuota,
-      pagada:false,
-      fechaPago:null
-    });
+    cuotas.push({nro:i+1,fecha:fecha.toISOString().split('T')[0],monto:montoCuota,pagada:false,fechaPago:null});
     fecha=new Date(fecha);
     fecha.setDate(fecha.getDate()+7);
   }
@@ -1039,12 +1006,23 @@ function renderModalCobrarCredito(credito){
     <div style="font-size:12px;color:#94a3b8;margin-bottom:12px">${credito.producto} · DNI ${credito.dni}</div>
     ${vencidas.length>0?`<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 12px;font-size:12px;color:#f87171;margin-bottom:12px">⚠️ Tiene ${vencidas.length} cuota${vencidas.length>1?'s':''} vencida${vencidas.length>1?'s':''}</div>`:''}
     <div class="form-row"><label class="form-label">Cuota a cobrar</label>
-      <select id="cc-cuota" style="background:#0f172a;width:100%;padding:7px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:#f1f5f9;font-size:12px">
+      <select id="cc-cuota" style="${INP}">
         ${pendientes.map(q=>`<option value="${q.nro}">Cuota ${q.nro} — ${fd(q.fecha)} — ${fmt(q.monto)}${new Date(q.fecha)<hoy?' ⚠️ VENCIDA':''}</option>`).join('')}
       </select>
     </div>
-    <div class="form-row"><label class="form-label">Fecha de cobro</label><input id="cc-fecha" type="date" value="${new Date().toISOString().split('T')[0]}" style="background:#0f172a;width:100%;padding:7px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:#f1f5f9;font-size:12px"></div>
+    <div class="form-row"><label class="form-label">Fecha de cobro</label><input id="cc-fecha" type="date" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-confirmar-cuota" data-credito-id="${credito.id}">Confirmar cobro</button></div>`;
+}
+
+function numToLetras(n){
+  const u=['','un','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte'];
+  const d=['','','veinti','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+  const c=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+  if(n===100)return'cien';if(n<21)return u[n];
+  if(n<100){const dd=Math.floor(n/10);const uu=n%10;return uu===0?d[dd]:dd===2?'veinti'+u[uu]:d[dd]+' y '+u[uu];}
+  if(n<1000){const cc=Math.floor(n/100);const r=n%100;return r===0?c[cc]:c[cc]+' '+numToLetras(r);}
+  if(n<1000000){const m=Math.floor(n/1000);const r=n%1000;const pm=m===1?'mil':numToLetras(m)+' mil';return r===0?pm:pm+' '+numToLetras(r);}
+  return n.toLocaleString('es-AR');
 }
 
 function renderPagare(credito){
@@ -1053,16 +1031,8 @@ function renderPagare(credito){
   const nroPagare=String(credito.id).padStart(6,'0');
   return`<div style="font-family:Arial,sans-serif;color:#111;background:#fff;padding:0">
     <div style="border-bottom:3px solid #1a3a6b;padding-bottom:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start">
-      <div>
-        <div style="font-size:20px;font-weight:700;color:#1a3a6b">NICKEL</div>
-        <div style="font-size:11px;color:#555">Quitilipi, Chaco — Argentina</div>
-        <div style="font-size:10px;color:#888;margin-top:2px">Financiera Nickel — Créditos Semanales</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Pagaré N°</div>
-        <div style="font-size:22px;font-weight:700;color:#1a3a6b">${nroPagare}</div>
-        <div style="font-size:11px;color:#666">Fecha: ${fechaHoy}</div>
-      </div>
+      <div><div style="font-size:20px;font-weight:700;color:#1a3a6b">NICKEL</div><div style="font-size:11px;color:#555">Quitilipi, Chaco — Argentina</div><div style="font-size:10px;color:#888;margin-top:2px">Financiera Nickel — Créditos Semanales</div></div>
+      <div style="text-align:right"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Pagaré N°</div><div style="font-size:22px;font-weight:700;color:#1a3a6b">${nroPagare}</div><div style="font-size:11px;color:#666">Fecha: ${fechaHoy}</div></div>
     </div>
     <div style="background:#1a3a6b;color:#fff;text-align:center;padding:7px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;border-radius:3px">PAGARÉ — CRÉDITO DE CONSUMO</div>
     <div style="margin-bottom:14px">
@@ -1093,8 +1063,7 @@ function renderPagare(credito){
       <div style="font-size:10px;font-weight:700;color:#1a3a6b;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #dde3f0;padding-bottom:4px;margin-bottom:8px">Calendario de vencimientos</div>
       <table style="width:100%;border-collapse:collapse;font-size:11px">
         <thead><tr style="background:#f0f4fb"><th style="padding:5px 8px;text-align:left;color:#1a3a6b">Cuota</th><th style="padding:5px 8px;text-align:left;color:#1a3a6b">Vencimiento</th><th style="padding:5px 8px;text-align:right;color:#1a3a6b">Monto</th><th style="padding:5px 8px;text-align:center;color:#1a3a6b">Firma/Sello</th></tr></thead>
-        <tbody>${credito.cuotas.map(q=>`<tr style="border-bottom:1px solid #eee"><td style="padding:5px 8px">Cuota ${q.nro}</td><td style="padding:5px 8px">${fd(q.fecha)}</td><td style="padding:5px 8px;text-align:right;font-weight:600">${fmt(q.monto)}</td><td style="padding:5px 8px;text-align:center;width:80px">_____________</td></tr>`).join('')}
-        </tbody>
+        <tbody>${credito.cuotas.map(q=>`<tr style="border-bottom:1px solid #eee"><td style="padding:5px 8px">Cuota ${q.nro}</td><td style="padding:5px 8px">${fd(q.fecha)}</td><td style="padding:5px 8px;text-align:right;font-weight:600">${fmt(q.monto)}</td><td style="padding:5px 8px;text-align:center;width:80px">_____________</td></tr>`).join('')}</tbody>
       </table>
     </div>
     <div style="background:#fff8f0;border:1px solid #f0c070;border-radius:4px;padding:10px 12px;margin-top:14px">
@@ -1114,33 +1083,14 @@ function renderPagare(credito){
   </div>`;
 }
 
-function numToLetras(n){
-  const u=['','un','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte'];
-  const d=['','','veinti','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
-  const c=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
-  if(n===100)return'cien';if(n<21)return u[n];
-  if(n<100){const dd=Math.floor(n/10);const uu=n%10;return uu===0?d[dd]:dd===2?'veinti'+u[uu]:d[dd]+' y '+u[uu];}
-  if(n<1000){const cc=Math.floor(n/100);const r=n%100;return r===0?c[cc]:c[cc]+' '+numToLetras(r);}
-  if(n<1000000){const m=Math.floor(n/1000);const r=n%1000;const pm=m===1?'mil':numToLetras(m)+' mil';return r===0?pm:pm+' '+numToLetras(r);}
-  return n.toLocaleString('es-AR');
-}
-
 function renderComprobanteEntrega(credito){
   const fechaHoy=new Date().toLocaleDateString('es-AR');
   const nro=String(credito.id).padStart(6,'0');
   const totalFinanciado=credito.entrega+credito.cuotas.reduce((s,q)=>s+q.monto,0);
   return`<div style="font-family:Arial,sans-serif;color:#111;background:#fff">
     <div style="border-bottom:3px solid #1a3a6b;padding-bottom:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div style="font-size:20px;font-weight:700;color:#1a3a6b">NICKEL</div>
-        <div style="font-size:11px;color:#555">Quitilipi, Chaco — Argentina</div>
-        <div style="font-size:10px;color:#888">Financiera Nickel — Créditos Semanales</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Comprobante N°</div>
-        <div style="font-size:20px;font-weight:700;color:#1a3a6b">E-${nro}</div>
-        <div style="font-size:11px;color:#666">Fecha: ${fechaHoy}</div>
-      </div>
+      <div><div style="font-size:20px;font-weight:700;color:#1a3a6b">NICKEL</div><div style="font-size:11px;color:#555">Quitilipi, Chaco — Argentina</div><div style="font-size:10px;color:#888">Financiera Nickel — Créditos Semanales</div></div>
+      <div style="text-align:right"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Comprobante N°</div><div style="font-size:20px;font-weight:700;color:#1a3a6b">E-${nro}</div><div style="font-size:11px;color:#666">Fecha: ${fechaHoy}</div></div>
     </div>
     <div style="background:#1a3a6b;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;border-radius:3px">COMPROBANTE DE ENTREGA INICIAL</div>
     <div style="margin-bottom:12px">
@@ -1163,10 +1113,7 @@ function renderComprobanteEntrega(credito){
       </div>
     </div>
     <div style="background:#f0f4fb;border:2px solid #1a3a6b;border-radius:6px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin:12px 0">
-      <div>
-        <div style="font-size:11px;color:#1a3a6b;font-weight:600;text-transform:uppercase;letter-spacing:1px">Monto de entrega abonado</div>
-        <div style="font-size:10px;color:#1a3a6b;margin-top:2px;font-style:italic">${numToLetras(credito.entrega)} pesos</div>
-      </div>
+      <div><div style="font-size:11px;color:#1a3a6b;font-weight:600;text-transform:uppercase;letter-spacing:1px">Monto de entrega abonado</div><div style="font-size:10px;color:#1a3a6b;margin-top:2px;font-style:italic">${numToLetras(credito.entrega)} pesos</div></div>
       <div style="font-size:24px;font-weight:700;color:#1a3a6b">${fmt(credito.entrega)}</div>
     </div>
     <div style="border-top:1px dashed #ccc;margin-top:16px;padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -1177,23 +1124,15 @@ function renderComprobanteEntrega(credito){
   </div>`;
 }
 
-function renderComprobanteCuota(credito, cuota){
+function renderComprobanteCuota(credito,cuota){
   const fechaHoy=new Date().toLocaleDateString('es-AR');
   const nro=String(credito.id).padStart(6,'0');
   const pagadas=credito.cuotas.filter(q=>q.pagada).length;
   const saldo=credito.cuotas.filter(q=>!q.pagada).reduce((s,q)=>s+q.monto,0);
   return`<div style="font-family:Arial,sans-serif;color:#111;background:#fff">
     <div style="border-bottom:3px solid #1a3a6b;padding-bottom:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div style="font-size:20px;font-weight:700;color:#1a3a6b">NICKEL</div>
-        <div style="font-size:11px;color:#555">Quitilipi, Chaco — Argentina</div>
-        <div style="font-size:10px;color:#888">Financiera Nickel — Créditos Semanales</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Comprobante N°</div>
-        <div style="font-size:20px;font-weight:700;color:#1a3a6b">C-${nro}-${String(cuota.nro).padStart(2,'0')}</div>
-        <div style="font-size:11px;color:#666">Fecha de cobro: ${fd(cuota.fechaPago)||fechaHoy}</div>
-      </div>
+      <div><div style="font-size:20px;font-weight:700;color:#1a3a6b">NICKEL</div><div style="font-size:11px;color:#555">Quitilipi, Chaco — Argentina</div><div style="font-size:10px;color:#888">Financiera Nickel — Créditos Semanales</div></div>
+      <div style="text-align:right"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Comprobante N°</div><div style="font-size:20px;font-weight:700;color:#1a3a6b">C-${nro}-${String(cuota.nro).padStart(2,'0')}</div><div style="font-size:11px;color:#666">Fecha de cobro: ${fd(cuota.fechaPago)||fechaHoy}</div></div>
     </div>
     <div style="background:#1a3a6b;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;border-radius:3px">COMPROBANTE DE PAGO DE CUOTA</div>
     <div style="margin-bottom:12px">
@@ -1215,10 +1154,7 @@ function renderComprobanteCuota(credito, cuota){
       </div>
     </div>
     <div style="background:#f0f4fb;border:2px solid #1a3a6b;border-radius:6px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin:12px 0">
-      <div>
-        <div style="font-size:11px;color:#1a3a6b;font-weight:600;text-transform:uppercase;letter-spacing:1px">Monto abonado</div>
-        <div style="font-size:10px;color:#1a3a6b;margin-top:2px;font-style:italic">${numToLetras(cuota.monto)} pesos</div>
-      </div>
+      <div><div style="font-size:11px;color:#1a3a6b;font-weight:600;text-transform:uppercase;letter-spacing:1px">Monto abonado</div><div style="font-size:10px;color:#1a3a6b;margin-top:2px;font-style:italic">${numToLetras(cuota.monto)} pesos</div></div>
       <div style="font-size:24px;font-weight:700;color:#1a3a6b">${fmt(cuota.monto)}</div>
     </div>
     ${saldo===0?`<div style="background:#e6f4ec;border:1px solid #8ecfa8;border-radius:6px;padding:8px 14px;text-align:center;font-size:12px;font-weight:600;color:#1a7a3a;margin-bottom:10px">✓ CRÉDITO TOTALMENTE SALDADO</div>`:''}
@@ -1229,6 +1165,5 @@ function renderComprobanteCuota(credito, cuota){
     <div style="text-align:center;margin-top:10px;font-size:10px;color:#999">Conserve este comprobante — Nickel, Quitilipi, Chaco — ${fechaHoy}</div>
   </div>`;
 }
-
-// render() ahora es llamado por initApp()
 </script>
+</html>
