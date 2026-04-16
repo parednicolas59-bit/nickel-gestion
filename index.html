@@ -89,6 +89,51 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 
 <div id="app"><div id="root"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBtc6hpLaOc7LdxSw7R_uK7b3GcKF3N7As",
+  authDomain: "nickel-gestion.firebaseapp.com",
+  projectId: "nickel-gestion",
+  storageBucket: "nickel-gestion.firebasestorage.app",
+  messagingSenderId: "307668297535",
+  appId: "1:307668297535:web:4843d9590e6fa352ca158a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const DOC_REF = doc(db, "nickel", "data");
+
+window._fbSave = async function(d) {
+  try {
+    await setDoc(DOC_REF, { payload: JSON.stringify(d) });
+  } catch(e) { console.error("Firebase save error:", e); }
+};
+
+window._fbLoad = async function() {
+  try {
+    const snap = await getDoc(DOC_REF);
+    if(snap.exists()) return JSON.parse(snap.data().payload);
+  } catch(e) { console.error("Firebase load error:", e); }
+  return null;
+};
+
+window._fbListen = function(callback) {
+  return onSnapshot(DOC_REF, (snap) => {
+    if(snap.exists()) {
+      try {
+        const d = JSON.parse(snap.data().payload);
+        callback(d);
+      } catch(e) {}
+    }
+  });
+};
+
+window._firebaseReady = true;
+document.dispatchEvent(new Event('firebase-ready'));
+</script>
 <script>
 const SK='nick_v5';
 const mesActual=()=>{const d=new Date();return d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'));};
@@ -126,11 +171,67 @@ const def={
   creditos:[],
   nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:5,cierre:1,user:5,credito:1}
 };
-function load(){try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;return d;}}catch(e){}return JSON.parse(JSON.stringify(def));}
-function save(d){try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}}
+function load(){
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;return d;}}catch(e){}
+  return JSON.parse(JSON.stringify(def));
+}
+async function loadFromFirebase(){
+  if(window._fbLoad){
+    const d=await window._fbLoad();
+    if(d){
+      if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));
+      if(!d.creditos)d.creditos=[];
+      if(!d.nextId.credito)d.nextId.credito=1;
+      try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
+      return d;
+    }
+  }
+  return load();
+}
+function save(d){
+  try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
+  if(window._firebaseReady && window._fbSave) window._fbSave(d);
+}
 
 let data=load(),currentUser=null,tab='dashboard',modal=null,carrito=[];
 let scanFeedbackTimer=null;
+let _fbUnsubscribe=null;
+let _fbInitialized=false;
+
+async function initApp(){
+  // Mostrar pantalla de carga
+  document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando con la nube...</div></div></div>';
+  
+  // Intentar cargar desde Firebase
+  try {
+    const fbData = await loadFromFirebase();
+    if(fbData) data = fbData;
+  } catch(e) { console.log("Usando datos locales"); }
+  
+  _fbInitialized = true;
+  render();
+  
+  // Escuchar cambios en tiempo real (solo si no es el usuario actual quien guarda)
+  if(window._fbListen) {
+    _fbUnsubscribe = window._fbListen((newData) => {
+      if(_fbInitialized && currentUser) {
+        data = newData;
+        if(!data.creditos) data.creditos = [];
+        if(!data.nextId.credito) data.nextId.credito = 1;
+        try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
+        render();
+      }
+    });
+  }
+}
+
+// Arrancar cuando Firebase esté listo o después de 3 segundos (fallback)
+if(window._firebaseReady) {
+  initApp();
+} else {
+  document.addEventListener('firebase-ready', initApp);
+  setTimeout(() => { if(!_fbInitialized) initApp(); }, 3000);
+}
 const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
 const fd=d=>d?d.split('-').reverse().join('/'):'';
 const getCat=id=>data.categorias.find(c=>c.id==id);
@@ -168,7 +269,7 @@ function renderApp(){
   const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','financiera'];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
-      <span class="logo">Nick<span>Gestión</span></span>
+      <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
       <div class="nav-tabs">${tabs.map(t=>`<button class="nav-tab${t===tab?' active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}</div>
       <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span><button class="logout" id="logout-btn">Salir</button></div>
     </div>
@@ -1129,5 +1230,5 @@ function renderComprobanteCuota(credito, cuota){
   </div>`;
 }
 
-render();
+// render() ahora es llamado por initApp()
 </script>
