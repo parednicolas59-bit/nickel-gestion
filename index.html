@@ -844,13 +844,16 @@ function bindApp(){
   document.querySelectorAll('[data-pagare]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagare);modal={type:'pagare',credito:c};render();};});
   document.querySelectorAll('[data-comp-entrega]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.compEntrega);modal={type:'comp-entrega',credito:c};render();};});
   document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagarCuota);const cuota=c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=true;cuota.fechaPago=new Date().toISOString().split('T')[0];if(c.cuotas.every(x=>x.pagada))c.estado='cancelado';save(data);modal={type:'ver-credito',credito:c};render();}};});
+  document.querySelectorAll('[data-del-credito]').forEach(b=>{b.onclick=()=>{if(currentUser.role!=='admin'){alert('Solo el administrador puede eliminar créditos.');return;}if(confirm('¿Eliminar este crédito permanentemente?')){data.creditos=data.creditos.filter(c=>c.id!=b.dataset.delCredito);save(data);modal=null;render();}};});
+  document.querySelectorAll('[data-anular-cuota]').forEach(b=>{b.onclick=()=>{if(currentUser.role!=='admin'){alert('Solo el administrador puede anular pagos.');return;}if(confirm('¿Anular este pago? La cuota volverá a estado pendiente.')){const c=data.creditos.find(x=>x.id==b.dataset.anularCuota);const cuota=c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=false;cuota.fechaPago=null;if(c.estado==='cancelado')c.estado='activo';save(data);modal={type:'ver-credito',credito:c};render();}}};});
 
   const msc2=q('modal-save-credito');
   if(msc2)msc2.onclick=()=>{
-    const nombre=q('c-nombre').value.trim(),dni=q('c-dni').value.trim(),tel=q('c-tel').value.trim(),domicilio=q('c-domicilio').value.trim(),referencia=q('c-referencia').value.trim(),producto=q('c-producto').value.trim(),fecha=q('c-fecha').value,entrega=parseFloat(q('c-entrega').value)||0,nCuotas=parseInt(q('c-ncuotas').value)||0,montoCuota=parseFloat(q('c-monto-cuota').value)||0,diaCobro=q('c-dia-cobro').value,vendedorId=q('c-vendedor').value?parseInt(q('c-vendedor').value):null;
-    if(!nombre||!dni||!tel||!producto||!entrega||!nCuotas||!montoCuota){alert('Completá todos los campos obligatorios');return;}
+    const nombre=q('c-nombre').value.trim(),dni=q('c-dni').value.trim(),tel=q('c-tel').value.trim(),domicilio=q('c-domicilio').value.trim(),referencia=q('c-referencia').value.trim(),producto=q('c-producto').value.trim(),fecha=q('c-fecha').value,entrega=parseFloat(q('c-entrega').value)||0,nCuotas=parseInt(q('c-ncuotas').value)||0,montoCuota=parseFloat(q('c-monto-cuota').value)||0,diaCobro=q('c-dia-cobro').value,vendedorId=q('c-vendedor').value?parseInt(q('c-vendedor').value):null,precioContado=parseFloat(q('c-precio-contado')?.value)||0;
+    if(!nombre||!dni||!tel||!producto||!precioContado||!entrega||!nCuotas||!montoCuota){alert('Completá todos los campos obligatorios. Asegurate de seleccionar cantidad de cuotas.');return;}
     const cuotas=generarCuotasSemanales(fecha,nCuotas,montoCuota,diaCobro);
-    const credito={id:data.nextId.credito++,cliente:nombre,dni,telefono:tel,domicilio,referencia,producto,fecha,entrega,cuotas,vendedorId,estado:'activo'};
+    const RECARGOS={3:0.15,4:0.25,6:0.31,8:0.35};const pctRecargo=RECARGOS[nCuotas]||0;
+    const credito={id:data.nextId.credito++,cliente:nombre,dni,telefono:tel,domicilio,referencia,producto,fecha,precioContado,entrega,cuotas,vendedorId,estado:'activo',pctRecargo};
     if(!data.creditos)data.creditos=[];
     data.creditos.unshift(credito);
     save(data);modal={type:'comp-entrega',credito:credito};render();
@@ -935,7 +938,7 @@ function renderFinanciera(){
           <td><div class="actions-cell">
             <button class="btn" style="font-size:11px;padding:3px 8px" data-ver-credito="${c.id}">Ver</button>
             <button class="btn success" style="font-size:11px;padding:3px 8px" data-cobrar-credito="${c.id}">Cobrar</button>
-            <button class="btn" style="font-size:11px;padding:3px 8px;background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);color:#4ade80" data-pagare="${c.id}">Pagaré</button>
+            <button class="btn" style="font-size:11px;padding:3px 8px;background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);color:#4ade80" data-pagare="${c.id}">Pagaré</button>${currentUser.role==='admin'?`<button class="btn danger" style="font-size:11px;padding:3px 8px" data-del-credito="${c.id}">Eliminar</button>`:''}
           </div></td>
         </tr>`;}).join('')}
       </tbody></table>
@@ -973,7 +976,7 @@ function renderFinanciera(){
 
 function renderModalNuevoCredito(){
   const hoy=new Date().toISOString().split('T')[0];
-  return`<div class="modal-title">Nuevo Crédito Semanal</div>
+  return`<div class="modal-title">Nuevo Crédito Nickel</div>
     <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;background:rgba(30,143,207,0.08);padding:8px 10px;border-radius:7px;">Completá todos los datos del cliente y el producto financiado</div>
     <div style="font-size:12px;font-weight:500;color:#38bdf8;margin-bottom:8px;">Datos del cliente</div>
     <div class="two-col">
@@ -991,35 +994,76 @@ function renderModalNuevoCredito(){
       <div class="form-row"><label class="form-label">Fecha del crédito</label><input id="c-fecha" type="date" value="${hoy}" style="${INP}"></div>
       <div class="form-row"><label class="form-label">Vendedor</label><select id="c-vendedor" style="${INP}"><option value="">— Seleccionar —</option>${data.vendedores.map(v=>`<option value="${v.id}">${v.nombre}</option>`).join('')}</select></div>
     </div>
+
+    <div style="font-size:12px;font-weight:500;color:#38bdf8;margin:12px 0 8px;">Cálculo de financiación</div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Entrega inicial ($) *</label><input id="c-entrega" type="number" style="${INP}" placeholder="45000" oninput="calcCreditoPreview()"></div>
-      <div class="form-row"><label class="form-label">Cantidad de cuotas *</label><input id="c-ncuotas" type="number" style="${INP}" placeholder="7" min="1" max="52" oninput="calcCreditoPreview()"></div>
+      <div class="form-row"><label class="form-label">Precio de contado ($) *</label><input id="c-precio-contado" type="number" style="${INP}" placeholder="500000" oninput="calcCreditoNuevo()"></div>
+      <div class="form-row"><label class="form-label">Entrega del cliente ($) *</label><input id="c-entrega" type="number" style="${INP}" placeholder="100000" oninput="calcCreditoNuevo()"></div>
     </div>
-    <div class="two-col">
-      <div class="form-row"><label class="form-label">Monto por cuota ($) *</label><input id="c-monto-cuota" type="number" style="${INP}" placeholder="34500" oninput="calcCreditoPreview()"></div>
-      <div class="form-row"><label class="form-label">Día de cobro semanal</label><select id="c-dia-cobro" style="${INP}"><option value="0">Domingo</option><option value="1">Lunes</option><option value="2" selected>Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option></select></div>
+    <div class="form-row"><label class="form-label">Cantidad de cuotas *</label>
+      <select id="c-ncuotas" style="${INP}" onchange="calcCreditoNuevo()">
+        <option value="">— Seleccioná —</option>
+        <option value="3">3 cuotas (15% recargo)</option>
+        <option value="4">4 cuotas (25% recargo)</option>
+        <option value="6">6 cuotas (31% recargo)</option>
+        <option value="8">8 cuotas (35% recargo)</option>
+      </select>
     </div>
-    <div id="credito-preview" style="background:rgba(30,143,207,0.08);border:1px solid rgba(30,143,207,0.2);border-radius:8px;padding:10px 14px;margin:10px 0;font-size:12px;display:none">
-      <div style="display:flex;gap:20px;flex-wrap:wrap">
-        <div><span style="color:#94a3b8">Total financiado:</span> <span id="prev-total" style="font-weight:500;color:#fff"></span></div>
-        <div><span style="color:#94a3b8">Entrega:</span> <span id="prev-entrega" style="color:#4ade80;font-weight:500"></span></div>
-        <div><span style="color:#94a3b8">En cuotas:</span> <span id="prev-cuotas" style="color:#fbbf24;font-weight:500"></span></div>
+
+    <div id="credito-calc" style="display:none;background:rgba(30,143,207,0.08);border:1px solid rgba(30,143,207,0.25);border-radius:10px;padding:14px;margin:10px 0">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;margin-bottom:3px">Saldo a financiar</div>
+          <div id="calc-saldo" style="font-size:16px;font-weight:600;color:#38bdf8"></div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;margin-bottom:3px">Recargo aplicado</div>
+          <div id="calc-recargo" style="font-size:16px;font-weight:600;color:#f59e0b"></div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;margin-bottom:3px">Total con recargo</div>
+          <div id="calc-total-recargo" style="font-size:16px;font-weight:600;color:#fff"></div>
+        </div>
       </div>
+      <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;color:#94a3b8">Monto por cuota</div>
+          <div id="calc-cuota-letras" style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px"></div>
+        </div>
+        <div id="calc-cuota" style="font-size:22px;font-weight:700;color:#4ade80"></div>
+      </div>
+    </div>
+
+    <input type="hidden" id="c-monto-cuota" value="0">
+    <div class="two-col">
+      <div class="form-row"><label class="form-label">Día de cobro semanal</label><select id="c-dia-cobro" style="${INP}"><option value="0">Domingo</option><option value="1">Lunes</option><option value="2" selected>Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option></select></div>
     </div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-credito">Guardar y generar pagaré</button></div>`;
 }
 
-window.calcCreditoPreview=function(){
+window.calcCreditoPreview=function(){};
+window.calcCreditoNuevo=function(){
+  const RECARGOS={3:0.15,4:0.25,6:0.31,8:0.35};
+  const contado=parseFloat(document.getElementById('c-precio-contado')?.value)||0;
   const entrega=parseFloat(document.getElementById('c-entrega')?.value)||0;
   const n=parseInt(document.getElementById('c-ncuotas')?.value)||0;
-  const mc=parseFloat(document.getElementById('c-monto-cuota')?.value)||0;
-  if(entrega>0&&n>0&&mc>0){
-    const total=entrega+(n*mc);
-    document.getElementById('credito-preview').style.display='block';
-    document.getElementById('prev-total').textContent='$'+total.toLocaleString('es-AR');
-    document.getElementById('prev-entrega').textContent='$'+entrega.toLocaleString('es-AR');
-    document.getElementById('prev-cuotas').textContent='$'+(n*mc).toLocaleString('es-AR')+' ('+n+' x $'+mc.toLocaleString('es-AR')+')';
-  }
+  const calc=document.getElementById('credito-calc');
+  if(!calc)return;
+  if(!contado||!n||!(n in RECARGOS)){calc.style.display='none';return;}
+  const saldo=Math.max(0,contado-entrega);
+  const pct=RECARGOS[n];
+  const totalConRecargo=Math.round(saldo*(1+pct));
+  const montoCuota=Math.round(totalConRecargo/n);
+  // Guardar en hidden input
+  const hiddenMC=document.getElementById('c-monto-cuota');
+  if(hiddenMC)hiddenMC.value=montoCuota;
+  // Mostrar calc
+  calc.style.display='block';
+  document.getElementById('calc-saldo').textContent='$'+saldo.toLocaleString('es-AR');
+  document.getElementById('calc-recargo').textContent=(pct*100)+'%';
+  document.getElementById('calc-total-recargo').textContent='$'+totalConRecargo.toLocaleString('es-AR');
+  document.getElementById('calc-cuota').textContent='$'+montoCuota.toLocaleString('es-AR');
+  document.getElementById('calc-cuota-letras').textContent=numToLetras(montoCuota)+' pesos';
 };
 
 function generarCuotasSemanales(fechaInicio,nCuotas,montoCuota,diaCobro){
@@ -1066,7 +1110,7 @@ function renderModalVerCredito(credito){
           <td>${fd(q.fecha)}</td>
           <td>${fmt(q.monto)}</td>
           <td>${q.pagada?`<span class="badge cobrado">Pagada ${fd(q.fechaPago)}</span>`:vencida?'<span class="badge cancelado">Vencida</span>':'<span class="badge pendiente">Pendiente</span>'}</td>
-          <td>${!q.pagada?`<button class="btn success" style="font-size:11px;padding:2px 8px" data-pagar-cuota="${credito.id}" data-nro="${q.nro}">Cobrar</button>`:''}</td>
+          <td>${!q.pagada?`<button class="btn success" style="font-size:11px;padding:2px 8px" data-pagar-cuota="${credito.id}" data-nro="${q.nro}">Cobrar</button>`:(currentUser.role==='admin'?`<button class="btn danger" style="font-size:11px;padding:2px 8px" data-anular-cuota="${credito.id}" data-nro="${q.nro}">Anular</button>`:'')}</td>
         </tr>`;}).join('')}
       </tbody>
     </table>
