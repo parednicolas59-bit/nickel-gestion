@@ -90,8 +90,6 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .login-wrap{display:flex;align-items:center;justify-content:center;min-height:520px;background:var(--dark)}
 .login-card{background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:28px;width:300px}
 .login-logo{font-size:20px;font-weight:500;text-align:center;margin-bottom:20px}.login-logo span{color:var(--blue2)}
-.solo-admin{display:none}
-body.es-admin .solo-admin{display:inline-block}
 @media print{
   .topbar,.nav-tabs,.btn,.actions-cell{display:none!important}
   .modal-bg{position:static;background:none;padding:0}
@@ -208,7 +206,7 @@ function save(d){
   if(window._firebaseReady&&window._fbSave)window._fbSave(d);
 }
 
-let data=load(),currentUser=null,tab='dashboard',modal=null,carrito=[];
+let data=load(),currentUser=null,tab='dashboard',modal=null,carrito=[],filtroCategoria=null;
 let modalProdSeleccionado=null;
 let scanFeedbackTimer=null;
 let _fbUnsubscribe=null;
@@ -261,7 +259,7 @@ function renderLogin(){
   </div></div>`;
 }
 function bindLogin(){
-  const go=()=>{const e=document.getElementById('l-email').value.trim(),p=document.getElementById('l-pass').value;const u=data.users.find(u=>u.email===e&&u.password===p);if(u){currentUser=u;carrito=[];document.body.className=u.role==='admin'?'es-admin':'';render();}else{document.getElementById('l-err').style.display='block';}};
+  const go=()=>{const e=document.getElementById('l-email').value.trim(),p=document.getElementById('l-pass').value;const u=data.users.find(u=>u.email===e&&u.password===p);if(u){currentUser=u;carrito=[];render();}else{document.getElementById('l-err').style.display='block';}};
   document.getElementById('l-btn').onclick=go;
   document.getElementById('l-pass').onkeydown=e=>{if(e.key==='Enter')go();};
 }
@@ -469,8 +467,14 @@ window.limpiarProdModal=function(){
   if(wrap)wrap.innerHTML=renderBuscadorProductoModal();
 }
 function renderProductos(){
+  const catActual = filtroCategoria ? getCat(filtroCategoria) : null;
+  const prodsFiltrados = filtroCategoria ? data.productos.filter(p=>p.categoriaId===filtroCategoria) : data.productos;
   return`<div>
-    <div class="section-header"><span style="font-size:17px;font-weight:500">Productos</span><button class="btn primary" id="nuevo-prod-btn">+ Nuevo producto</button></div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">Productos${catActual?` — <span style="color:${catActual.color}">${catActual.nombre}</span>`:''}</span>
+      ${catActual?`<button class="btn" id="quitar-filtro-cat" style="font-size:11px">✕ Ver todos</button>`:''}
+      <button class="btn primary" id="nuevo-prod-btn">+ Nuevo producto</button>
+    </div>
     <div class="stock-scan-box">
       <div style="font-size:13px;font-weight:500;margin-bottom:8px">🔫 Agregar stock con pistola</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -482,7 +486,7 @@ function renderProductos(){
     </div>
     <div class="card"><table>
       <thead><tr><th>Código de barras</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr></thead>
-      <tbody>${data.productos.map(p=>{const c=getCat(p.categoriaId);return`<tr>
+      <tbody>${prodsFiltrados.length===0?`<tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px">No hay productos en esta categoría</td></tr>`:prodsFiltrados.map(p=>{const c=getCat(p.categoriaId);return`<tr>
         <td style="font-family:var(--font-mono);font-size:11px;color:#64748b">${p.codigo}</td><td>${p.nombre}</td>
         <td>${c?`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${c.color}22;color:${c.color}">${c.nombre}</span>`:'-'}</td>
         <td>${fmt(p.precio)}</td><td><span style="font-weight:500;color:${p.stock<=2?'#f87171':p.stock<=5?'#fbbf24':'#4ade80'}">${p.stock}</span></td>
@@ -556,9 +560,9 @@ function renderCategorias(){
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Categorías</span><button class="btn primary" id="nueva-cat-btn">+ Nueva categoría</button></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
-      ${data.categorias.map(c=>`<div style="background:var(--dark2);border:1px solid var(--border);border-left:3px solid ${c.color};border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between">
+      ${data.categorias.map(c=>`<div onclick="irACategoria(${c.id})" style="background:var(--dark2);border:1px solid var(--border);border-left:3px solid ${c.color};border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='var(--dark2)'">
         <div><div style="font-size:14px;font-weight:500">${c.nombre}</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">${data.productos.filter(p=>p.categoriaId===c.id).length} productos</div></div>
-        <button class="btn danger" data-del-cat="${c.id}" style="font-size:11px;padding:3px 7px">✕</button>
+        <button class="btn danger" data-del-cat="${c.id}" style="font-size:11px;padding:3px 7px" onclick="event.stopPropagation()">✕</button>
       </div>`).join('')}
     </div>
   </div>`;
@@ -798,7 +802,7 @@ function actualizarComPreview(){
 
 function bindApp(){
   const q=id=>document.getElementById(id);
-  q('logout-btn').onclick=()=>{currentUser=null;carrito=[];document.body.className='';render();};
+  q('logout-btn').onclick=()=>{currentUser=null;carrito=[];render();};
   document.addEventListener('click',e=>{if(!e.target.closest('.busq-prod-wrap'))document.querySelectorAll('.busq-prod-lista').forEach(l=>l.style.display='none');});
   document.querySelectorAll('.nav-tab').forEach(b=>{b.onclick=()=>{tab=b.dataset.tab;render();};});
 
@@ -818,6 +822,7 @@ function bindApp(){
   const devb=q('devolucion-btn');if(devb)devb.onclick=()=>{modal={type:'devolucion'};render();};
   const neb=q('nuevo-egreso-btn');if(neb)neb.onclick=()=>{modal={type:'nuevo-egreso'};render();};
   const npb=q('nuevo-prod-btn');if(npb)npb.onclick=()=>{modal={type:'nuevo-prod'};render();};
+  const qfc=q('quitar-filtro-cat');if(qfc)qfc.onclick=()=>{filtroCategoria=null;render();};
   const ncb=q('nuevo-contacto-btn');if(ncb)ncb.onclick=()=>{modal={type:'nuevo-contacto'};render();};
   const nvend=q('nuevo-vend-btn');if(nvend)nvend.onclick=()=>{modal={type:'nuevo-vend'};render();};
   const ncatb=q('nueva-cat-btn');if(ncatb)ncatb.onclick=()=>{modal={type:'nueva-cat'};render();};
@@ -845,14 +850,63 @@ function bindApp(){
   document.querySelectorAll('[data-cobrar-credito]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.cobrarCredito);modal={type:'cobrar-credito',credito:c};render();};});
   document.querySelectorAll('[data-pagare]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagare);modal={type:'pagare',credito:c};render();};});
   document.querySelectorAll('[data-comp-entrega]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.compEntrega);modal={type:'comp-entrega',credito:c};render();};});
+  // Agregar botones eliminar para admin dinámicamente
+  if(currentUser&&currentUser.role==='admin'){
+    // Botón Eliminar crédito
+    document.querySelectorAll('[data-pagare]').forEach(b=>{
+      const btn=document.createElement('button');
+      btn.className='btn danger';
+      btn.style.cssText='font-size:11px;padding:3px 8px;margin-left:4px';
+      btn.textContent='Eliminar';
+      btn.dataset.delCredito=b.dataset.pagare;
+      b.parentNode.insertBefore(btn,b.nextSibling);
+    });
+    document.querySelectorAll('[data-del-credito]').forEach(b=>{
+      b.onclick=()=>{
+        if(!confirm('¿Eliminar este crédito permanentemente?'))return;
+        data.creditos=data.creditos.filter(c=>c.id!=b.dataset.delCredito);
+        save(data);modal=null;render();
+      };
+    });
+    // Botón Anular cuota pagada (en modal ver-credito)
+    document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{
+      const tr=b.closest('tr');if(!tr)return;
+      const td=b.parentNode;
+      const btnA=document.createElement('button');
+      btnA.className='btn danger';
+      btnA.style.cssText='font-size:11px;padding:2px 8px;margin-left:4px;display:none';
+      btnA.textContent='Anular';
+      btnA.dataset.anularCuota=b.dataset.pagarCuota;
+      btnA.dataset.nro=b.dataset.nro;
+      td.appendChild(btnA);
+    });
+    // Mostrar botón Anular en cuotas ya pagadas
+    document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{
+      const tr=b.closest('tr');if(!tr)return;
+      const estado=tr.querySelector('.badge');
+      if(estado&&estado.classList.contains('cobrado')){
+        b.style.display='none';
+        const anularBtn=tr.querySelector('[data-anular-cuota]');
+        if(anularBtn)anularBtn.style.display='inline-block';
+      }
+    });
+    document.querySelectorAll('[data-anular-cuota]').forEach(b=>{
+      b.onclick=()=>{
+        if(!confirm('¿Anular este pago? La cuota volverá a pendiente.'))return;
+        const c=data.creditos.find(x=>x.id==b.dataset.anularCuota);
+        const q=c&&c.cuotas.find(x=>x.nro==b.dataset.nro);
+        if(q){q.pagada=false;q.fechaPago=null;if(c.estado==='cancelado')c.estado='activo';save(data);modal={type:'ver-credito',credito:c};render();}
+      };
+    });
+  }
   document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagarCuota);const cuota=c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=true;cuota.fechaPago=new Date().toISOString().split('T')[0];if(c.cuotas.every(x=>x.pagada))c.estado='cancelado';save(data);modal={type:'ver-credito',credito:c};render();}};});
   document.querySelectorAll('[data-del-credito]').forEach(b=>{b.onclick=()=>{if(!confirm('¿Eliminar este crédito?'))return;data.creditos=data.creditos.filter(c=>c.id!=b.dataset.delCredito);save(data);modal=null;render();};});
-  document.querySelectorAll('[data-anular-cuota]').forEach(b=>{b.onclick=()=>{if(!confirm('¿Anular este pago? La cuota volverá a pendiente.'))return;const c=data.creditos.find(x=>x.id==b.dataset.anularCuota);const cuota=c&&c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=false;cuota.fechaPago=null;if(c.estado==='cancelado')c.estado='activo';save(data);modal={type:'ver-credito',credito:c};render();}};});
+  document.querySelectorAll('[data-anular-cuota]').forEach(b=>{b.onclick=()=>{if(!confirm('¿Anular este pago?'))return;const c=data.creditos.find(x=>x.id==b.dataset.anularCuota);const q=c&&c.cuotas.find(x=>x.nro==b.dataset.nro);if(q){q.pagada=false;q.fechaPago=null;if(c.estado==='cancelado')c.estado='activo';save(data);modal={type:'ver-credito',credito:c};render();}};});
 
   const msc2=q('modal-save-credito');
   if(msc2)msc2.onclick=()=>{
     const nombre=q('c-nombre').value.trim(),dni=q('c-dni').value.trim(),tel=q('c-tel').value.trim(),domicilio=q('c-domicilio').value.trim(),referencia=q('c-referencia').value.trim(),producto=q('c-producto').value.trim(),fecha=q('c-fecha').value,entrega=parseFloat(q('c-entrega').value)||0,nCuotas=parseInt(q('c-ncuotas').value)||0,montoCuota=parseFloat(q('c-monto-cuota').value)||0,diaCobro=q('c-dia-cobro').value,vendedorId=q('c-vendedor').value?parseInt(q('c-vendedor').value):null,precioContado=parseFloat(q('c-precio-contado')?.value)||0;
-    if(!nombre||!dni||!tel||!producto||!precioContado||!nCuotas||!montoCuota){alert('Completá todos los campos. Asegurate de seleccionar cantidad de cuotas.');return;}
+    if(!nombre||!dni||!tel||!producto||!precioContado||!nCuotas||!montoCuota){alert('Completá todos los campos. Asegurate de seleccionar cuotas.');return;}
     const cuotas=generarCuotasSemanales(fecha,nCuotas,montoCuota,diaCobro);
     const credito={id:data.nextId.credito++,cliente:nombre,dni,telefono:tel,domicilio,referencia,producto,fecha,entrega,cuotas,vendedorId,estado:'activo'};
     if(!data.creditos)data.creditos=[];
@@ -907,6 +961,8 @@ function bindApp(){
   const mvs=q('m-vendedor');if(mvs)mvs.onchange=actualizarComPreview;
 }
 
+window.irACategoria=function(catId){filtroCategoria=catId;tab='productos';render();}
+
 // ============ FINANCIERA ============
 function renderFinanciera(){
   if(!data.creditos)data.creditos=[];
@@ -925,6 +981,55 @@ function renderFinanciera(){
       <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">⚠️</div><div class="metric-label">Vencido</div><div class="metric-value" style="color:#ef4444">${fmt(totalVencido)}</div></div>
       <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">🔴</div><div class="metric-label">En mora</div><div class="metric-value" style="color:#f59e0b">${vencidos.length}</div></div>
     </div>
+    <!-- RESUMEN MENSUAL -->
+    <div class="card">
+      <div class="card-title">📅 Resumen mensual</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+        ${(()=>{
+          const meses={};
+          data.creditos.forEach(c=>{
+            if(c.fecha){
+              const m=c.fecha.substring(0,7);
+              if(!meses[m])meses[m]={otorgado:0,cobrado:0};
+              const total=c.entrega+(c.cuotas?c.cuotas.reduce((s,q)=>s+q.monto,0):0);
+              meses[m].otorgado+=total;
+            }
+            if(c.cuotas)c.cuotas.forEach(q=>{
+              if(q.pagada&&q.fechaPago){
+                const m=q.fechaPago.substring(0,7);
+                if(!meses[m])meses[m]={otorgado:0,cobrado:0};
+                meses[m].cobrado+=q.monto;
+              }
+            });
+            if(c.fecha&&c.entrega){
+              const m=c.fecha.substring(0,7);
+              if(!meses[m])meses[m]={otorgado:0,cobrado:0};
+              meses[m].cobrado+=c.entrega;
+            }
+          });
+          const sorted=Object.keys(meses).sort((a,b)=>b.localeCompare(a)).slice(0,6);
+          if(!sorted.length)return'<div style="color:#64748b;font-size:13px">Sin datos aún</div>';
+          const nombres=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+          return sorted.map(m=>{
+            const [y,mo]=m.split('-');
+            const label=nombres[parseInt(mo)]+' '+y;
+            const d=meses[m];
+            return`<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:12px 14px;border:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:500;color:#94a3b8;margin-bottom:8px">${label}</div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="font-size:11px;color:#64748b">Créditos otorgados</span>
+                <span style="font-size:12px;font-weight:500;color:#38bdf8">${fmt(d.otorgado)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:11px;color:#64748b">Cobrado</span>
+                <span style="font-size:12px;font-weight:500;color:#4ade80">${fmt(d.cobrado)}</span>
+              </div>
+            </div>`;
+          }).join('');
+        })()}
+      </div>
+    </div>
+
     ${vencidos.length>0?`<div class="card" style="border-color:rgba(239,68,68,0.3)">
       <div class="card-title" style="color:#f87171">⚠️ Clientes en mora (${vencidos.length})</div>
       <table><thead><tr><th>Cliente</th><th>DNI</th><th>Teléfono</th><th>Referencia</th><th>Producto</th><th>Cuotas vencidas</th><th>Monto vencido</th><th></th></tr></thead>
@@ -939,7 +1044,7 @@ function renderFinanciera(){
           <td><div class="actions-cell">
             <button class="btn" style="font-size:11px;padding:3px 8px" data-ver-credito="${c.id}">Ver</button>
             <button class="btn success" style="font-size:11px;padding:3px 8px" data-cobrar-credito="${c.id}">Cobrar</button>
-            <button class="btn" style="font-size:11px;padding:3px 8px;background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);color:#4ade80" data-pagare="${c.id}">Pagaré</button><button class="btn danger solo-admin" style="font-size:11px;padding:3px 8px" data-del-credito="${c.id}">Eliminar</button>
+            <button class="btn" style="font-size:11px;padding:3px 8px;background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);color:#4ade80" data-pagare="${c.id}">Pagaré</button>
           </div></td>
         </tr>`;}).join('')}
       </tbody></table>
@@ -978,7 +1083,7 @@ function renderFinanciera(){
 function renderModalNuevoCredito(){
   const hoy=new Date().toISOString().split('T')[0];
   return`<div class="modal-title">Nuevo Crédito Nickel</div>
-    <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;background:rgba(30,143,207,0.08);padding:8px 10px;border-radius:7px;">Completá todos los datos del cliente y el producto financiado</div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;background:rgba(30,143,207,0.08);padding:8px 10px;border-radius:7px;">Completá los datos del cliente y el producto</div>
     <div style="font-size:12px;font-weight:500;color:#38bdf8;margin-bottom:8px;">Datos del cliente</div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Nombre y apellido *</label><input id="c-nombre" style="${INP}" placeholder="Juan Pérez"></div>
@@ -988,19 +1093,18 @@ function renderModalNuevoCredito(){
       <div class="form-row"><label class="form-label">Teléfono *</label><input id="c-tel" style="${INP}" placeholder="3624000000"></div>
       <div class="form-row"><label class="form-label">Domicilio *</label><input id="c-domicilio" style="${INP}" placeholder="Av. San Martín 123"></div>
     </div>
-    <div class="form-row"><label class="form-label">Referencia (nombre y teléfono) *</label><input id="c-referencia" style="${INP}" placeholder="María Pérez — 3624111222"></div>
-    <div style="font-size:12px;font-weight:500;color:#38bdf8;margin:12px 0 8px;">Datos del crédito</div>
-    <div class="form-row"><label class="form-label">Producto financiado *</label><input id="c-producto" style="${INP}" placeholder="Ej: Celular Samsung A15"></div>
+    <div class="form-row"><label class="form-label">Referencia *</label><input id="c-referencia" style="${INP}" placeholder="María Pérez — 3624111222"></div>
+    <div style="font-size:12px;font-weight:500;color:#38bdf8;margin:12px 0 8px;">Producto y financiación</div>
+    <div class="form-row"><label class="form-label">Producto *</label><input id="c-producto" style="${INP}" placeholder="Ej: Celular Samsung A15"></div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Fecha del crédito</label><input id="c-fecha" type="date" value="${hoy}" style="${INP}"></div>
+      <div class="form-row"><label class="form-label">Fecha</label><input id="c-fecha" type="date" value="${hoy}" style="${INP}"></div>
       <div class="form-row"><label class="form-label">Vendedor</label><select id="c-vendedor" style="${INP}"><option value="">— Seleccionar —</option>${data.vendedores.map(v=>`<option value="${v.id}">${v.nombre}</option>`).join('')}</select></div>
     </div>
-    <div style="font-size:12px;font-weight:500;color:#38bdf8;margin:12px 0 8px;">Cálculo de financiación</div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Precio de contado ($) *</label><input id="c-precio-contado" type="number" style="${INP}" placeholder="500000" oninput="calcCreditoNuevo()"></div>
-      <div class="form-row"><label class="form-label">Entrega del cliente ($) *</label><input id="c-entrega" type="number" style="${INP}" placeholder="100000" oninput="calcCreditoNuevo()"></div>
+      <div class="form-row"><label class="form-label">Precio contado ($) *</label><input id="c-precio-contado" type="number" style="${INP}" placeholder="500000" oninput="calcCreditoNuevo()"></div>
+      <div class="form-row"><label class="form-label">Entrega ($) *</label><input id="c-entrega" type="number" style="${INP}" placeholder="100000" oninput="calcCreditoNuevo()"></div>
     </div>
-    <div class="form-row"><label class="form-label">Cantidad de cuotas *</label>
+    <div class="form-row"><label class="form-label">Cuotas *</label>
       <select id="c-ncuotas" style="${INP}" onchange="calcCreditoNuevo()">
         <option value="">— Seleccioná —</option>
         <option value="3">3 cuotas (15% recargo)</option>
@@ -1013,7 +1117,7 @@ function renderModalNuevoCredito(){
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
         <div style="text-align:center"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;margin-bottom:3px">Saldo a financiar</div><div id="calc-saldo" style="font-size:16px;font-weight:600;color:#38bdf8"></div></div>
         <div style="text-align:center"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;margin-bottom:3px">Recargo</div><div id="calc-recargo" style="font-size:16px;font-weight:600;color:#f59e0b"></div></div>
-        <div style="text-align:center"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;margin-bottom:3px">Total con recargo</div><div id="calc-total-recargo" style="font-size:16px;font-weight:600;color:#fff"></div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;margin-bottom:3px">Total financiado</div><div id="calc-total-recargo" style="font-size:16px;font-weight:600;color:#fff"></div></div>
       </div>
       <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
         <div><div style="font-size:11px;color:#94a3b8">Monto por cuota</div><div id="calc-cuota-letras" style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px"></div></div>
@@ -1024,7 +1128,6 @@ function renderModalNuevoCredito(){
     <div class="form-row"><label class="form-label">Día de cobro semanal</label><select id="c-dia-cobro" style="${INP}"><option value="0">Domingo</option><option value="1">Lunes</option><option value="2" selected>Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option></select></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-credito">Guardar y generar pagaré</button></div>`;
 }
-
 window.calcCreditoPreview=function(){};
 window.calcCreditoNuevo=function(){
   const RECARGOS={3:0.15,4:0.25,6:0.31,8:0.35};
@@ -1038,8 +1141,7 @@ window.calcCreditoNuevo=function(){
   const pct=RECARGOS[n];
   const totalConRecargo=Math.round(saldo*(1+pct));
   const montoCuota=Math.round(totalConRecargo/n);
-  const hiddenMC=document.getElementById('c-monto-cuota');
-  if(hiddenMC)hiddenMC.value=montoCuota;
+  document.getElementById('c-monto-cuota').value=montoCuota;
   calc.style.display='block';
   document.getElementById('calc-saldo').textContent='$'+saldo.toLocaleString('es-AR');
   document.getElementById('calc-recargo').textContent=(pct*100)+'%';
@@ -1047,7 +1149,6 @@ window.calcCreditoNuevo=function(){
   document.getElementById('calc-cuota').textContent='$'+montoCuota.toLocaleString('es-AR');
   document.getElementById('calc-cuota-letras').textContent=numToLetras(montoCuota)+' pesos';
 };
-
 function generarCuotasSemanales(fechaInicio,nCuotas,montoCuota,diaCobro){
   const cuotas=[];
   let fecha=new Date(fechaInicio+'T12:00:00');
@@ -1092,7 +1193,7 @@ function renderModalVerCredito(credito){
           <td>${fd(q.fecha)}</td>
           <td>${fmt(q.monto)}</td>
           <td>${q.pagada?`<span class="badge cobrado">Pagada ${fd(q.fechaPago)}</span>`:vencida?'<span class="badge cancelado">Vencida</span>':'<span class="badge pendiente">Pendiente</span>'}</td>
-          <td>${!q.pagada?`<button class="btn success" style="font-size:11px;padding:2px 8px" data-pagar-cuota="${credito.id}" data-nro="${q.nro}">Cobrar</button>`:`<button class="btn danger solo-admin" style="font-size:11px;padding:2px 8px" data-anular-cuota="${credito.id}" data-nro="${q.nro}">Anular</button>`}</td>
+          <td>${!q.pagada?`<button class="btn success" style="font-size:11px;padding:2px 8px" data-pagar-cuota="${credito.id}" data-nro="${q.nro}">Cobrar</button>`:(currentUser.role==='admin'?`<button class="btn danger" style="font-size:11px;padding:2px 8px" data-anular-cuota="${credito.id}" data-nro="${q.nro}">Anular</button>`:'')}</td>
         </tr>`;}).join('')}
       </tbody>
     </table>
