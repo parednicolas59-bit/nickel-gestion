@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
+<!-- saved from url=(0068)file:///C:/Users/Nicolas%20Pared/Downloads/nickgestion_final_18.html -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NickGestión</title>
 <style>
@@ -113,8 +113,27 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .psb-cambiar{font-size:11px;color:var(--blue3);cursor:pointer;text-decoration:underline;white-space:nowrap;margin-left:8px}
 </style>
 
-<div id="app"><div id="root"></div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head><body><div id="app"><div id="root"><div style="position:relative;min-height:600px">
+    <div class="topbar">
+      <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
+      <div class="nav-tabs"><button class="nav-tab" data-tab="dashboard">Dashboard</button><button class="nav-tab" data-tab="ventas">Ventas</button><button class="nav-tab" data-tab="egresos">Egresos</button><button class="nav-tab" data-tab="productos">Productos</button><button class="nav-tab" data-tab="contactos">Contactos</button><button class="nav-tab" data-tab="vendedores">Vendedores</button><button class="nav-tab" data-tab="categorias">Categorías</button><button class="nav-tab active" data-tab="caja">Caja</button><button class="nav-tab" data-tab="informes">Informes</button><button class="nav-tab" data-tab="financiera">Financiera</button><button class="nav-tab" data-tab="usuarios">Usuarios</button></div>
+      <div class="ub"><span style="color:#fff">Nico</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">admin</span><button class="logout" id="logout-btn">Salir</button></div>
+    </div>
+    <div class="content"><div>
+    <div class="section-header"><span style="font-size:17px;font-weight:500">Caja</span></div>
+    <div class="metrics">
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📈</div><div class="metric-label">Ingresos</div><div class="metric-value" style="color:#4ade80">$0</div></div>
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">📉</div><div class="metric-label">Egresos</div><div class="metric-value" style="color:#f87171">$0</div></div>
+      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">💵</div><div class="metric-label">Saldo</div><div class="metric-value" style="color:#4ade80">$0</div></div>
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">A cobrar</div><div class="metric-value" style="color:#fbbf24">$0</div></div>
+    </div>
+    <div class="card"><div class="card-title">Movimientos</div>
+    <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Monto</th></tr></thead>
+    <tbody></tbody></table></div>
+  </div></div>
+    
+  </div></div></div>
+<script src="./NickGestión_files/chart.umd.min.js.descarga"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -707,8 +726,8 @@ function renderModal(){
     <div class="form-row"><label class="form-label">Nombre</label><input type="text" id="m-pnombre" value="${m.prod?.nombre||''}" style="${INP}"></div>
     <div class="form-row"><label class="form-label">Código de barras</label><input type="text" id="m-pcodigo" value="${m.prod?.codigo||''}" placeholder="Escaneá o escribí el código" style="${INP}"></div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Categoría</label><select id="m-pcat" style="${INP}">${data.categorias.map(c=>`<option value="${c.id}"${m.prod?.categoriaId==c.id?' selected':''}>${c.nombre}</option>`).join('')}</select></div>
-      <div class="form-row"><label class="form-label">Precio</label><input type="number" id="m-pprecio" value="${m.prod?.precio||0}" style="${INP}"></div>
+      <div class="form-row"><label class="form-label">Categoría</label><select id="m-pcat" style="${INP}"><option value="">— Seleccioná una categoría —</option>${data.categorias.map(c=>`<option value="${c.id}"${m.prod?.categoriaId==c.id?' selected':''}>${c.nombre}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Precio</label><input type="text" inputmode="numeric" id="m-pprecio" value="${m.prod?.precio||0}" placeholder="Ej: 30000" style="${INP}"></div>
     </div>
     <div class="form-row"><label class="form-label">Stock</label><input type="number" id="m-pstock" value="${m.prod?.stock||0}" style="${INP}"></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-prod">Guardar</button></div>
@@ -944,14 +963,22 @@ function bindApp(){
   const msv=q('modal-save-venta');
   if(msv)msv.onclick=()=>{
     if(!modalProdSeleccionado){alert('Seleccioná un producto primero.');return;}
-    const prod=modalProdSeleccionado,qty=parseInt(q('m-qty').value)||1,precio=parseFloat(q('m-precio').value)||0,estado=q('m-estado').value,total=qty*precio,cobrado=estado==='cobrado'?total:0,vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,fecha=q('m-fecha').value,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'';
+    const parsePrecio=v=>parseFloat((v||'0').toString().replace(/\./g,'').replace(',','.').replace(/[^\d.]/g,''))||0;
+    const prod=modalProdSeleccionado,qty=parseInt(q('m-qty').value)||1,precio=parsePrecio(q('m-precio').value),estado=q('m-estado').value,total=qty*precio,cobrado=estado==='cobrado'?total:0,vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,fecha=q('m-fecha').value,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'';
     data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente:q('m-cliente').value,vendedorId:vendId,items:[{productoId:prod.id,nombre:prod.nombre,categoriaId:prod.categoriaId,qty,precio}],total,cobrado,estado,factura,nroFactura,notas:q('m-notas').value});
     if(prod)prod.stock=Math.max(0,prod.stock-qty);
     modalProdSeleccionado=null;save(data);modal=null;render();
   };
   const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{const monto=parseFloat(q('m-monto-cobro').value)||0,venta=data.ventas.find(x=>x.id===modal.venta.id);if(venta){venta.cobrado=Math.min(venta.total,venta.cobrado+monto);venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';}save(data);modal=null;render();};
   const mse=q('modal-save-egreso');if(mse)mse.onclick=()=>{data.egresos.unshift({id:data.nextId.egreso++,fecha:q('m-fecha-eg').value,proveedor:q('m-prov').value,concepto:q('m-concepto').value,monto:parseFloat(q('m-monto').value)||0,pagado:q('m-pagado').value==='true'});save(data);modal=null;render();};
-  const msprod=q('modal-save-prod');if(msprod)msprod.onclick=()=>{if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.stock=parseInt(q('m-pstock').value)||0;}else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,stock:parseInt(q('m-pstock').value)||0});}save(data);modal=null;render();};
+  const msprod=q('modal-save-prod');if(msprod)msprod.onclick=()=>{
+    const catVal=parseInt(q('m-pcat').value);
+    if(!catVal){alert('Seleccioná una categoría para el producto.');return;}
+    const parsePrecio=v=>parseFloat((v||'0').toString().replace(/\./g,'').replace(',','.').replace(/[^\d.]/g,''))||0;
+    if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=catVal;p.precio=parsePrecio(q('m-pprecio').value);p.stock=parseInt(q('m-pstock').value)||0;}
+    else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:catVal,precio:parsePrecio(q('m-pprecio').value),stock:parseInt(q('m-pstock').value)||0});}
+    save(data);modal=null;render();
+  };
   const msct=q('modal-save-contacto');if(msct)msct.onclick=()=>{data.contactos.push({id:data.nextId.contacto++,nombre:q('m-cnombre').value,tipo:q('m-ctipo').value,telefono:q('m-ctel').value,email:q('m-cemail').value});save(data);modal=null;render();};
   const msvend=q('modal-save-vend');if(msvend)msvend.onclick=()=>{if(modal.vend){const v=data.vendedores.find(x=>x.id===modal.vend.id);v.nombre=q('m-vnombre').value;v.telefono=q('m-vtel').value;v.sueldo=parseFloat(q('m-vsueldo').value)||0;}else{data.vendedores.push({id:data.nextId.vendedor++,nombre:q('m-vnombre').value,telefono:q('m-vtel').value,sueldo:parseFloat(q('m-vsueldo').value)||0,comisiones:{}});}save(data);modal=null;render();};
   const mscom=q('modal-save-comisiones');if(mscom)mscom.onclick=()=>{const v=data.vendedores.find(x=>x.id===modal.vend.id);if(!v.comisiones)v.comisiones={};data.categorias.forEach(cat=>{v.comisiones[cat.id]=parseFloat(q('com-cat-'+cat.id)?.value)||0;});save(data);modal=null;render();};
@@ -1372,4 +1399,5 @@ function renderComprobanteCuota(credito,cuota){
   </div>`;
 }
 </script>
-</html>
+
+</body></html>
