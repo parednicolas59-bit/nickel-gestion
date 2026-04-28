@@ -176,7 +176,7 @@ const def={
     {id:3,name:'Lionel Molina',email:'lionel@local',password:'1234',role:'vendedor',vendedorId:2},
     {id:4,name:'Cristian Bertoya',email:'cristian@local',password:'1234',role:'vendedor',vendedorId:3},
   ],
-  categorias:[{id:1,nombre:'Electrodomésticos',color:'#1e8fcf'},{id:2,nombre:'Electrónica',color:'#8b5cf6'},{id:3,nombre:'Muebles',color:'#f59e0b'},{id:4,nombre:'Celulares',color:'#22c55e'},{id:5,nombre:'Motos y Bicis',color:'#ef4444'},{id:6,nombre:'Herramientas',color:'#f97316'}],
+  categorias:[{id:1,nombre:'Electrodomésticos',color:'#1e8fcf'},{id:2,nombre:'Electrónica',color:'#8b5cf6'},{id:3,nombre:'Muebles',color:'#f59e0b'},{id:4,nombre:'Celulares',color:'#22c55e'},{id:5,nombre:'Motos y Bicis',color:'#ef4444'},{id:6,nombre:'Herramientas',color:'#f97316'},{id:7,nombre:'Parlantes',color:'#06b6d4'},{id:8,nombre:'Swap Apple',color:'#a3a3a3'},{id:9,nombre:'Niños',color:'#f472b6'},{id:10,nombre:'Perfumería',color:'#c084fc'}],
   vendedores:[
     {id:1,nombre:'Yamila Blanco',telefono:'3644654776',sueldo:800000,comisiones:{1:0,2:0,3:0,4:0,5:0,6:0}},
     {id:2,nombre:'Lionel Molina',telefono:'3644180161',sueldo:350000,comisiones:{1:0,2:0,3:0,4:0,5:0,6:0}},
@@ -201,7 +201,7 @@ const def={
   egresos:[{id:1,fecha:'2026-04-10',proveedor:'Distribuidora Norte',concepto:'Compra stock TVs',monto:450000,pagado:true}],
   cierres:[],
   creditos:[],
-  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1}
+  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:11,cierre:1,user:5,credito:1}
 };
 function load(){
   try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;return d;}}catch(e){}
