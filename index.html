@@ -176,7 +176,7 @@ const def={
     {id:3,name:'Lionel Molina',email:'lionel@local',password:'1234',role:'vendedor',vendedorId:2},
     {id:4,name:'Cristian Bertoya',email:'cristian@local',password:'1234',role:'vendedor',vendedorId:3},
   ],
-  categorias:[{id:1,nombre:'Electrodomésticos',color:'#1e8fcf'},{id:2,nombre:'Electrónica',color:'#8b5cf6'},{id:3,nombre:'Muebles',color:'#f59e0b'},{id:4,nombre:'Celulares',color:'#22c55e'},{id:5,nombre:'Motos y Bicis',color:'#ef4444'},{id:6,nombre:'Herramientas',color:'#f97316'},{id:7,nombre:'Parlantes',color:'#06b6d4'},{id:8,nombre:'Swap Apple',color:'#a3a3a3'},{id:9,nombre:'Niños',color:'#f472b6'},{id:10,nombre:'Perfumería',color:'#c084fc'}],
+  categorias:[{id:1,nombre:'Electrodomésticos',color:'#1e8fcf'},{id:2,nombre:'Electrónica',color:'#8b5cf6'},{id:3,nombre:'Muebles',color:'#f59e0b'},{id:4,nombre:'Celulares',color:'#22c55e'},{id:5,nombre:'Motos y Bicis',color:'#ef4444'},{id:6,nombre:'Herramientas',color:'#f97316'}],
   vendedores:[
     {id:1,nombre:'Yamila Blanco',telefono:'3644654776',sueldo:800000,comisiones:{1:0,2:0,3:0,4:0,5:0,6:0}},
     {id:2,nombre:'Lionel Molina',telefono:'3644180161',sueldo:350000,comisiones:{1:0,2:0,3:0,4:0,5:0,6:0}},
@@ -201,7 +201,7 @@ const def={
   egresos:[{id:1,fecha:'2026-04-10',proveedor:'Distribuidora Norte',concepto:'Compra stock TVs',monto:450000,pagado:true}],
   cierres:[],
   creditos:[],
-  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:11,cierre:1,user:5,credito:1}
+  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1}
 };
 function load(){
   try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;return d;}}catch(e){}
@@ -420,14 +420,16 @@ function renderVentas(){
         </div>`:`<p style="font-size:12px;color:#475569;text-align:center;padding:10px 0">Carrito vacío — escaneá un producto para agregarlo</p>`}
     </div>
     <div class="card"><div class="card-title">Historial</div>
-    <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Items</th><th>Total</th><th>Cobrado</th><th>Comisión</th><th>Estado</th><th>Factura</th><th></th></tr></thead>
-    <tbody>${data.ventas.slice().reverse().map(v=>{const vnd=getVend(v.vendedorId);return`<tr>
+    <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Items</th><th>Total</th><th>Cobrado</th><th>Comisión</th><th>Estado</th>${currentUser.role==='admin'?'<th>Pago</th>':''}<th>Factura</th><th></th></tr></thead>
+    <tbody>${data.ventas.slice().reverse().map(v=>{const vnd=getVend(v.vendedorId);const mp=v.medioPago||'efectivo';return`<tr>
       <td>${fd(v.fecha)}</td><td>${v.cliente}</td><td style="color:#a78bfa">${vnd?vnd.nombre.split(' ')[0]:'-'}</td>
       <td style="color:#94a3b8;font-size:11px">${v.items.map(i=>i.nombre).join(', ')}</td>
       <td>${fmt(v.total)}</td><td>${fmt(v.cobrado)}</td><td style="color:#a78bfa">${fmt(calcCom(v))}</td>
       <td><span class="badge ${v.estado}">${v.estado}</span></td>
+      ${currentUser.role==='admin'?`<td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':'#4ade80'}">${mp==='transferencia'?'🏦 Transf.':'💵 Efectivo'}</span></td>`:''}
       <td>${v.factura&&v.factura!=='sin-factura'?`<span class="badge" style="background:rgba(30,143,207,0.15);color:#38bdf8;font-size:10px">${v.factura==='factura-a'?'F.A':'F.B'}${v.nroFactura?' #'+v.nroFactura:''}</span>`:'<span style="color:#475569;font-size:11px">—</span>'}</td>
       <td><div class="actions-cell">
+        ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button>`:''}
         <button class="btn" data-cobrar="${v.id}" style="font-size:11px;padding:3px 7px">Cobrar</button>
         <button class="btn danger" data-del-venta="${v.id}" style="font-size:11px;padding:3px 6px">✕</button>
       </div></td></tr>`;}).join('')}</tbody></table></div>
@@ -677,7 +679,10 @@ function renderModal(){
       ${carrito.map(i=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span>${i.nombre} x${i.qty}</span><span>${fmt(i.precio*i.qty)}</span></div>`).join('')}
       <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:500;border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Total</span><span style="color:#38bdf8">${fmt(carrito.reduce((s,i)=>s+i.precio*i.qty,0))}</span></div>
     </div>
-    <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
+    <div class="two-col">
+      <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option></select></div>
+    </div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
@@ -698,7 +703,10 @@ function renderModal(){
       <div class="form-row"><label class="form-label">Precio unit.</label><input type="number" id="m-precio" value="${modalProdSeleccionado?.precio||data.productos[0]?.precio||0}" style="${INP}" oninput="actualizarComPreview()"></div>
     </div>
     <div id="m-com-preview" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:7px;padding:8px 10px;font-size:12px;color:#a78bfa;margin-bottom:10px">Seleccioná un vendedor para ver la comisión</div>
-    <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
+    <div class="two-col">
+      <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option></select></div>
+    </div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
@@ -706,6 +714,24 @@ function renderModal(){
     <div class="form-row"><label class="form-label">Notas</label><textarea id="m-notas" style="${INP};height:46px;resize:vertical"></textarea></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-venta">Guardar</button></div>
   </div></div>`;
+  if(m.type==='ver-venta'){const v=m.venta,vnd=getVend(v.vendedorId),mp=v.medioPago||'efectivo';return`<div class="modal-bg"><div class="modal" style="max-width:480px">
+    <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center">Detalle de venta <button class="btn" id="modal-cancel" style="font-size:11px;padding:3px 8px">✕</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:12px">
+      <div style="color:#94a3b8">Fecha</div><div>${fd(v.fecha)}</div>
+      <div style="color:#94a3b8">Cliente</div><div>${v.cliente}</div>
+      <div style="color:#94a3b8">Vendedor</div><div style="color:#a78bfa">${vnd?vnd.nombre:'-'}</div>
+      <div style="color:#94a3b8">Estado</div><div><span class="badge ${v.estado}">${v.estado}</span></div>
+      <div style="color:#94a3b8">Medio de pago</div><div><span style="padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':'#4ade80'};font-size:11px">${mp==='transferencia'?'🏦 Transferencia':'💵 Efectivo'}</span></div>
+      ${v.factura&&v.factura!=='sin-factura'?`<div style="color:#94a3b8">Factura</div><div><span style="font-size:11px;color:#38bdf8">${v.factura==='factura-a'?'Factura A':'Factura B'}${v.nroFactura?' — #'+v.nroFactura:''}</span></div>`:''}
+    </div>
+    <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#94a3b8">Artículos</div>
+    <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;margin-bottom:12px">
+      ${v.items.map(i=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span>${i.nombre} <span style="color:#64748b">x${i.qty}</span></span><span style="color:#38bdf8">${fmt(i.precio*i.qty)}</span></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:500;padding-top:8px;margin-top:4px"><span>Total</span><span style="color:#38bdf8">${fmt(v.total)}</span></div>
+      ${v.cobrado<v.total?`<div style="display:flex;justify-content:space-between;font-size:12px;color:#fbbf24;padding-top:4px"><span>A cobrar</span><span>${fmt(v.total-v.cobrado)}</span></div>`:''}
+    </div>
+    ${v.notas?`<div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#94a3b8">Nota</div><div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px;font-size:12px;color:#fbbf24">${v.notas}</div>`:''}
+  </div></div>`;}
   if(m.type==='cobrar-venta') return`<div class="modal-bg"><div class="modal">
     <div class="modal-title">Registrar cobro</div>
     <p style="font-size:12px;color:#94a3b8;margin-bottom:14px">${m.venta.cliente} — Total: ${fmt(m.venta.total)} — Cobrado: ${fmt(m.venta.cobrado)}</p>
@@ -726,8 +752,8 @@ function renderModal(){
     <div class="form-row"><label class="form-label">Nombre</label><input type="text" id="m-pnombre" value="${m.prod?.nombre||''}" style="${INP}"></div>
     <div class="form-row"><label class="form-label">Código de barras</label><input type="text" id="m-pcodigo" value="${m.prod?.codigo||''}" placeholder="Escaneá o escribí el código" style="${INP}"></div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Categoría</label><select id="m-pcat" style="${INP}"><option value="">— Seleccioná una categoría —</option>${data.categorias.map(c=>`<option value="${c.id}"${m.prod?.categoriaId==c.id?' selected':''}>${c.nombre}</option>`).join('')}</select></div>
-      <div class="form-row"><label class="form-label">Precio</label><input type="text" inputmode="numeric" id="m-pprecio" value="${m.prod?.precio||0}" placeholder="Ej: 30000" style="${INP}"></div>
+      <div class="form-row"><label class="form-label">Categoría</label><select id="m-pcat" style="${INP}">${data.categorias.map(c=>`<option value="${c.id}"${m.prod?.categoriaId==c.id?' selected':''}>${c.nombre}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Precio</label><input type="number" id="m-pprecio" value="${m.prod?.precio||0}" style="${INP}"></div>
     </div>
     <div class="form-row"><label class="form-label">Stock</label><input type="number" id="m-pstock" value="${m.prod?.stock||0}" style="${INP}"></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-prod">Guardar</button></div>
@@ -851,6 +877,7 @@ function bindApp(){
   document.querySelectorAll('[data-edit-user]').forEach(b=>{b.onclick=()=>{const u=data.users.find(x=>x.id==b.dataset.editUser);modal={type:'edit-user',user:u};render();};});
   document.querySelectorAll('[data-pass-user]').forEach(b=>{b.onclick=()=>{const u=data.users.find(x=>x.id==b.dataset.passUser);modal={type:'cambiar-pass',user:u};render();};});
   document.querySelectorAll('[data-del-user]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar usuario?')){data.users=data.users.filter(u=>u.id!=b.dataset.delUser);save(data);render();}};});
+  document.querySelectorAll('[data-ver-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.verVenta);modal={type:'ver-venta',venta:v};render();};});
   document.querySelectorAll('[data-cobrar]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.cobrar);modal={type:'cobrar-venta',venta:v};render();};});
   document.querySelectorAll('[data-del-venta]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.ventas=data.ventas.filter(v=>v.id!=b.dataset.delVenta);save(data);render();}};});
   document.querySelectorAll('[data-pagar]').forEach(b=>{b.onclick=()=>{const e=data.egresos.find(x=>x.id==b.dataset.pagar);if(e){e.pagado=true;save(data);render();}};});
@@ -959,26 +986,18 @@ function bindApp(){
     u.password=nueva;if(isMe)currentUser.password=nueva;save(data);modal=null;render();alert('Contraseña actualizada correctamente');
   };
   const msvs=q('modal-save-venta-scan');
-  if(msvs)msvs.onclick=()=>{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'';data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:q('m-cliente').value,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];save(data);modal=null;render();};
+  if(msvs)msvs.onclick=()=>{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo';data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:q('m-cliente').value,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];save(data);modal=null;render();};
   const msv=q('modal-save-venta');
   if(msv)msv.onclick=()=>{
     if(!modalProdSeleccionado){alert('Seleccioná un producto primero.');return;}
-    const parsePrecio=v=>parseFloat((v||'0').toString().replace(/\./g,'').replace(',','.').replace(/[^\d.]/g,''))||0;
-    const prod=modalProdSeleccionado,qty=parseInt(q('m-qty').value)||1,precio=parsePrecio(q('m-precio').value),estado=q('m-estado').value,total=qty*precio,cobrado=estado==='cobrado'?total:0,vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,fecha=q('m-fecha').value,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'';
-    data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente:q('m-cliente').value,vendedorId:vendId,items:[{productoId:prod.id,nombre:prod.nombre,categoriaId:prod.categoriaId,qty,precio}],total,cobrado,estado,factura,nroFactura,notas:q('m-notas').value});
+    const prod=modalProdSeleccionado,qty=parseInt(q('m-qty').value)||1,precio=parseFloat(q('m-precio').value)||0,estado=q('m-estado').value,total=qty*precio,cobrado=estado==='cobrado'?total:0,vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,fecha=q('m-fecha').value,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo';
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente:q('m-cliente').value,vendedorId:vendId,items:[{productoId:prod.id,nombre:prod.nombre,categoriaId:prod.categoriaId,qty,precio}],total,cobrado,estado,factura,nroFactura,medioPago,notas:q('m-notas').value});
     if(prod)prod.stock=Math.max(0,prod.stock-qty);
     modalProdSeleccionado=null;save(data);modal=null;render();
   };
   const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{const monto=parseFloat(q('m-monto-cobro').value)||0,venta=data.ventas.find(x=>x.id===modal.venta.id);if(venta){venta.cobrado=Math.min(venta.total,venta.cobrado+monto);venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';}save(data);modal=null;render();};
   const mse=q('modal-save-egreso');if(mse)mse.onclick=()=>{data.egresos.unshift({id:data.nextId.egreso++,fecha:q('m-fecha-eg').value,proveedor:q('m-prov').value,concepto:q('m-concepto').value,monto:parseFloat(q('m-monto').value)||0,pagado:q('m-pagado').value==='true'});save(data);modal=null;render();};
-  const msprod=q('modal-save-prod');if(msprod)msprod.onclick=()=>{
-    const catVal=parseInt(q('m-pcat').value);
-    if(!catVal){alert('Seleccioná una categoría para el producto.');return;}
-    const parsePrecio=v=>parseFloat((v||'0').toString().replace(/\./g,'').replace(',','.').replace(/[^\d.]/g,''))||0;
-    if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=catVal;p.precio=parsePrecio(q('m-pprecio').value);p.stock=parseInt(q('m-pstock').value)||0;}
-    else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:catVal,precio:parsePrecio(q('m-pprecio').value),stock:parseInt(q('m-pstock').value)||0});}
-    save(data);modal=null;render();
-  };
+  const msprod=q('modal-save-prod');if(msprod)msprod.onclick=()=>{if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.stock=parseInt(q('m-pstock').value)||0;}else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,stock:parseInt(q('m-pstock').value)||0});}save(data);modal=null;render();};
   const msct=q('modal-save-contacto');if(msct)msct.onclick=()=>{data.contactos.push({id:data.nextId.contacto++,nombre:q('m-cnombre').value,tipo:q('m-ctipo').value,telefono:q('m-ctel').value,email:q('m-cemail').value});save(data);modal=null;render();};
   const msvend=q('modal-save-vend');if(msvend)msvend.onclick=()=>{if(modal.vend){const v=data.vendedores.find(x=>x.id===modal.vend.id);v.nombre=q('m-vnombre').value;v.telefono=q('m-vtel').value;v.sueldo=parseFloat(q('m-vsueldo').value)||0;}else{data.vendedores.push({id:data.nextId.vendedor++,nombre:q('m-vnombre').value,telefono:q('m-vtel').value,sueldo:parseFloat(q('m-vsueldo').value)||0,comisiones:{}});}save(data);modal=null;render();};
   const mscom=q('modal-save-comisiones');if(mscom)mscom.onclick=()=>{const v=data.vendedores.find(x=>x.id===modal.vend.id);if(!v.comisiones)v.comisiones={};data.categorias.forEach(cat=>{v.comisiones[cat.id]=parseFloat(q('com-cat-'+cat.id)?.value)||0;});save(data);modal=null;render();};
