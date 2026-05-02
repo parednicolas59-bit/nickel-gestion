@@ -133,7 +133,7 @@ tr:hover td{background:rgba(255,255,255,0.03)}
   </div></div>
     
   </div></div></div>
-<script src="./NickGestión_files/chart.umd.min.js.descarga"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -350,12 +350,15 @@ function renderDash(){
   const totalV=data.ventas.reduce((s,v)=>s+v.total,0),cobrado=data.ventas.reduce((s,v)=>s+v.cobrado,0);
   const mes=mesActual(),comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
   const prodBajo=data.productos.filter(p=>p.stock<=3);
+  const cobradoEfectivo=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0);
+  const cobradoTransf=data.ventas.filter(v=>v.cobrado>0&&v.medioPago==='transferencia').reduce((s,v)=>s+v.cobrado,0);
   return`<div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">💰</div><div><div class="resumen-label">Total ventas</div><div class="resumen-val" style="color:#38bdf8">${fmt(totalV)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">✅</div><div><div class="resumen-label">Cobrado</div><div class="resumen-val" style="color:#4ade80">${fmt(cobrado)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">⏳</div><div><div class="resumen-label">A cobrar</div><div class="resumen-val" style="color:#fbbf24">${fmt(totalV-cobrado)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">👥</div><div><div class="resumen-label">Comisiones ${mes}</div><div class="resumen-val" style="color:#a78bfa">${fmt(comMes)}</div></div></div>
   </div>
+  ${ currentUser.role==='admin' ? '<div class="resumen-row"><div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">&#x1F4B5;</div><div><div class="resumen-label">Cobrado — Efectivo</div><div class="resumen-val" style="color:#4ade80">'+fmt(cobradoEfectivo)+'</div></div></div><div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">&#x1F3E6;</div><div><div class="resumen-label">Cobrado — Transferencia</div><div class="resumen-val" style="color:#38bdf8">'+fmt(cobradoTransf)+'</div></div></div></div>' : '' }
   <div class="charts-row">
     <div class="card"><div class="card-title">Ventas últimos 30 días</div><canvas id="chart-ventas" height="150"></canvas></div>
     <div class="card"><div class="card-title">Estado ventas</div><canvas id="chart-estado" height="150"></canvas></div>
@@ -385,6 +388,8 @@ function drawCharts(){
 function renderVentas(){
   const totalV=data.ventas.reduce((s,v)=>s+v.total,0),cobrado=data.ventas.reduce((s,v)=>s+v.cobrado,0);
   const carritoTotal=carrito.reduce((s,i)=>s+i.precio*i.qty,0);
+  const vEfectivo=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0):0;
+  const vTransf=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&v.medioPago==='transferencia').reduce((s,v)=>s+v.cobrado,0):0;
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Ventas</span><button class="btn primary" id="nueva-venta-btn">+ Nueva venta manual</button><button class="btn" id="devolucion-btn">Devolución</button></div>
     <div class="metrics">
@@ -393,6 +398,10 @@ function renderVentas(){
       <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">A cobrar</div><div class="metric-value" style="color:#fbbf24">${fmt(totalV-cobrado)}</div></div>
       <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">👥</div><div class="metric-label">Comisiones</div><div class="metric-value" style="color:#a78bfa">${fmt(data.ventas.reduce((s,v)=>s+calcCom(v),0))}</div></div>
     </div>
+    ${currentUser.role==='admin'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">&#x1F4B5;</div><div class="metric-label">Cobrado &mdash; Efectivo</div><div class="metric-value" style="color:#4ade80">${fmt(vEfectivo)}</div></div>
+      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">&#x1F3E6;</div><div class="metric-label">Cobrado &mdash; Transferencia</div><div class="metric-value" style="color:#38bdf8">${fmt(vTransf)}</div></div>
+    </div>`:''}
     <div class="card">
       <div class="card-title">Escanear con pistola lectora</div>
       <div class="scan-bar"><span style="font-size:20px">🔫</span><input id="scan-venta-input" placeholder="Apuntá la pistola aquí y escaneá..." autocomplete="off"></div>
