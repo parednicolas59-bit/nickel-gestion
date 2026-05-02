@@ -431,7 +431,7 @@ function renderVentas(){
       <td><div class="actions-cell">
         ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button>`:''}
         <button class="btn" data-cobrar="${v.id}" style="font-size:11px;padding:3px 7px">Cobrar</button>
-        <button class="btn danger" data-del-venta="${v.id}" style="font-size:11px;padding:3px 6px">✕</button>
+        ${currentUser.role==='admin'?`<button class="btn danger" data-del-venta="${v.id}" style="font-size:11px;padding:3px 6px">✕</button>`:''}
       </div></td></tr>`;}).join('')}</tbody></table></div>
   </div>`;
 }
