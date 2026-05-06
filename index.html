@@ -195,7 +195,7 @@ const def={
   ],
   ventas:[
     {id:1,fecha:'2026-04-10',mes:'2026-04',cliente:'Juan Pérez',vendedorId:1,items:[{productoId:1,nombre:'Heladera Samsung',categoriaId:1,qty:1,precio:850000}],total:850000,cobrado:850000,estado:'cobrado',notas:''},
-    {id:2,fecha:'2026-04-12',mes:'2026-04',cliente:'General',vendedorId:2,items:[{productoId:2,nombre:'Lavarropas LG 8kg',categoriaId:1,qty:2,precio:620000},{productoId:3,nombre:'Smart TV 43"',categoriaId:2,qty:1,precio:980000}],total:2220000,cobrado:2220000,estado:'cobrado',notas:''},
+    {id:2,fecha:'2026-04-12',mes:'2026-04',cliente:'Carlos Medina',clienteTel:'3704007777',vendedorId:2,items:[{productoId:2,nombre:'Lavarropas LG 8kg',categoriaId:1,qty:2,precio:620000},{productoId:3,nombre:'Smart TV 43"',categoriaId:2,qty:1,precio:980000}],total:2220000,cobrado:2220000,estado:'cobrado',notas:''},
     {id:3,fecha:'2026-04-14',mes:'2026-04',cliente:'María García',vendedorId:3,items:[{productoId:4,nombre:'Aire Acondicionado 3000W',categoriaId:3,qty:1,precio:1200000}],total:1200000,cobrado:0,estado:'pendiente',notas:''},
   ],
   egresos:[{id:1,fecha:'2026-04-10',proveedor:'Distribuidora Norte',concepto:'Compra stock TVs',monto:450000,pagado:true}],
@@ -410,6 +410,7 @@ function printComprobante(venta){
   <div class="seccion">
     <div class="seccion-label">Datos del cliente</div>
     <div class="fila"><span class="fila-key">Cliente</span><span class="fila-val">${venta.cliente||'—'}</span></div>
+    <div class="fila"><span class="fila-key">Tel&eacute;fono</span><span class="fila-val">${venta.clienteTel||'—'}</span></div>
     <div class="fila"><span class="fila-key">Fecha</span><span class="fila-val">${venta.fecha}</span></div>
     <div class="fila"><span class="fila-key">Vendedor</span><span class="fila-val">${vnd?vnd.nombre:'—'}</span></div>
   </div>
@@ -737,7 +738,8 @@ function renderModal(){
   if(m.type==='confirmar-venta-scan') return`<div class="modal-bg"><div class="modal">
     <div class="modal-title">Confirmar venta</div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Cliente</label><select id="m-cliente" style="${INP}"><option value="General">General</option>${data.contactos.filter(c=>c.tipo==='cliente').map(c=>`<option>${c.nombre}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Cliente <span style="color:#f87171">*</span></label><input id="m-cliente" placeholder="Nombre del cliente" style="${INP}" required></div>
+      <div class="form-row"><label class="form-label">Teléfono cliente <span style="color:#f87171">*</span></label><input id="m-clientetel" placeholder="Ej: 3704001234" style="${INP}" type="tel" required></div>
       <div class="form-row"><label class="form-label">Vendedor</label><select id="m-vendedor" style="${INP}"><option value="">Sin asignar</option>${data.vendedores.map(v=>`<option value="${v.id}">${v.nombre}</option>`).join('')}</select></div>
     </div>
     <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="m-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
@@ -759,7 +761,8 @@ function renderModal(){
   if(m.type==='nueva-venta') return`<div class="modal-bg"><div class="modal">
     <div class="modal-title">Nueva venta manual</div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Cliente</label><select id="m-cliente" style="${INP}"><option value="General">General</option>${data.contactos.filter(c=>c.tipo==='cliente').map(c=>`<option>${c.nombre}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Cliente <span style="color:#f87171">*</span></label><input id="m-cliente" placeholder="Nombre del cliente" style="${INP}" required></div>
+      <div class="form-row"><label class="form-label">Teléfono cliente <span style="color:#f87171">*</span></label><input id="m-clientetel" placeholder="Ej: 3704001234" style="${INP}" type="tel" required></div>
       <div class="form-row"><label class="form-label">Vendedor</label><select id="m-vendedor" style="${INP}"><option value="">Sin asignar</option>${data.vendedores.map(v=>`<option value="${v.id}">${v.nombre}</option>`).join('')}</select></div>
     </div>
     <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="m-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
@@ -785,6 +788,7 @@ function renderModal(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:12px">
       <div style="color:#94a3b8">Fecha</div><div>${fd(v.fecha)}</div>
       <div style="color:#94a3b8">Cliente</div><div>${v.cliente}</div>
+      <div style="color:#94a3b8">Tel. cliente</div><div>${v.clienteTel||'—'}</div>
       <div style="color:#94a3b8">Vendedor</div><div style="color:#a78bfa">${vnd?vnd.nombre:'-'}</div>
       <div style="color:#94a3b8">Estado</div><div><span class="badge ${v.estado}">${v.estado}</span></div>
       <div style="color:#94a3b8">Medio de pago</div><div><span style="padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':mp==='tarjeta'?'rgba(139,92,246,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':mp==='tarjeta'?'#a78bfa':'#4ade80'};font-size:11px">${mp==='transferencia'?'🏦 Transferencia':mp==='tarjeta'?'💳 Tarjeta':'💵 Efectivo'}</span></div>
@@ -1055,12 +1059,16 @@ function bindApp(){
     u.password=nueva;if(isMe)currentUser.password=nueva;save(data);modal=null;render();alert('Contraseña actualizada correctamente');
   };
   const msvs=q('modal-save-venta-scan');
-  if(msvs)msvs.onclick=()=>{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo';data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:q('m-cliente').value,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];save(data);modal=null;render();};
+  if(msvs)msvs.onclick=()=>{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo';const clienteNombre=q('m-cliente').value.trim(),clienteTel=q('m-clientetel')?.value.trim()||'';
+    if(!clienteNombre||!clienteTel){alert('Completá el nombre y teléfono del cliente.');return;}
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:clienteNombre,clienteTel,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];save(data);modal=null;render();};
   const msv=q('modal-save-venta');
   if(msv)msv.onclick=()=>{
     if(!modalProdSeleccionado){alert('Seleccioná un producto primero.');return;}
     const prod=modalProdSeleccionado,qty=parseInt(q('m-qty').value)||1,precio=parseFloat(q('m-precio').value)||0,estado=q('m-estado').value,total=qty*precio,cobrado=estado==='cobrado'?total:0,vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,fecha=q('m-fecha').value,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo';
-    data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente:q('m-cliente').value,vendedorId:vendId,items:[{productoId:prod.id,nombre:prod.nombre,categoriaId:prod.categoriaId,qty,precio}],total,cobrado,estado,factura,nroFactura,medioPago,notas:q('m-notas').value});
+    const clienteNombreM=q('m-cliente').value.trim(),clienteTelM=q('m-clientetel')?.value.trim()||'';
+    if(!clienteNombreM||!clienteTelM){alert('Completá el nombre y teléfono del cliente.');return;}
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente:clienteNombreM,clienteTel:clienteTelM,vendedorId:vendId,items:[{productoId:prod.id,nombre:prod.nombre,categoriaId:prod.categoriaId,qty,precio}],total,cobrado,estado,factura,nroFactura,medioPago,notas:q('m-notas').value});
     if(prod)prod.stock=Math.max(0,prod.stock-qty);
     modalProdSeleccionado=null;save(data);modal=null;render();
   };
