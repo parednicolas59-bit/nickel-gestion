@@ -375,6 +375,63 @@ function renderDash(){
   </div>`;
 }
 
+function printComprobante(venta){
+  const vnd=getVend(venta.vendedorId);
+  const mp=venta.medioPago||'efectivo';
+  const mpLabel=mp==='transferencia'?'Transferencia':mp==='tarjeta'?'Tarjeta':'Efectivo';
+  const factLabel=venta.factura==='factura-a'?'Factura A':venta.factura==='factura-b'?'Factura B':venta.factura==='factura-x'?'Factura X':'Sin factura';
+  const w=window.open('','_blank','width=500,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comprobante #${venta.id}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,sans-serif;font-size:13px;color:#222;padding:24px;max-width:420px;margin:auto}
+    .logo{font-size:22px;font-weight:700;color:#1e8fcf;letter-spacing:1px;margin-bottom:2px}
+    .subtitulo{font-size:11px;color:#666;margin-bottom:16px}
+    .titulo{font-size:15px;font-weight:700;text-align:center;border-top:2px solid #1e8fcf;border-bottom:2px solid #1e8fcf;padding:6px 0;margin-bottom:16px;color:#1e8fcf}
+    .seccion{margin-bottom:14px}
+    .seccion-label{font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px;letter-spacing:.5px}
+    .fila{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0}
+    .fila-key{color:#555}
+    .fila-val{font-weight:600;color:#222}
+    .items-header{display:flex;justify-content:space-between;font-size:11px;font-weight:700;text-transform:uppercase;color:#999;padding:4px 0;border-bottom:1px solid #ddd;margin-bottom:4px}
+    .item-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dotted #eee}
+    .item-nombre{flex:1;color:#333}
+    .item-qty{width:40px;text-align:center;color:#666}
+    .item-precio{width:80px;text-align:right;color:#333}
+    .total-row{display:flex;justify-content:space-between;padding:8px 0;margin-top:6px;border-top:2px solid #1e8fcf;font-size:15px;font-weight:700;color:#1e8fcf}
+    .pendiente{color:#e67e22;font-size:12px;text-align:right;margin-top:4px}
+    .footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}
+    @media print{body{padding:10px}.btn-print{display:none}}
+    .btn-print{display:block;width:100%;margin-top:20px;padding:10px;background:#1e8fcf;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+  </style></head><body>
+  <div class="logo">NICKEL</div>
+  <div class="subtitulo">Tecno &amp; Hogar S.R.L. &mdash; Quitilipi, Chaco</div>
+  <div class="titulo">${factLabel} N&deg; ${String(venta.id).padStart(8,'0')}</div>
+  <div class="seccion">
+    <div class="seccion-label">Datos del cliente</div>
+    <div class="fila"><span class="fila-key">Cliente</span><span class="fila-val">${venta.cliente||'—'}</span></div>
+    <div class="fila"><span class="fila-key">Fecha</span><span class="fila-val">${venta.fecha}</span></div>
+    <div class="fila"><span class="fila-key">Vendedor</span><span class="fila-val">${vnd?vnd.nombre:'—'}</span></div>
+  </div>
+  <div class="seccion">
+    <div class="seccion-label">Detalle</div>
+    <div class="items-header"><span>Producto</span><span>Cant.</span><span style="text-align:right">Subtotal</span></div>
+    ${venta.items.map(i=>`<div class="item-row"><span class="item-nombre">${i.nombre}</span><span class="item-qty">x${i.qty}</span><span class="item-precio">$${(i.precio*i.qty).toLocaleString('es-AR')}</span></div>`).join('')}
+    <div class="total-row"><span>TOTAL</span><span>$${venta.total.toLocaleString('es-AR')}</span></div>
+    ${venta.cobrado<venta.total?`<div class="pendiente">A cobrar: $${(venta.total-venta.cobrado).toLocaleString('es-AR')}</div>`:''}
+  </div>
+  <div class="seccion">
+    <div class="seccion-label">Pago</div>
+    <div class="fila"><span class="fila-key">Medio de pago</span><span class="fila-val">${mpLabel}</span></div>
+    <div class="fila"><span class="fila-key">Estado</span><span class="fila-val">${venta.estado}</span></div>
+    ${venta.nroFactura?`<div class="fila"><span class="fila-key">N&deg; Comprobante</span><span class="fila-val">${venta.nroFactura}</span></div>`:''}
+  </div>
+  ${venta.notas?`<div class="seccion"><div class="seccion-label">Notas</div><div style="padding:6px 0;color:#555">${venta.notas}</div></div>`:''}
+  <div class="footer">Este comprobante no reemplaza factura oficial &bull; Gracias por su compra</div>
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  </body></html>`);
+  w.document.close();
+}
 function drawCharts(){
   const dias={};const hoy=new Date();
   for(let i=29;i>=0;i--){const d=new Date(hoy);d.setDate(d.getDate()-i);dias[d.toISOString().split('T')[0]]=0;}
@@ -436,9 +493,9 @@ function renderVentas(){
       <td>${fmt(v.total)}</td><td>${fmt(v.cobrado)}</td><td style="color:#a78bfa">${fmt(calcCom(v))}</td>
       <td><span class="badge ${v.estado}">${v.estado}</span></td>
       ${currentUser.role==='admin'?`<td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':'#4ade80'}">${mp==='transferencia'?'🏦 Transf.':'💵 Efectivo'}</span></td>`:''}
-      <td>${v.factura&&v.factura!=='sin-factura'?`<span class="badge" style="background:rgba(30,143,207,0.15);color:#38bdf8;font-size:10px">${v.factura==='factura-a'?'F.A':'F.B'}${v.nroFactura?' #'+v.nroFactura:''}</span>`:'<span style="color:#475569;font-size:11px">—</span>'}</td>
+      <td>${v.factura&&v.factura!=='sin-factura'?`<span class="badge" style="background:rgba(30,143,207,0.15);color:#38bdf8;font-size:10px">${v.factura==='factura-a'?'F.A':v.factura==='factura-x'?'F.X':'F.B'}${v.nroFactura?' #'+v.nroFactura:''}</span>`:'<span style="color:#475569;font-size:11px">—</span>'}</td>
       <td><div class="actions-cell">
-        ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button>`:''}
+        ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button><button class="btn" data-print-venta="${v.id}" style="font-size:11px;padding:3px 7px">🖨️</button>`:''}
         <button class="btn" data-cobrar="${v.id}" style="font-size:11px;padding:3px 7px">Cobrar</button>
         ${currentUser.role==='admin'?`<button class="btn danger" data-del-venta="${v.id}" style="font-size:11px;padding:3px 6px">✕</button>`:''}
       </div></td></tr>`;}).join('')}</tbody></table></div>
@@ -690,10 +747,10 @@ function renderModal(){
     </div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
-      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option></select></div>
     </div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option></select></div>
+      <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
     </div>
     <div class="form-row"><label class="form-label">Notas</label><textarea id="m-notas" style="${INP};height:46px;resize:vertical"></textarea></div>
@@ -714,10 +771,10 @@ function renderModal(){
     <div id="m-com-preview" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:7px;padding:8px 10px;font-size:12px;color:#a78bfa;margin-bottom:10px">Seleccioná un vendedor para ver la comisión</div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
-      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option></select></div>
     </div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option></select></div>
+      <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
     </div>
     <div class="form-row"><label class="form-label">Notas</label><textarea id="m-notas" style="${INP};height:46px;resize:vertical"></textarea></div>
@@ -730,8 +787,8 @@ function renderModal(){
       <div style="color:#94a3b8">Cliente</div><div>${v.cliente}</div>
       <div style="color:#94a3b8">Vendedor</div><div style="color:#a78bfa">${vnd?vnd.nombre:'-'}</div>
       <div style="color:#94a3b8">Estado</div><div><span class="badge ${v.estado}">${v.estado}</span></div>
-      <div style="color:#94a3b8">Medio de pago</div><div><span style="padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':'#4ade80'};font-size:11px">${mp==='transferencia'?'🏦 Transferencia':'💵 Efectivo'}</span></div>
-      ${v.factura&&v.factura!=='sin-factura'?`<div style="color:#94a3b8">Factura</div><div><span style="font-size:11px;color:#38bdf8">${v.factura==='factura-a'?'Factura A':'Factura B'}${v.nroFactura?' — #'+v.nroFactura:''}</span></div>`:''}
+      <div style="color:#94a3b8">Medio de pago</div><div><span style="padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':mp==='tarjeta'?'rgba(139,92,246,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':mp==='tarjeta'?'#a78bfa':'#4ade80'};font-size:11px">${mp==='transferencia'?'🏦 Transferencia':mp==='tarjeta'?'💳 Tarjeta':'💵 Efectivo'}</span></div>
+      ${v.factura&&v.factura!=='sin-factura'?`<div style="color:#94a3b8">Factura</div><div><span style="font-size:11px;color:#38bdf8">${v.factura==='factura-a'?'Factura A':v.factura==='factura-x'?'Factura X':'Factura B'}${v.nroFactura?' — #'+v.nroFactura:''}</span></div>`:''}
     </div>
     <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#94a3b8">Artículos</div>
     <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;margin-bottom:12px">
@@ -740,6 +797,7 @@ function renderModal(){
       ${v.cobrado<v.total?`<div style="display:flex;justify-content:space-between;font-size:12px;color:#fbbf24;padding-top:4px"><span>A cobrar</span><span>${fmt(v.total-v.cobrado)}</span></div>`:''}
     </div>
     ${v.notas?`<div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#94a3b8">Nota</div><div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px;font-size:12px;color:#fbbf24">${v.notas}</div>`:''}
+    <div style="text-align:right;margin-top:14px"><button class="btn primary" id="modal-print-comp" style="font-size:12px">&#x1F5A8;&#xFE0F; Imprimir comprobante</button></div>
   </div></div>`;}
   if(m.type==='cobrar-venta') return`<div class="modal-bg"><div class="modal">
     <div class="modal-title">Registrar cobro</div>
@@ -887,6 +945,7 @@ function bindApp(){
   document.querySelectorAll('[data-pass-user]').forEach(b=>{b.onclick=()=>{const u=data.users.find(x=>x.id==b.dataset.passUser);modal={type:'cambiar-pass',user:u};render();};});
   document.querySelectorAll('[data-del-user]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar usuario?')){data.users=data.users.filter(u=>u.id!=b.dataset.delUser);save(data);render();}};});
   document.querySelectorAll('[data-ver-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.verVenta);modal={type:'ver-venta',venta:v};render();};});
+  document.querySelectorAll('[data-print-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.printVenta);if(v)printComprobante(v);};});
   document.querySelectorAll('[data-cobrar]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.cobrar);modal={type:'cobrar-venta',venta:v};render();};});
   document.querySelectorAll('[data-del-venta]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.ventas=data.ventas.filter(v=>v.id!=b.dataset.delVenta);save(data);render();}};});
   document.querySelectorAll('[data-pagar]').forEach(b=>{b.onclick=()=>{const e=data.egresos.find(x=>x.id==b.dataset.pagar);if(e){e.pagado=true;save(data);render();}};});
@@ -899,6 +958,7 @@ function bindApp(){
   document.querySelectorAll('[data-com-vend]').forEach(b=>{b.onclick=()=>{const v=data.vendedores.find(x=>x.id==b.dataset.comVend);modal={type:'comisiones-vend',vend:v};render();};});
 
   const mc=q('modal-cancel');if(mc)mc.onclick=()=>{modal=null;modalProdSeleccionado=null;render();};
+  const mpc=q('modal-print-comp');if(mpc&&modal&&modal.venta)mpc.onclick=()=>{printComprobante(modal.venta);};
 
   const ncred=q('nuevo-credito-btn');if(ncred)ncred.onclick=()=>{modal={type:'nuevo-credito'};render();};
   document.querySelectorAll('[data-ver-credito]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.verCredito);modal={type:'ver-credito',credito:c};render();};});
