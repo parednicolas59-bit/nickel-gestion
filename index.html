@@ -201,10 +201,11 @@ const def={
   egresos:[{id:1,fecha:'2026-04-10',proveedor:'Distribuidora Norte',concepto:'Compra stock TVs',monto:450000,pagado:true}],
   cierres:[],
   creditos:[],
-  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1}
+  proveedores:[],
+  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1}
 };
 function load(){
-  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;return d;}}catch(e){}
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;return d;}}catch(e){}
   return JSON.parse(JSON.stringify(def));
 }
 async function loadFromFirebase(){
@@ -214,6 +215,8 @@ async function loadFromFirebase(){
       if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));
       if(!d.creditos)d.creditos=[];
       if(!d.nextId.credito)d.nextId.credito=1;
+      if(!d.proveedores)d.proveedores=[];
+      if(!d.nextId.proveedor)d.nextId.proveedor=1;
       try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
       return d;
     }
@@ -284,8 +287,8 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','contactos','vendedores','categorias','caja','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','financiera'];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
@@ -303,6 +306,7 @@ function renderTab(){
   if(tab==='ventas')return renderVentas();
   if(tab==='egresos')return renderEgresos();
   if(tab==='productos')return renderProductos();
+  if(tab==='proveedores')return renderProveedores();
   if(tab==='contactos')return renderContactos();
   if(tab==='vendedores')return renderVendedores();
   if(tab==='categorias')return renderCategorias();
@@ -352,13 +356,53 @@ function renderDash(){
   const prodBajo=data.productos.filter(p=>p.stock<=3);
   const cobradoEfectivo=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0);
   const cobradoTransf=data.ventas.filter(v=>v.cobrado>0&&v.medioPago==='transferencia').reduce((s,v)=>s+v.cobrado,0);
+  const pendCredivip=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0);
+  const pendRapicuota=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0);
+  const pendNickcel=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+v.total,0);
+
+  // inversión y ganancia — solo admin, solo ventas del mes actual
+  const ventasMes=data.ventas.filter(v=>v.mes===mes&&v.estado!=='cancelado');
+  const inversionMes=ventasMes.reduce((s,v)=>s+v.items.reduce((si,i)=>{const p=getProdById(i.productoId);return si+(p?.costo||0)*i.qty;},0),0);
+  const gananciaNetaMes=ventasMes.reduce((s,v)=>s+v.total,0)-inversionMes;
+  const totalVMes=ventasMes.reduce((s,v)=>s+v.total,0);
+  const margenMes=totalVMes>0?Math.round(gananciaNetaMes/totalVMes*100):0;
   return`<div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">💰</div><div><div class="resumen-label">Total ventas</div><div class="resumen-val" style="color:#38bdf8">${fmt(totalV)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">✅</div><div><div class="resumen-label">Cobrado</div><div class="resumen-val" style="color:#4ade80">${fmt(cobrado)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">⏳</div><div><div class="resumen-label">A cobrar</div><div class="resumen-val" style="color:#fbbf24">${fmt(totalV-cobrado)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">👥</div><div><div class="resumen-label">Comisiones ${mes}</div><div class="resumen-val" style="color:#a78bfa">${fmt(comMes)}</div></div></div>
   </div>
-  ${ currentUser.role==='admin' ? '<div class="resumen-row"><div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">&#x1F4B5;</div><div><div class="resumen-label">Cobrado — Efectivo</div><div class="resumen-val" style="color:#4ade80">'+fmt(cobradoEfectivo)+'</div></div></div><div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">&#x1F3E6;</div><div><div class="resumen-label">Cobrado — Transferencia</div><div class="resumen-val" style="color:#38bdf8">'+fmt(cobradoTransf)+'</div></div></div></div>' : '' }
+  ${ currentUser.role==='admin' ? `<div class="resumen-row">
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">💵</div><div><div class="resumen-label">Cobrado — Efectivo</div><div class="resumen-val" style="color:#4ade80">${fmt(cobradoEfectivo)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">🏦</div><div><div class="resumen-label">Cobrado — Transferencia</div><div class="resumen-val" style="color:#38bdf8">${fmt(cobradoTransf)}</div></div></div>
+  </div>
+  <div class="resumen-row">
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Pend. — CrediVIP</div><div class="resumen-val" style="color:#fbbf24">${fmt(pendCredivip)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Pend. — Rapicuota</div><div class="resumen-val" style="color:#a78bfa">${fmt(pendRapicuota)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">📄</div><div><div class="resumen-label">Pend. — Nickcel Pagarés</div><div class="resumen-val" style="color:#38bdf8">${fmt(pendNickcel)}</div></div></div>
+  </div>` : '' }
+  ${ currentUser.role==='admin' ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;right:0;width:3px;height:100%;background:#38bdf8;border-radius:0 10px 10px 0"></div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">Vendido este mes</div>
+      <div style="font-size:18px;font-weight:500;color:#38bdf8">${fmt(totalVMes)}</div>
+      <div style="font-size:10px;color:#64748b;margin-top:2px">${ventasMes.length} operaciones</div>
+    </div>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;right:0;width:3px;height:100%;background:#f87171;border-radius:0 10px 10px 0"></div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">Capital invertido</div>
+      <div style="font-size:18px;font-weight:500;color:#f87171">${fmt(inversionMes)}</div>
+      <div style="font-size:10px;color:#64748b;margin-top:2px">costo de productos vendidos</div>
+    </div>
+    <div style="background:var(--dark2);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;right:0;width:3px;height:100%;background:#4ade80;border-radius:0 10px 10px 0"></div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">Ganancia neta — ${margenMes}% margen</div>
+      <div style="font-size:18px;font-weight:500;color:#4ade80">${fmt(gananciaNetaMes)}</div>
+      <div style="margin-top:6px;background:rgba(255,255,255,0.05);border-radius:6px;height:5px;overflow:hidden">
+        <div style="height:100%;background:#4ade80;border-radius:6px;width:${Math.min(margenMes,100)}%"></div>
+      </div>
+    </div>
+  </div>` : '' }
   <div class="charts-row">
     <div class="card"><div class="card-title">Ventas últimos 30 días</div><canvas id="chart-ventas" height="150"></canvas></div>
     <div class="card"><div class="card-title">Estado ventas</div><canvas id="chart-estado" height="150"></canvas></div>
@@ -378,7 +422,7 @@ function renderDash(){
 function printComprobante(venta){
   const vnd=getVend(venta.vendedorId);
   const mp=venta.medioPago||'efectivo';
-  const mpLabel=mp==='transferencia'?'Transferencia':mp==='tarjeta'?'Tarjeta':'Efectivo';
+  const mpLabel=mp==='transferencia'?'Transferencia':mp==='tarjeta'?'Tarjeta':mp==='credivip'?'CrediVIP':mp==='rapicuota'?'Rapicuota':mp==='nickcel-pagares'?'Nickcel Pagarés':'Efectivo';
   const factLabel=venta.factura==='factura-a'?'Factura A':venta.factura==='factura-b'?'Factura B':venta.factura==='factura-x'?'Factura X':'Sin factura';
   const w=window.open('','_blank','width=500,height=700');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comprobante #${venta.id}</title>
@@ -448,6 +492,9 @@ function renderVentas(){
   const carritoTotal=carrito.reduce((s,i)=>s+i.precio*i.qty,0);
   const vEfectivo=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0):0;
   const vTransf=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&v.medioPago==='transferencia').reduce((s,v)=>s+v.cobrado,0):0;
+  const vCredivip=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0):0;
+  const vRapicuota=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0):0;
+  const vNickcel=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+v.total,0):0;
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Ventas</span><button class="btn primary" id="nueva-venta-btn">+ Nueva venta manual</button><button class="btn" id="devolucion-btn">Devolución</button></div>
     <div class="metrics">
@@ -456,9 +503,14 @@ function renderVentas(){
       <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">A cobrar</div><div class="metric-value" style="color:#fbbf24">${fmt(totalV-cobrado)}</div></div>
       <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">👥</div><div class="metric-label">Comisiones</div><div class="metric-value" style="color:#a78bfa">${fmt(data.ventas.reduce((s,v)=>s+calcCom(v),0))}</div></div>
     </div>
-    ${currentUser.role==='admin'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">&#x1F4B5;</div><div class="metric-label">Cobrado &mdash; Efectivo</div><div class="metric-value" style="color:#4ade80">${fmt(vEfectivo)}</div></div>
-      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">&#x1F3E6;</div><div class="metric-label">Cobrado &mdash; Transferencia</div><div class="metric-value" style="color:#38bdf8">${fmt(vTransf)}</div></div>
+    ${currentUser.role==='admin'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">💵</div><div class="metric-label">Cobrado — Efectivo</div><div class="metric-value" style="color:#4ade80">${fmt(vEfectivo)}</div></div>
+      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">🏦</div><div class="metric-label">Cobrado — Transferencia</div><div class="metric-value" style="color:#38bdf8">${fmt(vTransf)}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">🟠</div><div class="metric-label">Pend. — CrediVIP</div><div class="metric-value" style="color:#fbbf24">${fmt(vCredivip)}</div></div>
+      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">🟣</div><div class="metric-label">Pend. — Rapicuota</div><div class="metric-value" style="color:#a78bfa">${fmt(vRapicuota)}</div></div>
+      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">📄</div><div class="metric-label">Pend. — Nickcel Pagarés</div><div class="metric-value" style="color:#38bdf8">${fmt(vNickcel)}</div></div>
     </div>`:''}
     <div class="card">
       <div class="card-title">Escanear con pistola lectora</div>
@@ -487,13 +539,16 @@ function renderVentas(){
         </div>`:`<p style="font-size:12px;color:#475569;text-align:center;padding:10px 0">Carrito vacío — escaneá un producto para agregarlo</p>`}
     </div>
     <div class="card"><div class="card-title">Historial</div>
-    <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Items</th><th>Total</th><th>Cobrado</th><th>Comisión</th><th>Estado</th>${currentUser.role==='admin'?'<th>Pago</th>':''}<th>Factura</th><th></th></tr></thead>
-    <tbody>${data.ventas.slice().reverse().map(v=>{const vnd=getVend(v.vendedorId);const mp=v.medioPago||'efectivo';return`<tr>
+    <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Items</th><th>Total</th><th>Cobrado</th><th>Comisión</th>${currentUser.role==='admin'?'<th style="color:#4ade80">Ganancia</th>':''}<th>Estado</th>${currentUser.role==='admin'?'<th>Pago</th>':''}<th>Factura</th><th></th></tr></thead>
+    <tbody>${data.ventas.slice().reverse().map(v=>{const vnd=getVend(v.vendedorId);const mp=v.medioPago||'efectivo';
+      const ganV=v.estado!=='cancelado'?v.items.reduce((s,i)=>{const p=getProdById(i.productoId);return s+(i.precio-(p?.costo||0))*i.qty;},0):0;
+      return`<tr>
       <td>${fd(v.fecha)}</td><td>${v.cliente}</td><td style="color:#a78bfa">${vnd?vnd.nombre.split(' ')[0]:'-'}</td>
       <td style="color:#94a3b8;font-size:11px">${v.items.map(i=>i.nombre).join(', ')}</td>
       <td>${fmt(v.total)}</td><td>${fmt(v.cobrado)}</td><td style="color:#a78bfa">${fmt(calcCom(v))}</td>
+      ${currentUser.role==='admin'?`<td style="color:${ganV>0?'#4ade80':'#f87171'};font-weight:500">${fmt(ganV)}</td>`:''}
       <td><span class="badge ${v.estado}">${v.estado}</span></td>
-      ${currentUser.role==='admin'?`<td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':'#4ade80'}">${mp==='transferencia'?'🏦 Transf.':'💵 Efectivo'}</span></td>`:''}
+      ${currentUser.role==='admin'?`<td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':mp==='tarjeta'?'#a78bfa':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='transferencia'?'🏦 Transf.':mp==='tarjeta'?'💳 Tarjeta':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span></td>`:''}
       <td>${v.factura&&v.factura!=='sin-factura'?`<span class="badge" style="background:rgba(30,143,207,0.15);color:#38bdf8;font-size:10px">${v.factura==='factura-a'?'F.A':v.factura==='factura-x'?'F.X':'F.B'}${v.nroFactura?' #'+v.nroFactura:''}</span>`:'<span style="color:#475569;font-size:11px">—</span>'}</td>
       <td><div class="actions-cell">
         ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button><button class="btn" data-print-venta="${v.id}" style="font-size:11px;padding:3px 7px">🖨️</button>`:''}
@@ -573,16 +628,51 @@ function renderProductos(){
       <div id="scan-stock-feedback" class="scan-feedback" style="margin-top:8px;margin-bottom:0"></div>
     </div>
     <div class="card"><table>
-      <thead><tr><th>Código de barras</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr></thead>
-      <tbody>${prodsFiltrados.length===0?`<tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px">No hay productos en esta categoría</td></tr>`:prodsFiltrados.map(p=>{const c=getCat(p.categoriaId);return`<tr>
+      <thead><tr><th>Código de barras</th><th>Nombre</th><th>Categoría</th><th>Proveedor</th><th>Precio venta</th>${currentUser.role==='admin'?'<th style="color:#f87171">Costo</th><th style="color:#4ade80">Ganancia/u</th>':''}<th>Stock</th><th></th></tr></thead>
+      <tbody>${prodsFiltrados.length===0?`<tr><td colspan="9" style="text-align:center;color:#64748b;padding:20px">No hay productos en esta categoría</td></tr>`:prodsFiltrados.map(p=>{const c=getCat(p.categoriaId);const prov=data.proveedores.find(x=>x.id==p.proveedorId);const ganU=p.precio-(p.costo||0);return`<tr>
         <td style="font-family:var(--font-mono);font-size:11px;color:#64748b">${p.codigo}</td><td>${p.nombre}</td>
         <td>${c?`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${c.color}22;color:${c.color}">${c.nombre}</span>`:'-'}</td>
-        <td>${fmt(p.precio)}</td><td><span style="font-weight:500;color:${p.stock<=2?'#f87171':p.stock<=5?'#fbbf24':'#4ade80'}">${p.stock}</span></td>
+        <td style="font-size:11px;color:#38bdf8">${prov?prov.nombre:'<span style="color:#475569">—</span>'}</td>
+        <td>${fmt(p.precio)}</td>
+        ${currentUser.role==='admin'?`<td style="color:#f87171;font-size:12px">${p.costo?fmt(p.costo):'<span style="color:#475569">—</span>'}</td><td style="color:${ganU>0?'#4ade80':'#f87171'};font-weight:500;font-size:12px">${p.costo?fmt(ganU):'<span style="color:#475569">—</span>'}</td>`:''}
+        <td><span style="font-weight:500;color:${p.stock<=2?'#f87171':p.stock<=5?'#fbbf24':'#4ade80'}">${p.stock}</span></td>
         <td><div class="actions-cell">
           <button class="btn" data-edit-prod="${p.id}" style="font-size:11px;padding:3px 7px">Editar</button>
           <button class="btn danger" data-del-prod="${p.id}" style="font-size:11px;padding:3px 6px">✕</button>
         </div></td></tr>`;}).join('')}</tbody>
     </table></div>
+  </div>`;
+}
+
+function renderProveedores(){
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">Proveedores</span>
+      <button class="btn primary" id="nuevo-prov-btn">+ Nuevo proveedor</button>
+    </div>
+    <div class="metrics">
+      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">🚛</div><div class="metric-label">Total</div><div class="metric-value">${data.proveedores.length}</div></div>
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📦</div><div class="metric-label">Con productos</div><div class="metric-value">${[...new Set(data.productos.filter(p=>p.proveedorId).map(p=>p.proveedorId))].length}</div></div>
+    </div>
+    <div class="card">
+      ${data.proveedores.length===0?`<div class="empty">Sin proveedores cargados aún</div>`:`
+      <table><thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Rubro</th><th>Notas</th><th>Productos</th><th></th></tr></thead>
+      <tbody>${data.proveedores.map(p=>{
+        const prods=data.productos.filter(x=>x.proveedorId==p.id).length;
+        return`<tr>
+          <td style="font-weight:500">${p.nombre}</td>
+          <td style="color:#94a3b8">${p.contacto||'—'}</td>
+          <td>${p.telefono?`<span style="color:#4ade80;font-size:11px">${p.telefono}</span>`:'—'}</td>
+          <td style="font-size:11px;color:#38bdf8">${p.rubro||'—'}</td>
+          <td style="font-size:11px;color:#64748b;max-width:160px">${p.notas||'—'}</td>
+          <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(30,143,207,0.15);color:#38bdf8">${prods} prod.</span></td>
+          <td><div class="actions-cell">
+            ${p.telefono?`<button class="btn" onclick="window.open('https://wa.me/549${p.telefono.replace(/\D/g,'')}','_blank')" style="font-size:11px;padding:3px 7px;background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.3);color:#4ade80">WhatsApp</button>`:''}
+            <button class="btn danger" data-del-prov="${p.id}" style="font-size:11px;padding:3px 6px">✕</button>
+          </div></td>
+        </tr>`;}).join('')}
+      </tbody></table>`}
+    </div>
   </div>`;
 }
 
@@ -749,8 +839,9 @@ function renderModal(){
     </div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
-      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option></select></div>
     </div>
+    <div id="aviso-medio-pago" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#fbbf24;margin-bottom:6px"></div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
@@ -774,8 +865,9 @@ function renderModal(){
     <div id="m-com-preview" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:7px;padding:8px 10px;font-size:12px;color:#a78bfa;margin-bottom:10px">Seleccioná un vendedor para ver la comisión</div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
-      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option></select></div>
     </div>
+    <div id="aviso-medio-pago" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#fbbf24;margin-bottom:6px"></div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
@@ -824,10 +916,28 @@ function renderModal(){
     <div class="form-row"><label class="form-label">Código de barras</label><input type="text" id="m-pcodigo" value="${m.prod?.codigo||''}" placeholder="Escaneá o escribí el código" style="${INP}"></div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Categoría</label><select id="m-pcat" style="${INP}">${data.categorias.map(c=>`<option value="${c.id}"${m.prod?.categoriaId==c.id?' selected':''}>${c.nombre}</option>`).join('')}</select></div>
-      <div class="form-row"><label class="form-label">Precio</label><input type="number" id="m-pprecio" value="${m.prod?.precio||0}" style="${INP}"></div>
+      <div class="form-row"><label class="form-label">Precio de venta</label><input type="number" id="m-pprecio" value="${m.prod?.precio||0}" style="${INP}"></div>
     </div>
+    ${currentUser.role==='admin'?`<div class="form-row"><label class="form-label">Precio de costo <span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:1px 6px;border-radius:6px;margin-left:4px">solo admin</span></label><input type="number" id="m-pcosto" value="${m.prod?.costo||0}" style="${INP}" placeholder="0"></div>`:'<input type="hidden" id="m-pcosto" value="${m.prod?.costo||0}">'}
     <div class="form-row"><label class="form-label">Stock</label><input type="number" id="m-pstock" value="${m.prod?.stock||0}" style="${INP}"></div>
+    <div class="form-row"><label class="form-label">Proveedor <span style="font-size:10px;color:#64748b;font-weight:400">(opcional)</span></label>
+      <div style="display:flex;gap:6px">
+        <select id="m-pprov" style="${INP};flex:1">${'<option value="">— Sin proveedor —</option>'+data.proveedores.map(p=>`<option value="${p.id}"${m.prod?.proveedorId==p.id?' selected':''}>${p.nombre}</option>`).join('')}</select>
+        <button class="btn" id="nuevo-prov-desde-prod-btn" style="white-space:nowrap;font-size:11px;padding:4px 10px">+ Nuevo</button>
+      </div>
+    </div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-prod">Guardar</button></div>
+  </div></div>`;
+  if(m.type==='nuevo-proveedor') return`<div class="modal-bg"><div class="modal">
+    <div class="modal-title">Nuevo proveedor</div>
+    <div class="form-row"><label class="form-label">Nombre del proveedor</label><input type="text" id="m-provnombre" placeholder="Ej: Samsung Distribuidora" style="${INP}"></div>
+    <div class="two-col">
+      <div class="form-row"><label class="form-label">Contacto <span style="font-size:10px;color:#64748b;font-weight:400">(opcional)</span></label><input type="text" id="m-provcontacto" placeholder="Nombre de contacto" style="${INP}"></div>
+      <div class="form-row"><label class="form-label">Teléfono / WhatsApp <span style="font-size:10px;color:#64748b;font-weight:400">(opcional)</span></label><input type="text" id="m-provtel" placeholder="Ej: 3644 123 456" style="${INP}"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Rubro <span style="font-size:10px;color:#64748b;font-weight:400">(opcional)</span></label><input type="text" id="m-provrubro" placeholder="Ej: Celulares, Electrodomésticos" style="${INP}"></div>
+    <div class="form-row"><label class="form-label">Notas <span style="font-size:10px;color:#64748b;font-weight:400">(opcional)</span></label><input type="text" id="m-provnotas" placeholder="Ej: Entrega en 48hs, pago a 30 días" style="${INP}"></div>
+    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-prov">Guardar proveedor</button></div>
   </div></div>`;
   if(m.type==='nuevo-contacto') return`<div class="modal-bg"><div class="modal">
     <div class="modal-title">Nuevo contacto</div>
@@ -940,6 +1050,8 @@ function bindApp(){
   const npb=q('nuevo-prod-btn');if(npb)npb.onclick=()=>{modal={type:'nuevo-prod'};render();};
   const qfc=q('quitar-filtro-cat');if(qfc)qfc.onclick=()=>{filtroCategoria=null;render();};
   const ncb=q('nuevo-contacto-btn');if(ncb)ncb.onclick=()=>{modal={type:'nuevo-contacto'};render();};
+  const npb=q('nuevo-prov-btn');if(npb)npb.onclick=()=>{modal={type:'nuevo-proveedor'};render();};
+  const nppb=q('nuevo-prov-desde-prod-btn');if(nppb)nppb.onclick=()=>{modal={type:'nuevo-proveedor',desde:'prod'};render();};
   const nvend=q('nuevo-vend-btn');if(nvend)nvend.onclick=()=>{modal={type:'nuevo-vend'};render();};
   const ncatb=q('nueva-cat-btn');if(ncatb)ncatb.onclick=()=>{modal={type:'nueva-cat'};render();};
   const nub=q('nuevo-user-btn');if(nub)nub.onclick=()=>{modal={type:'nuevo-user'};render();};
@@ -957,6 +1069,7 @@ function bindApp(){
   document.querySelectorAll('[data-edit-prod]').forEach(b=>{b.onclick=()=>{const p=data.productos.find(x=>x.id==b.dataset.editProd);modal={type:'nuevo-prod',prod:p};render();};});
   document.querySelectorAll('[data-del-prod]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.productos=data.productos.filter(p=>p.id!=b.dataset.delProd);save(data);render();}};});
   document.querySelectorAll('[data-del-contacto]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.contactos=data.contactos.filter(c=>c.id!=b.dataset.delContacto);save(data);render();}};});
+  document.querySelectorAll('[data-del-prov]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar este proveedor?')){data.proveedores=data.proveedores.filter(p=>p.id!=b.dataset.delProv);save(data);render();}};});
   document.querySelectorAll('[data-del-cat]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.categorias=data.categorias.filter(c=>c.id!=b.dataset.delCat);save(data);render();}};});
   document.querySelectorAll('[data-edit-vend]').forEach(b=>{b.onclick=()=>{const v=data.vendedores.find(x=>x.id==b.dataset.editVend);modal={type:'nuevo-vend',vend:v};render();};});
   document.querySelectorAll('[data-com-vend]').forEach(b=>{b.onclick=()=>{const v=data.vendedores.find(x=>x.id==b.dataset.comVend);modal={type:'comisiones-vend',vend:v};render();};});
@@ -1074,8 +1187,16 @@ function bindApp(){
   };
   const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{const monto=parseFloat(q('m-monto-cobro').value)||0,venta=data.ventas.find(x=>x.id===modal.venta.id);if(venta){venta.cobrado=Math.min(venta.total,venta.cobrado+monto);venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';}save(data);modal=null;render();};
   const mse=q('modal-save-egreso');if(mse)mse.onclick=()=>{data.egresos.unshift({id:data.nextId.egreso++,fecha:q('m-fecha-eg').value,proveedor:q('m-prov').value,concepto:q('m-concepto').value,monto:parseFloat(q('m-monto').value)||0,pagado:q('m-pagado').value==='true'});save(data);modal=null;render();};
-  const msprod=q('modal-save-prod');if(msprod)msprod.onclick=()=>{if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.stock=parseInt(q('m-pstock').value)||0;}else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,stock:parseInt(q('m-pstock').value)||0});}save(data);modal=null;render();};
+  const msprod=q('modal-save-prod');if(msprod)msprod.onclick=()=>{const provId=parseInt(q('m-pprov')?.value)||null;const costo=parseFloat(q('m-pcosto')?.value)||0;if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.costo=costo;p.stock=parseInt(q('m-pstock').value)||0;p.proveedorId=provId;}else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,costo,stock:parseInt(q('m-pstock').value)||0,proveedorId:provId});}save(data);modal=null;render();};
   const msct=q('modal-save-contacto');if(msct)msct.onclick=()=>{data.contactos.push({id:data.nextId.contacto++,nombre:q('m-cnombre').value,tipo:q('m-ctipo').value,telefono:q('m-ctel').value,email:q('m-cemail').value});save(data);modal=null;render();};
+  const msprov=q('modal-save-prov');if(msprov)msprov.onclick=()=>{
+    const nombre=q('m-provnombre')?.value.trim();
+    if(!nombre){alert('Ingresá el nombre del proveedor.');return;}
+    const nuevo={id:data.nextId.proveedor++,nombre,contacto:q('m-provcontacto')?.value.trim()||'',telefono:q('m-provtel')?.value.trim()||'',rubro:q('m-provrubro')?.value.trim()||'',notas:q('m-provnotas')?.value.trim()||''};
+    data.proveedores.push(nuevo);
+    save(data);
+    if(modal.desde==='prod'){modal={type:'nuevo-prod'};render();}else{modal=null;render();}
+  };
   const msvend=q('modal-save-vend');if(msvend)msvend.onclick=()=>{if(modal.vend){const v=data.vendedores.find(x=>x.id===modal.vend.id);v.nombre=q('m-vnombre').value;v.telefono=q('m-vtel').value;v.sueldo=parseFloat(q('m-vsueldo').value)||0;}else{data.vendedores.push({id:data.nextId.vendedor++,nombre:q('m-vnombre').value,telefono:q('m-vtel').value,sueldo:parseFloat(q('m-vsueldo').value)||0,comisiones:{}});}save(data);modal=null;render();};
   const mscom=q('modal-save-comisiones');if(mscom)mscom.onclick=()=>{const v=data.vendedores.find(x=>x.id===modal.vend.id);if(!v.comisiones)v.comisiones={};data.categorias.forEach(cat=>{v.comisiones[cat.id]=parseFloat(q('com-cat-'+cat.id)?.value)||0;});save(data);modal=null;render();};
   const mscat=q('modal-save-cat');if(mscat)mscat.onclick=()=>{data.categorias.push({id:data.nextId.categoria++,nombre:q('m-catnombre').value,color:q('m-catcolor').value});save(data);modal=null;render();};
@@ -1494,6 +1615,19 @@ function renderComprobanteCuota(credito,cuota){
     <div style="text-align:center;margin-top:10px;font-size:10px;color:#999">Conserve este comprobante — Nickel, Quitilipi, Chaco — ${fechaHoy}</div>
   </div>`;
 }
+
+window.checkMedioPagoAviso = function(sel) {
+  const aviso = document.getElementById('aviso-medio-pago');
+  if(!aviso) return;
+  const mp = sel.value;
+  const msgs = {
+    'credivip': '🟠 CrediVIP — la venta quedará pendiente de liquidación hasta que confirmes el cobro.',
+    'rapicuota': '🟣 Rapicuota — la venta quedará pendiente de liquidación hasta que confirmes el cobro.',
+    'nickcel-pagares': '📄 Nickcel Pagarés — la venta quedará pendiente hasta que confirmes la liquidación del pagaré.',
+  };
+  if(msgs[mp]){ aviso.textContent=msgs[mp]; aviso.style.display='block'; }
+  else { aviso.style.display='none'; }
+};
 </script>
 
 </body></html>
