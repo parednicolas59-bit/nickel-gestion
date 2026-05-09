@@ -1128,7 +1128,7 @@ function bindApp(){
       };
     });
   }
-  document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagarCuota);const cuota=c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=true;cuota.fechaPago=new Date().toISOString().split('T')[0];if(c.cuotas.every(x=>x.pagada))c.estado='cancelado';save(data);modal={type:'ver-credito',credito:c};render();}};});
+  document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagarCuota);const cuota=c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=true;cuota.fechaPago=new Date().toISOString().split('T')[0];if(c.cuotas.every(x=>x.pagada))c.estado='cancelado';save(data);modal={type:'comp-cuota',credito:c,cuota:cuota};render();}};});
   document.querySelectorAll('[data-del-credito]').forEach(b=>{b.onclick=()=>{if(!confirm('¿Eliminar este crédito?'))return;data.creditos=data.creditos.filter(c=>c.id!=b.dataset.delCredito);save(data);modal=null;render();};});
   document.querySelectorAll('[data-anular-cuota]').forEach(b=>{b.onclick=()=>{if(!confirm('¿Anular este pago?'))return;const c=data.creditos.find(x=>x.id==b.dataset.anularCuota);const q=c&&c.cuotas.find(x=>x.nro==b.dataset.nro);if(q){q.pagada=false;q.fechaPago=null;if(c.estado==='cancelado')c.estado='activo';save(data);modal={type:'ver-credito',credito:c};render();}};});
 
