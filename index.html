@@ -656,13 +656,26 @@ window.limpiarProdModal=function(){
 }
 function renderProductos(){
   const catActual=filtroCategoria?getCat(filtroCategoria):null;
-  const prodsFiltrados=filtroCategoria?data.productos.filter(p=>p.categoriaId===filtroCategoria):data.productos;
+  const busq=(window._busqProd||'').toLowerCase().trim();
+  let prodsFiltrados=filtroCategoria?data.productos.filter(p=>p.categoriaId===filtroCategoria):data.productos;
+  if(busq)prodsFiltrados=prodsFiltrados.filter(p=>(p.nombre||'').toLowerCase().includes(busq)||(p.codigo||'').toLowerCase().includes(busq));
   const INP2='background:#0f172a;width:100%;padding:7px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:#f1f5f9;font-size:12px';
   return`<div>
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">Productos${catActual?` — <span style="color:${catActual.color}">${catActual.nombre}</span>`:''}</span>
       ${catActual?`<button class="btn" id="quitar-filtro-cat" style="font-size:11px">✕ Ver todos</button>`:''}
       <button class="btn primary" id="nuevo-prod-btn">+ Nuevo producto</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <div style="position:relative;flex:1;max-width:340px">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:14px">🔍</span>
+        <input id="busq-prod-tabla" placeholder="Buscar por nombre o código..." autocomplete="off"
+          value="${window._busqProd||''}"
+          style="width:100%;padding:7px 12px 7px 32px;background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#f1f5f9;font-size:13px;outline:none;box-sizing:border-box"
+          oninput="window._busqProd=this.value;render()">
+      </div>
+      ${busq?`<button class="btn" id="limpiar-busq-prod" style="font-size:11px;padding:5px 10px">✕ Limpiar</button>`:''}
+      <span style="font-size:11px;color:#64748b;margin-left:4px">${prodsFiltrados.length} producto${prodsFiltrados.length!==1?'s':''}</span>
     </div>
     <div class="stock-scan-box">
       <div style="font-size:13px;font-weight:500;margin-bottom:8px">🔫 Agregar stock con pistola</div>
@@ -675,13 +688,15 @@ function renderProductos(){
     </div>
     <div class="card"><table>
       <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Proveedor</th><th>Precio venta</th>${currentUser.role==='admin'?'<th style="color:#f87171">Costo</th><th style="color:#4ade80">Ganancia/u</th>':''}<th>Stock</th><th></th></tr></thead>
-      <tbody>${prodsFiltrados.length===0?`<tr><td colspan="9" style="text-align:center;color:#64748b;padding:20px">No hay productos</td></tr>`:prodsFiltrados.map(p=>{
+      <tbody>${prodsFiltrados.length===0?`<tr><td colspan="9" style="text-align:center;color:#64748b;padding:20px">${busq?`Sin resultados para "<strong>${window._busqProd}</strong>"`:'No hay productos'}</td></tr>`:prodsFiltrados.map(p=>{
         const c=getCat(p.categoriaId);
         const prov=data.proveedores?data.proveedores.find(x=>x.id==p.proveedorId):null;
         const ganU=p.precio-(p.costo||0);
+        const nombreHl=busq?p.nombre.replace(new RegExp(`(${busq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark style="background:rgba(167,122,255,0.35);color:#e2e8f0;border-radius:3px">$1</mark>'):p.nombre;
+        const codigoHl=busq?p.codigo.replace(new RegExp(`(${busq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark style="background:rgba(167,122,255,0.35);color:#e2e8f0;border-radius:3px">$1</mark>'):p.codigo;
         return`<tr>
-          <td style="font-family:var(--font-mono);font-size:11px;color:#64748b">${p.codigo}</td>
-          <td>${p.nombre}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#64748b">${codigoHl}</td>
+          <td>${nombreHl}</td>
           <td>${c?`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${c.color}22;color:${c.color}">${c.nombre}</span>`:'-'}</td>
           <td style="font-size:11px;color:#38bdf8">${prov?prov.nombre:'<span style="color:#475569">—</span>'}</td>
           <td>${fmt(p.precio)}</td>
@@ -1328,6 +1343,13 @@ function renderModal(){
       <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option><option value="tarjeta-nbch">💳 Tarjeta NBCH</option><option value="tarjeta-santander">💳 Santander (Brubank)</option><option value="tarjeta-galicia">💳 Yolo/Galicia</option></select></div>
     </div>
     <div id="aviso-medio-pago" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:7px;padding:8px 12px;font-size:12px;color:#fbbf24;margin-bottom:8px"></div>
+    ${(()=>{const p=modalProdSeleccionado;const desc=p&&p.descEfectivo>0?p.descEfectivo:0;if(!desc)return '';const precioDesc=Math.round(p.precio*(1-desc/100));return`<div id="bloque-desc-efectivo" style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
+        <input type="checkbox" id="m-aplicar-desc-ef" style="width:16px;height:16px;cursor:pointer" onchange="toggleDescEfectivo(this)">
+        <span style="font-size:12px;color:#4ade80;font-weight:500">💵 Aplicar descuento efectivo <strong>${desc}%</strong></span>
+      </label>
+      <span style="font-size:12px;color:#94a3b8">${fmt(p.precio)} → <strong style="color:#4ade80">${fmt(precioDesc)}</strong></span>
+    </div>`;})()}
     <div class="two-col">
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
@@ -1410,6 +1432,14 @@ function renderModal(){
     <div class="two-col">
       <div class="form-row"><label class="form-label">Precio costo <span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:1px 6px;border-radius:5px">admin</span></label><input type="number" id="m-pcosto" value="${m.prod?.costo||0}" style="${INP}" placeholder="0"></div>
       <div class="form-row"><label class="form-label">Stock</label><input type="number" id="m-pstock" value="${m.prod?.stock||0}" style="${INP}"></div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">% Descuento efectivo <span style="font-size:10px;color:#64748b">(opcional — se ofrecerá al cobrar en efectivo)</span></label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" id="m-pdesc-efectivo" value="${m.prod?.descEfectivo||0}" min="0" max="100" step="0.5" style="${INP};width:90px" placeholder="0">
+        <span style="font-size:12px;color:#64748b">%</span>
+        <span id="m-pdesc-preview" style="font-size:11px;color:#4ade80"></span>
+      </div>
     </div>
     <div class="form-row"><label class="form-label">Proveedor <span style="font-size:10px;color:#64748b">(opcional)</span></label>
       <div style="display:flex;gap:6px">
@@ -1729,6 +1759,7 @@ function bindApp(){
   document.querySelectorAll('[data-del-egreso]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.egresos=data.egresos.filter(e=>e.id!=b.dataset.delEgreso);save(data);render();}};});
   document.querySelectorAll('[data-edit-prod]').forEach(b=>{b.onclick=()=>{const p=data.productos.find(x=>x.id==b.dataset.editProd);modal={type:'nuevo-prod',prod:p};render();};});
   document.querySelectorAll('[data-del-prod]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.productos=data.productos.filter(p=>p.id!=b.dataset.delProd);save(data);render();}};});
+  const lbp=q('limpiar-busq-prod');if(lbp)lbp.onclick=()=>{window._busqProd='';render();};
   document.querySelectorAll('[data-del-contacto]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.contactos=data.contactos.filter(c=>c.id!=b.dataset.delContacto);save(data);render();}};});
   document.querySelectorAll('[data-del-prov]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar este proveedor?')){data.proveedores=data.proveedores.filter(p=>p.id!=b.dataset.delProv);save(data);render();}};});
   document.querySelectorAll('[data-del-cat]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.categorias=data.categorias.filter(c=>c.id!=b.dataset.delCat);save(data);render();}};});
@@ -1892,8 +1923,9 @@ function bindApp(){
   const msprod=q('modal-save-prod');if(msprod)msprod.onclick=()=>{
     const costo=parseFloat(q('m-pcosto')?.value)||0;
     const provId=parseInt(q('m-pprov')?.value)||null;
-    if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.costo=costo;p.stock=parseInt(q('m-pstock').value)||0;p.proveedorId=provId;}
-    else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,costo,stock:parseInt(q('m-pstock').value)||0,proveedorId:provId});}
+    const descEfectivo=parseFloat(q('m-pdesc-efectivo')?.value)||0;
+    if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.costo=costo;p.stock=parseInt(q('m-pstock').value)||0;p.proveedorId=provId;p.descEfectivo=descEfectivo;}
+    else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,costo,stock:parseInt(q('m-pstock').value)||0,proveedorId:provId,descEfectivo});}
     save(data);modal=null;render();
   };
   const msprov=q('modal-save-prov');if(msprov)msprov.onclick=()=>{
@@ -2550,6 +2582,31 @@ function renderComprobanteCuota(credito,cuota){
   </div>`;
 }
 
+window.toggleDescEfectivo=function(cb){
+  if(!modalProdSeleccionado)return;
+  const desc=modalProdSeleccionado.descEfectivo||0;
+  const mpInput=document.getElementById('m-precio');
+  if(!mpInput)return;
+  if(cb.checked){
+    mpInput.value=Math.round(modalProdSeleccionado.precio*(1-desc/100));
+    // auto poner sin factura
+    const mf=document.getElementById('m-factura');
+    if(mf)mf.value='sin-factura';
+  } else {
+    mpInput.value=modalProdSeleccionado.precio;
+  }
+  actualizarComPreview();
+};
+// Preview descuento en modal producto
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='m-pdesc-efectivo'){
+    const pct=parseFloat(e.target.value)||0;
+    const precio=parseFloat(document.getElementById('m-pprecio')?.value)||0;
+    const prev=document.getElementById('m-pdesc-preview');
+    if(prev&&precio>0&&pct>0)prev.textContent='→ Precio con desc: '+precio*(1-pct/100).toFixed(0).toLocaleString('es-AR');
+    else if(prev)prev.textContent='';
+  }
+});
 window.checkMedioPagoAviso=function(sel){
   const aviso=document.getElementById('aviso-medio-pago');
   if(!aviso)return;
