@@ -1073,6 +1073,7 @@ function renderVendedores(){
           <div class="actions-cell" style="margin-left:8px">
             <button class="btn" data-edit-vend="${v.id}" style="font-size:11px;padding:4px 8px">Editar</button>
             <button class="btn" data-com-vend="${v.id}" style="font-size:11px;padding:4px 8px;color:#a78bfa;border-color:rgba(139,92,246,0.3)">%</button>
+            <button class="btn danger" data-del-vend="${v.id}" style="font-size:11px;padding:4px 8px">✕</button>
           </div>
         </div>
         <div style="font-size:11px;color:#64748b;margin-bottom:6px">${vv.length} ventas · ${fmt(tv)} vendido</div>
@@ -1602,6 +1603,7 @@ function bindApp(){
   document.querySelectorAll('[data-del-cat]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.categorias=data.categorias.filter(c=>c.id!=b.dataset.delCat);save(data);render();}};});
   document.querySelectorAll('[data-edit-vend]').forEach(b=>{b.onclick=()=>{const v=data.vendedores.find(x=>x.id==b.dataset.editVend);modal={type:'nuevo-vend',vend:v};render();};});
   document.querySelectorAll('[data-com-vend]').forEach(b=>{b.onclick=()=>{const v=data.vendedores.find(x=>x.id==b.dataset.comVend);modal={type:'comisiones-vend',vend:v};render();};});
+  document.querySelectorAll('[data-del-vend]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar este vendedor? Las ventas asociadas quedarán sin vendedor asignado.')){{data.vendedores=data.vendedores.filter(v=>v.id!=b.dataset.delVend);save(data);render();}}}; });
 
   const mc=q('modal-cancel');if(mc)mc.onclick=()=>{modal=null;modalProdSeleccionado=null;render();};
   const mpc=q('modal-print-comp');if(mpc&&modal&&modal.venta)mpc.onclick=()=>{printComprobante(modal.venta);};
