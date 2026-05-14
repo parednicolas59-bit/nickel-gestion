@@ -401,6 +401,7 @@ function renderDash(){
   const galiciaVencidas=getGaliciaVencidas();
   const galiciaPendientes=getGaliciaPendientes();
   const saldoGalicia=getSaldoGalicia();
+  const saldoMp=getSaldoMp();
   return`<div>
   ${(nbchVencidas.length>0||brubankVencidas.length>0||galiciaVencidas.length>0)?`<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
     <div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:8px">🔴 Liquidaciones vencidas — revisá si ya depositaron</div>
@@ -435,6 +436,7 @@ function renderDash(){
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(167,122,255,0.18)">💳</div><div><div class="resumen-label">NBCH — Saldo cta.</div><div class="resumen-val" style="color:#a78bfa">${fmt(saldoNbch)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">🏦</div><div><div class="resumen-label">Brubank — Saldo cta.</div><div class="resumen-val" style="color:#f87171">${fmt(saldoBrubank)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(255,77,77,0.18)">🏦</div><div><div class="resumen-label">Galicia — Saldo cta.</div><div class="resumen-val" style="color:#ff4d4d">${fmt(saldoGalicia)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(0,174,243,0.18)">💙</div><div><div class="resumen-label">Mercado Pago — Saldo</div><div class="resumen-val" style="color:#00aef3">${fmt(saldoMp)}</div></div></div>
   </div>
   <div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Pend. — CrediVIP</div><div class="resumen-val" style="color:#fbbf24">${fmt(pendCredivip)}</div></div></div>
