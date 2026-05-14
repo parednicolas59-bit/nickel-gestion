@@ -208,7 +208,7 @@ const def={
   nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1}
 };
 function load(){
-  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';if(!v._mpMigrado){v._mpMigrado=true;d.mercadopago.push({id:d.nextId.mercadopago++,fecha:v.fecha,tipo:'ingreso',descripcion:'Venta #'+v.id+' — '+v.cliente+' (migrado)',monto:v.total});}}});return d;}}catch(e){}
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
   return JSON.parse(JSON.stringify(def));
 }
 async function loadFromFirebase(){
@@ -228,8 +228,8 @@ async function loadFromFirebase(){
       if(!d.nextId.galicia)d.nextId.galicia=1;
       if(!d.mercadopago)d.mercadopago=[];
       if(!d.nextId.mercadopago)d.nextId.mercadopago=1;
-      // Migrar ventas con medioPago=transferencia a mercadopago (solo una vez)
-      d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';if(!v._mpMigrado){v._mpMigrado=true;d.mercadopago.push({id:d.nextId.mercadopago++,fecha:v.fecha,tipo:'ingreso',descripcion:'Venta #'+v.id+' — '+v.cliente+' (migrado)',monto:v.total});}}});
+      // Migrar ventas con medioPago=transferencia a mercadopago (solo renombra, sin generar movimientos)
+      d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});
       d.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
       try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
       return d;
@@ -386,6 +386,8 @@ function renderDash(){
   const cobradoMP=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0);
   const pendCredivip=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0);
   const pendRapicuota=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0);
+  const hoyDash=new Date().toISOString().split('T')[0];
+  const rapiSemanasDB=getRapicuotaSemanasAgrupadas().filter(s=>s.ventas.some(v=>!v.rapicuotaLiquidado)).sort((a,b)=>a.cobro.localeCompare(b.cobro));
   const pendNickcel=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+v.total,0);
   const ventasMes=data.ventas.filter(v=>v.mes===mes&&v.estado!=='cancelado');
   const inversionMes=ventasMes.reduce((s,v)=>s+v.items.reduce((si,i)=>{const p=getProdById(i.productoId);return si+(p?.costo||0)*i.qty;},0),0);
@@ -440,7 +442,23 @@ function renderDash(){
   </div>
   <div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Pend. — CrediVIP</div><div class="resumen-val" style="color:#fbbf24">${fmt(pendCredivip)}</div></div></div>
-    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Pend. — Rapicuota</div><div class="resumen-val" style="color:#a78bfa">${fmt(pendRapicuota)}</div></div></div>
+    ${rapiSemanasDB.length>0?`<div class="resumen-item" style="flex-direction:column;align-items:flex-start;gap:6px;min-width:200px">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <div class="resumen-ico" style="background:rgba(139,92,246,0.18);flex-shrink:0">🟣</div>
+        <div><div class="resumen-label">Cobros Rapicuota pendientes</div><div class="resumen-val" style="color:#a78bfa">${fmt(pendRapicuota)}</div></div>
+      </div>
+      <div style="width:100%;padding-left:4px">
+        ${rapiSemanasDB.map(s=>{
+          const pend=s.ventas.filter(v=>!v.rapicuotaLiquidado);
+          const tot=pend.reduce((x,v)=>x+v.total,0);
+          const vencida=s.cobro<hoyDash;
+          return`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-top:1px solid rgba(255,255,255,0.05)">
+            <span style="color:${vencida?'#f87171':'#94a3b8'}">📅 ${fd(s.cobro)}${vencida?' ⚠️':''}</span>
+            <span style="color:#a78bfa;font-weight:500">${fmt(tot)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`:`<div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Pend. — Rapicuota</div><div class="resumen-val" style="color:#a78bfa">${fmt(pendRapicuota)}</div></div></div>`}
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">📄</div><div><div class="resumen-label">Pend. — Nickcel Pagarés</div><div class="resumen-val" style="color:#38bdf8">${fmt(pendNickcel)}</div></div></div>
     ${nbchPendientes.length>0?`<div class="resumen-item" style="border-color:${nbchVencidas.length>0?'rgba(239,68,68,0.3)':'var(--border)'}"><div class="resumen-ico" style="background:rgba(167,122,255,0.18)">💳</div><div><div class="resumen-label">Pend. — Tarjeta NBCH</div><div class="resumen-val" style="color:${nbchVencidas.length>0?'#f87171':'#a78bfa'}">${fmt(nbchPendientes.reduce((s,v)=>s+v.total,0))}</div></div></div>`:''}
     ${brubankPendientes.length>0?`<div class="resumen-item" style="border-color:${brubankVencidas.length>0?'rgba(239,68,68,0.3)':'var(--border)'}"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">💳</div><div><div class="resumen-label">Pend. — Santander</div><div class="resumen-val" style="color:#f87171">${fmt(brubankPendientes.reduce((s,v)=>s+v.total,0))}</div></div></div>`:''}
