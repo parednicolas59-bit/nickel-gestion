@@ -306,8 +306,8 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','financiera'];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
@@ -333,6 +333,7 @@ function renderTab(){
   if(tab==='nbch')return renderNbch();
   if(tab==='brubank')return renderBrubank();
   if(tab==='galicia')return renderGalicia();
+  if(tab==='rapicuota')return renderRapicuota();
   if(tab==='informes')return renderInformes();
   if(tab==='usuarios')return renderUsuarios();
   if(tab==='financiera')return renderFinanciera();
@@ -1087,6 +1088,110 @@ function renderVendedores(){
   </div>`;
 }
 
+// ===== RAPICUOTA =====
+// La semana corre de miércoles a martes. El cobro es el miércoles 21 días después del cierre de semana (martes).
+function getRapicuotaSemana(fechaStr){
+  // Semana corre de miércoles a martes. Cobro = miércoles de inicio + 21 días.
+  const d=new Date(fechaStr+'T12:00:00');
+  const dow=d.getDay(); // 0=dom,1=lun,2=mar,3=mie,4=jue,5=vie,6=sab
+  // Días a retroceder para llegar al miércoles de inicio
+  const retro=dow===3?0:dow===4?1:dow===5?2:dow===6?3:dow===0?4:dow===1?5:6;
+  const inicio=new Date(d);inicio.setDate(d.getDate()-retro);
+  const cierre=new Date(inicio);cierre.setDate(inicio.getDate()+6); // martes
+  const cobro=new Date(inicio);cobro.setDate(inicio.getDate()+21); // mié exacto 3 semanas después
+  const fmt2=dt=>dt.toISOString().split('T')[0];
+  return{inicio:fmt2(inicio),cierre:fmt2(cierre),cobro:fmt2(cobro)};
+}
+function getRapicuotaVentas(){
+  return data.ventas.filter(v=>v.medioPago==='rapicuota'&&v.estado!=='cancelado');
+}
+function getRapicuotaPendientes(){
+  return getRapicuotaVentas().filter(v=>!v.rapicuotaLiquidado);
+}
+function getRapicuotaSemanasAgrupadas(){
+  const ventas=getRapicuotaVentas();
+  const mapa={};
+  ventas.forEach(v=>{
+    const sem=getRapicuotaSemana(v.fecha);
+    const key=sem.inicio;
+    if(!mapa[key])mapa[key]={inicio:sem.inicio,cierre:sem.cierre,cobro:sem.cobro,ventas:[]};
+    mapa[key].ventas.push(v);
+  });
+  return Object.values(mapa).sort((a,b)=>b.inicio.localeCompare(a.inicio));
+}
+function renderRapicuota(){
+  const hoy=new Date();
+  const hoyStr=hoy.toISOString().split('T')[0];
+  const semanas=getRapicuotaSemanasAgrupadas();
+  const totalPendiente=getRapicuotaPendientes().reduce((s,v)=>s+v.total,0);
+  const totalCobrado=getRapicuotaVentas().filter(v=>v.rapicuotaLiquidado).reduce((s,v)=>s+v.total,0);
+  const semanasVencidas=semanas.filter(s=>!s.ventas.every(v=>v.rapicuotaLiquidado)&&s.cobro<hoyStr);
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">🟣 Rapicuota — Cobros semanales</span>
+    </div>
+    <div style="background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px 14px;font-size:11px;color:#94a3b8;margin-bottom:14px">
+      📅 <strong style="color:#a78bfa">Semana mié→mar</strong> — Todo lo que vendés en la semana lo cobrás el <strong style="color:#a78bfa">miércoles 22 días después del cierre</strong> (martes). El cobro es en efectivo.
+    </div>
+    <div class="metrics">
+      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">Total pendiente</div><div class="metric-value" style="color:#a78bfa">${fmt(totalPendiente)}</div></div>
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">✅</div><div class="metric-label">Total cobrado</div><div class="metric-value" style="color:#4ade80">${fmt(totalCobrado)}</div></div>
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">📅</div><div class="metric-label">Semanas registradas</div><div class="metric-value">${semanas.length}</div></div>
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">🔴</div><div class="metric-label">Semanas vencidas</div><div class="metric-value" style="color:${semanasVencidas.length>0?'#f87171':'#4ade80'}">${semanasVencidas.length}</div></div>
+    </div>
+    ${semanas.length===0?`<div class="empty">Sin ventas Rapicuota todavía</div>`:
+    semanas.map(s=>{
+      const todas=s.ventas;
+      const pendientes=todas.filter(v=>!v.rapicuotaLiquidado);
+      const cobradas=todas.filter(v=>v.rapicuotaLiquidado);
+      const totalSem=todas.reduce((x,v)=>x+v.total,0);
+      const totalPend=pendientes.reduce((x,v)=>x+v.total,0);
+      const vencida=pendientes.length>0&&s.cobro<hoyStr;
+      const hoyEsCobro=s.cobro===hoyStr;
+      const cobrada=pendientes.length===0;
+      const borderColor=vencida?'rgba(239,68,68,0.4)':hoyEsCobro?'rgba(34,197,94,0.4)':cobrada?'rgba(100,116,139,0.2)':'rgba(139,92,246,0.25)';
+      const bgColor=vencida?'rgba(239,68,68,0.05)':hoyEsCobro?'rgba(34,197,94,0.05)':'transparent';
+      return`<div style="border:1px solid ${borderColor};background:${bgColor};border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#e2e8f0">Semana del ${fd(s.inicio)} al ${fd(s.cierre)}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+              ${cobrada
+                ?`<span style="color:#4ade80">✓ Cobrado completo</span>`
+                :`Cobro: <strong style="color:${vencida?'#f87171':hoyEsCobro?'#4ade80':'#a78bfa'}">${fd(s.cobro)}${vencida?' — VENCIDO':hoyEsCobro?' — HOY ✓':''}</strong>`
+              }
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:#64748b">${todas.length} venta${todas.length!==1?'s':''}</div>
+            <div style="font-size:16px;font-weight:600;color:${cobrada?'#4ade80':vencida?'#f87171':'#a78bfa'}">${fmt(cobrada?totalSem:totalPend)}</div>
+            <div style="font-size:10px;color:#64748b">${cobrada?'cobrado':'pendiente de cobro'}</div>
+          </div>
+        </div>
+        <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Venta N°</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+        <tbody>${todas.map(v=>`<tr>
+          <td>${fd(v.fecha)}</td>
+          <td>${v.cliente}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
+          <td style="font-weight:500">${fmt(v.total)}</td>
+          <td>${v.rapicuotaLiquidado
+            ?`<span style="background:rgba(34,197,94,0.15);color:#4ade80;padding:2px 8px;border-radius:10px;font-size:11px">✓ Cobrado</span>`
+            :`<span style="background:rgba(139,92,246,0.15);color:#a78bfa;padding:2px 8px;border-radius:10px;font-size:11px">Pendiente</span>`
+          }</td>
+          <td>${!v.rapicuotaLiquidado
+            ?`<button class="btn success" data-confirmar-rapicuota="${v.id}" style="font-size:11px;padding:3px 8px">✓ Confirmar cobro</button>`
+            :`<span style="font-size:10px;color:#475569">${v.rapicuotaFechaCobro?fd(v.rapicuotaFechaCobro):'—'}</span>`
+          }</td>
+        </tr>`).join('')}
+        </tbody></table>
+        ${pendientes.length>0?`<div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn primary" data-cobrar-semana-rapicuota="${s.inicio}" style="font-size:12px;background:rgba(139,92,246,0.2);border-color:rgba(139,92,246,0.4);color:#a78bfa">✓ Cobrar toda la semana (${fmt(totalPend)})</button>
+        </div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 function renderCategorias(){
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Categorías</span><button class="btn primary" id="nueva-cat-btn">+ Nueva categoría</button></div>
@@ -1541,6 +1646,32 @@ function renderModal(){
       </div>
     </div></div>`;
   }
+  if(m.type==='confirmar-rapicuota'){
+    const v=m.venta;
+    const sem=getRapicuotaSemana(v.fecha);
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">🟣 Confirmar cobro Rapicuota</div>
+      <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px">
+        <div style="color:#94a3b8;margin-bottom:4px">Venta #${v.id} — ${fd(v.fecha)}</div>
+        <div style="font-weight:500">${v.cliente}</div>
+        <div style="color:#a78bfa;font-size:13px;margin-top:4px">Total: ${fmt(v.total)}</div>
+        <div style="color:#64748b;font-size:11px;margin-top:4px">Semana: ${fd(sem.inicio)} al ${fd(sem.cierre)} · Cobro esperado: ${fd(sem.cobro)}</div>
+      </div>
+      <div class="form-row"><label class="form-label">Monto cobrado en efectivo *</label>
+        <input type="number" id="rapicuota-monto-cobro" value="${v.total}" style="${INP}" step="0.01">
+      </div>
+      <div class="form-row"><label class="form-label">Fecha de cobro</label>
+        <input type="date" id="rapicuota-fecha-cobro" value="${new Date().toISOString().split('T')[0]}" style="${INP}">
+      </div>
+      <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
+        <input type="text" id="rapicuota-notas" placeholder="Ej: Cobrado con diferencia, descuento..." style="${INP}">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-rapicuota-cobro" data-venta-id="${v.id}" style="background:#7c3aed;border-color:#7c3aed;color:#fff">Confirmar cobro</button>
+      </div>
+    </div></div>`;
+  }
   return '';
 }
 
@@ -1782,6 +1913,49 @@ function bindApp(){
   const mcc=q('modal-confirm-cierre');if(mcc)mcc.onclick=()=>{data.cierres.push({id:data.nextId.cierre++,mes:modal.mes,fecha:new Date().toISOString().split('T')[0],detalle:modal.detalle});save(data);modal=null;render();};
   // ===== GALICIA =====
   window._irGalicia=()=>{tab='galicia';render();};
+  // ===== RAPICUOTA =====
+  window._irRapicuota=()=>{tab='rapicuota';render();};
+  document.querySelectorAll('[data-confirmar-rapicuota]').forEach(b=>{
+    b.onclick=()=>{
+      const v=data.ventas.find(x=>x.id==b.dataset.confirmarRapicuota);
+      if(v){modal={type:'confirmar-rapicuota',venta:v};render();}
+    };
+  });
+  document.querySelectorAll('[data-cobrar-semana-rapicuota]').forEach(b=>{
+    b.onclick=()=>{
+      const inicioSem=b.dataset.cobrarSemanaRapicuota;
+      const hoy=new Date().toISOString().split('T')[0];
+      if(!confirm('¿Confirmar cobro de todas las ventas pendientes de esta semana?'))return;
+      data.ventas.forEach(v=>{
+        if(v.medioPago==='rapicuota'&&!v.rapicuotaLiquidado&&v.estado!=='cancelado'){
+          const sem=getRapicuotaSemana(v.fecha);
+          if(sem.inicio===inicioSem){
+            v.rapicuotaLiquidado=true;
+            v.rapicuotaFechaCobro=hoy;
+            v.cobrado=v.total;
+            v.estado='cobrado';
+          }
+        }
+      });
+      save(data);render();
+    };
+  });
+  const msrc=q('modal-save-rapicuota-cobro');
+  if(msrc)msrc.onclick=()=>{
+    const ventaId=parseInt(msrc.dataset.ventaId);
+    const monto=parseFloat(q('rapicuota-monto-cobro').value)||0;
+    const fecha=q('rapicuota-fecha-cobro').value||new Date().toISOString().split('T')[0];
+    if(!monto){alert('Ingresá el monto cobrado.');return;}
+    const venta=data.ventas.find(x=>x.id===ventaId);
+    if(venta){
+      venta.rapicuotaLiquidado=true;
+      venta.rapicuotaFechaCobro=fecha;
+      venta.rapicuotaMontoCobrado=monto;
+      venta.cobrado=monto;
+      venta.estado='cobrado';
+    }
+    save(data);modal=null;render();
+  };
   const ngalicia=q('nuevo-galicia-btn');if(ngalicia)ngalicia.onclick=()=>{modal={type:'nuevo-galicia'};render();};
   document.querySelectorAll('[data-confirmar-galicia]').forEach(b=>{
     b.onclick=()=>{
