@@ -208,7 +208,7 @@ const def={
   nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1}
 };
 function load(){
-  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';if(!v._mpMigrado){v._mpMigrado=true;d.mercadopago.push({id:d.nextId.mercadopago++,fecha:v.fecha,tipo:'ingreso',descripcion:'Venta #'+v.id+' — '+v.cliente+' (migrado)',monto:v.total});}}});return d;}}catch(e){}
   return JSON.parse(JSON.stringify(def));
 }
 async function loadFromFirebase(){
@@ -228,8 +228,8 @@ async function loadFromFirebase(){
       if(!d.nextId.galicia)d.nextId.galicia=1;
       if(!d.mercadopago)d.mercadopago=[];
       if(!d.nextId.mercadopago)d.nextId.mercadopago=1;
-      // Migrar ventas con medioPago=transferencia a mercadopago
-      d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});
+      // Migrar ventas con medioPago=transferencia a mercadopago (solo una vez)
+      d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';if(!v._mpMigrado){v._mpMigrado=true;d.mercadopago.push({id:d.nextId.mercadopago++,fecha:v.fecha,tipo:'ingreso',descripcion:'Venta #'+v.id+' — '+v.cliente+' (migrado)',monto:v.total});}}});
       d.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
       try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
       return d;
@@ -601,7 +601,7 @@ function renderVentas(){
       <td>${fmt(v.total)}</td><td>${fmt(v.cobrado)}</td><td style="color:#a78bfa">${fmt(calcCom(v))}</td>
       ${currentUser.role==='admin'?`<td style="color:${ganV>0?'#4ade80':'#f87171'};font-weight:500">${fmt(ganV)}</td>`:''}
       <td><span class="badge ${v.estado}">${v.estado}</span></td>
-      ${currentUser.role==='admin'?`<td>${mpBadge(mp,sub)}</td>`:''}
+      ${currentUser.role==='admin'?`<td>${mpBadge(mp,sub)}${mp==='rapicuota'&&!v.rapicuotaLiquidado?`<div style="font-size:10px;color:#a78bfa;margin-top:2px">📅 ${fd(getRapicuotaSemana(v.fecha).cobro)}</div>`:''}</td>`:''}
       <td>${v.factura&&v.factura!=='sin-factura'?`<span class="badge" style="background:rgba(30,143,207,0.15);color:#38bdf8;font-size:10px">${v.factura==='factura-a'?'F.A':v.factura==='factura-x'?'F.X':'F.B'}${v.nroFactura?' #'+v.nroFactura:''}</span>`:'<span style="color:#475569;font-size:11px">—</span>'}</td>
       <td><div class="actions-cell">
         ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button><button class="btn" data-print-venta="${v.id}" style="font-size:11px;padding:3px 7px">🖨️</button>`:''}
@@ -1558,7 +1558,8 @@ function renderModal(){
       ${v.clienteDni?`<div style="color:#94a3b8">DNI</div><div style="font-weight:500">${v.clienteDni}</div>`:''}
       <div style="color:#94a3b8">Vendedor</div><div style="color:#a78bfa">${vnd?vnd.nombre:'-'}</div>
       <div style="color:#94a3b8">Estado</div><div><span class="badge ${v.estado}">${v.estado}</span></div>
-      <div style="color:#94a3b8">Medio de pago</div><div><span style="padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':mp==='tarjeta'?'rgba(139,92,246,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':mp==='tarjeta'?'#a78bfa':'#4ade80'};font-size:11px">${mp==='transferencia'?'🏦 Transferencia':mp==='tarjeta'?'💳 Tarjeta':'💵 Efectivo'}</span></div>
+      <div style="color:#94a3b8">Medio de pago</div><div>${mpBadge(mp,v.mpSubtipo)}</div>
+      ${mp==='rapicuota'?`<div style="color:#94a3b8">Cobro Rapicuota</div><div style="font-size:12px">${v.rapicuotaLiquidado?`<span style="color:#4ade80">✓ Cobrado el ${fd(v.rapicuotaFechaCobro)}</span>`:`<span style="color:#a78bfa">📅 ${fd(getRapicuotaSemana(v.fecha).cobro)}</span>`}</div>`:''}
       ${v.factura&&v.factura!=='sin-factura'?`<div style="color:#94a3b8">Factura</div><div><span style="font-size:11px;color:#38bdf8">${v.factura==='factura-a'?'Factura A':v.factura==='factura-x'?'Factura X':'Factura B'}${v.nroFactura?' — #'+v.nroFactura:''}</span></div>`:''}
     </div>
     <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#94a3b8">Artículos</div>
