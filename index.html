@@ -208,7 +208,7 @@ const def={
   nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1}
 };
 function load(){
-  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;return d;}}catch(e){}
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
   return JSON.parse(JSON.stringify(def));
 }
 async function loadFromFirebase(){
@@ -228,6 +228,8 @@ async function loadFromFirebase(){
       if(!d.nextId.galicia)d.nextId.galicia=1;
       if(!d.mercadopago)d.mercadopago=[];
       if(!d.nextId.mercadopago)d.nextId.mercadopago=1;
+      // Migrar ventas con medioPago=transferencia a mercadopago
+      d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});
       d.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
       try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
       return d;
@@ -381,7 +383,7 @@ function renderDash(){
   const mes=mesActual(),comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
   const prodBajo=data.productos.filter(p=>p.stock<=3);
   const cobradoEfectivo=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0);
-  const cobradoTransf=data.ventas.filter(v=>v.cobrado>0&&v.medioPago==='transferencia').reduce((s,v)=>s+v.cobrado,0);
+  const cobradoMP=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0);
   const pendCredivip=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0);
   const pendRapicuota=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0);
   const pendNickcel=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+v.total,0);
@@ -429,7 +431,7 @@ function renderDash(){
   ${currentUser.role==='admin'?`
   <div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">💵</div><div><div class="resumen-label">Cobrado — Efectivo</div><div class="resumen-val" style="color:#4ade80">${fmt(cobradoEfectivo)}</div></div></div>
-    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">🏦</div><div><div class="resumen-label">Cobrado — Transferencia</div><div class="resumen-val" style="color:#38bdf8">${fmt(cobradoTransf)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(0,174,243,0.18)">💙</div><div><div class="resumen-label">Cobrado — MP / Transf.</div><div class="resumen-val" style="color:#00aef3">${fmt(cobradoMP)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(167,122,255,0.18)">💳</div><div><div class="resumen-label">NBCH — Saldo cta.</div><div class="resumen-val" style="color:#a78bfa">${fmt(saldoNbch)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">🏦</div><div><div class="resumen-label">Brubank — Saldo cta.</div><div class="resumen-val" style="color:#f87171">${fmt(saldoBrubank)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(255,77,77,0.18)">🏦</div><div><div class="resumen-label">Galicia — Saldo cta.</div><div class="resumen-val" style="color:#ff4d4d">${fmt(saldoGalicia)}</div></div></div>
@@ -537,11 +539,12 @@ function renderVentas(){
   const totalV=data.ventas.reduce((s,v)=>s+v.total,0),cobrado=data.ventas.reduce((s,v)=>s+v.cobrado,0);
   const carritoTotal=carrito.reduce((s,i)=>s+i.precio*i.qty,0);
   const vEfectivo=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0):0;
-  const vTransf=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&v.medioPago==='transferencia').reduce((s,v)=>s+v.cobrado,0):0;
+  const vMP=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0):0;
   const vCredivip=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0):0;
   const vRapicuota=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0):0;
   const vNickcel=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+v.total,0):0;
-  const mpBadge=mp=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='tarjeta-nbch'?'rgba(167,122,255,0.2)':mp==='tarjeta-santander'?'rgba(234,67,53,0.15)':mp==='tarjeta-galicia'?'rgba(255,77,77,0.18)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='mercadopago'?'rgba(0,174,243,0.18)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':mp==='tarjeta'?'#a78bfa':mp==='tarjeta-nbch'?'#c4b5fd':mp==='tarjeta-santander'?'#f87171':mp==='tarjeta-galicia'?'#ff4d4d':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='mercadopago'?'#00aef3':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='transferencia'?'🏦 Transf.':mp==='tarjeta'?'💳 Tarjeta':mp==='tarjeta-nbch'?'💳 Tarjeta NBCH':mp==='tarjeta-santander'?'💳 Santander':mp==='tarjeta-galicia'?'💳 Yolo/Galicia':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='mercadopago'?'💙 Mercado Pago':mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span>`;
+  const mpSubtipoLabel={transferencia:'🏦 Transf.',debito:'💳 Déb.',credito:'💳 Créd.',qr:'📱 QR'};
+  const mpBadge=(mp,sub)=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='tarjeta-nbch'?'rgba(167,122,255,0.2)':mp==='tarjeta-santander'?'rgba(234,67,53,0.15)':mp==='tarjeta-galicia'?'rgba(255,77,77,0.18)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='mercadopago'?'rgba(0,174,243,0.18)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='tarjeta'?'#a78bfa':mp==='tarjeta-nbch'?'#c4b5fd':mp==='tarjeta-santander'?'#f87171':mp==='tarjeta-galicia'?'#ff4d4d':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='mercadopago'?'#00aef3':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='tarjeta'?'💳 Tarjeta':mp==='tarjeta-nbch'?'💳 Tarjeta NBCH':mp==='tarjeta-santander'?'💳 Santander':mp==='tarjeta-galicia'?'💳 Yolo/Galicia':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='mercadopago'?'💙 MP'+(sub?' '+mpSubtipoLabel[sub]:''):mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span>`;
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Ventas</span><button class="btn primary" id="nueva-venta-btn">+ Nueva venta manual</button><button class="btn" id="devolucion-btn">Devolución</button></div>
     <div class="metrics">
@@ -553,7 +556,7 @@ function renderVentas(){
     ${currentUser.role==='admin'?`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">💵</div><div class="metric-label">Cobrado — Efectivo</div><div class="metric-value" style="color:#4ade80">${fmt(vEfectivo)}</div></div>
-      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">🏦</div><div class="metric-label">Cobrado — Transferencia</div><div class="metric-value" style="color:#38bdf8">${fmt(vTransf)}</div></div>
+      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">💙</div><div class="metric-label">Cobrado — MP / Transf.</div><div class="metric-value" style="color:#00aef3">${fmt(vMP)}</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">🟠</div><div class="metric-label">Pend. — CrediVIP</div><div class="metric-value" style="color:#fbbf24">${fmt(vCredivip)}</div></div>
@@ -588,7 +591,7 @@ function renderVentas(){
     </div>
     <div class="card"><div class="card-title">Historial</div>
     <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Items</th><th>Total</th><th>Cobrado</th><th>Comisión</th>${currentUser.role==='admin'?'<th style="color:#4ade80">Ganancia</th>':''}<th>Estado</th>${currentUser.role==='admin'?'<th>Pago</th>':''}<th>Factura</th><th></th></tr></thead>
-    <tbody>${data.ventas.slice().reverse().map(v=>{const vnd=getVend(v.vendedorId);const mp=v.medioPago||'efectivo';
+    <tbody>${data.ventas.slice().reverse().map(v=>{const vnd=getVend(v.vendedorId);const mp=v.medioPago||'efectivo';const sub=v.mpSubtipo||null;
       const ganV=v.estado!=='cancelado'?v.items.reduce((s,i)=>{const p=getProdById(i.productoId);return s+(i.precio-(p?.costo||0))*i.qty;},0):0;
       return`<tr>
       <td>${fd(v.fecha)}</td><td>${v.cliente}</td><td style="color:#a78bfa">${vnd?vnd.nombre.split(' ')[0]:'-'}</td>
@@ -596,7 +599,7 @@ function renderVentas(){
       <td>${fmt(v.total)}</td><td>${fmt(v.cobrado)}</td><td style="color:#a78bfa">${fmt(calcCom(v))}</td>
       ${currentUser.role==='admin'?`<td style="color:${ganV>0?'#4ade80':'#f87171'};font-weight:500">${fmt(ganV)}</td>`:''}
       <td><span class="badge ${v.estado}">${v.estado}</span></td>
-      ${currentUser.role==='admin'?`<td>${mpBadge(mp)}</td>`:''}
+      ${currentUser.role==='admin'?`<td>${mpBadge(mp,sub)}</td>`:''}
       <td>${v.factura&&v.factura!=='sin-factura'?`<span class="badge" style="background:rgba(30,143,207,0.15);color:#38bdf8;font-size:10px">${v.factura==='factura-a'?'F.A':v.factura==='factura-x'?'F.X':'F.B'}${v.nroFactura?' #'+v.nroFactura:''}</span>`:'<span style="color:#475569;font-size:11px">—</span>'}</td>
       <td><div class="actions-cell">
         ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button><button class="btn" data-print-venta="${v.id}" style="font-size:11px;padding:3px 7px">🖨️</button>`:''}
@@ -1292,7 +1295,7 @@ function renderRapicuota(){
 // ===== MERCADO PAGO =====
 function getMpMovs(){if(!data.mercadopago)data.mercadopago=[];return data.mercadopago;}
 function getSaldoMp(){return getMpMovs().reduce((s,m)=>s+(m.tipo==='ingreso'?m.monto:-m.monto),0);}
-function getMpVentas(){return data.ventas.filter(v=>v.medioPago==='mercadopago'&&v.estado!=='cancelado');}
+function getMpVentas(){return data.ventas.filter(v=>(v.medioPago==='mercadopago'||v.medioPago==='transferencia')&&v.estado!=='cancelado');}
 
 function renderMercadoPago(){
   if(!data.mercadopago)data.mercadopago=[];
@@ -1317,13 +1320,17 @@ function renderMercadoPago(){
     </div>
     ${ventas.length>0?`<div class="card" style="margin-bottom:14px">
       <div class="card-title">Ventas cobradas por Mercado Pago</div>
-      <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Venta N°</th><th>Total</th></tr></thead>
-      <tbody>${ventas.slice(0,20).map(v=>`<tr>
+      <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Venta N°</th><th>Modalidad</th><th>Total</th></tr></thead>
+      <tbody>${ventas.slice(0,20).map(v=>{
+        const sub=v.mpSubtipo||'transferencia';
+        const subLabel={transferencia:'🏦 Transferencia',debito:'💳 Débito',credito:'💳 Crédito',qr:'📱 QR'};
+        return`<tr>
         <td>${fd(v.fecha)}</td>
         <td>${v.cliente}</td>
         <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
+        <td><span style="font-size:11px;color:#94a3b8">${subLabel[sub]||sub}</span></td>
         <td style="color:#00aef3;font-weight:500">${fmt(v.total)}</td>
-      </tr>`).join('')}</tbody></table>
+      </tr>`;}).join('')}</tbody></table>
     </div>`:''}
     <div class="card">
       <div class="card-title">Movimientos cuenta MP</div>
@@ -1495,9 +1502,10 @@ function renderModal(){
     </div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
-      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option><option value="tarjeta-nbch">💳 Tarjeta NBCH</option><option value="tarjeta-santander">💳 Santander (Brubank)</option><option value="tarjeta-galicia">💳 Yolo/Galicia</option><option value="mercadopago">💙 Mercado Pago</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option><option value="tarjeta-nbch">💳 Tarjeta NBCH</option><option value="tarjeta-santander">💳 Santander (Brubank)</option><option value="tarjeta-galicia">💳 Yolo/Galicia</option><option value="mercadopago">💙 Mercado Pago</option></select></div>
     </div>
     <div id="aviso-medio-pago" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:7px;padding:8px 12px;font-size:12px;color:#fbbf24;margin-bottom:8px"></div>
+    <div id="mp-subtipo-slot-scan" style="display:none;margin-bottom:10px"><label class="form-label" style="font-size:11px;color:#94a3b8">Modalidad MP</label><select id="m-mp-subtipo-scan" style="${INP}"><option value="transferencia">🏦 Transferencia</option><option value="debito">💳 Débito</option><option value="credito">💳 Crédito</option><option value="qr">📱 QR</option></select></div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
@@ -1527,10 +1535,11 @@ function renderModal(){
     <div id="m-com-preview" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:7px;padding:8px 10px;font-size:12px;color:#a78bfa;margin-bottom:10px">Seleccioná un vendedor para ver la comisión</div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
-      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option><option value="tarjeta-nbch">💳 Tarjeta NBCH</option><option value="tarjeta-santander">💳 Santander (Brubank)</option><option value="tarjeta-galicia">💳 Yolo/Galicia</option><option value="mercadopago">💙 Mercado Pago</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option><option value="tarjeta-nbch">💳 Tarjeta NBCH</option><option value="tarjeta-santander">💳 Santander (Brubank)</option><option value="tarjeta-galicia">💳 Yolo/Galicia</option><option value="mercadopago">💙 Mercado Pago</option></select></div>
     </div>
     <div id="aviso-medio-pago" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:7px;padding:8px 12px;font-size:12px;color:#fbbf24;margin-bottom:8px"></div>
     <div id="desc-efectivo-slot"></div>
+    <div id="mp-subtipo-slot" style="display:none;margin-bottom:10px"><label class="form-label" style="font-size:11px;color:#94a3b8">Modalidad MP</label><select id="m-mp-subtipo" style="${INP}"><option value="transferencia">🏦 Transferencia</option><option value="debito">💳 Débito</option><option value="credito">💳 Crédito</option><option value="qr">📱 QR</option></select></div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
@@ -2071,22 +2080,22 @@ function bindApp(){
     u.password=nueva;if(isMe)currentUser.password=nueva;save(data);modal=null;render();alert('Contraseña actualizada correctamente');
   };
   const msvs=q('modal-save-venta-scan');
-  if(msvs)msvs.onclick=()=>{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo';const clienteNombre=q('m-cliente').value.trim(),clienteTel=q('m-clientetel')?.value.trim()||'',clienteDni=q('m-clientedni')?.value.trim()||'';
+  if(msvs)msvs.onclick=()=>{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo',mpSubtipo=medioPago==='mercadopago'?(q('m-mp-subtipo-scan')?.value||'transferencia'):null;const clienteNombre=q('m-cliente').value.trim(),clienteTel=q('m-clientetel')?.value.trim()||'',clienteDni=q('m-clientedni')?.value.trim()||'';
     if(!clienteNombre||!clienteTel){alert('Completá el nombre y teléfono del cliente.');return;}
     if(factura==='factura-x'&&!clienteDni){alert('La Factura X requiere el DNI del cliente.');return;}
-    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombre,monto:total});}
     save(data);const ventaGuardada=data.ventas[0];modal={type:'ver-venta',venta:ventaGuardada,mostrarComp:true};render();};
   const msv=q('modal-save-venta');
   if(msv)msv.onclick=()=>{
     if(!modalProdSeleccionado){alert('Seleccioná un producto primero.');return;}
-    const prod=modalProdSeleccionado,qty=parseInt(q('m-qty').value)||1,precio=parseFloat(q('m-precio').value)||0,estado=q('m-estado').value,total=qty*precio,cobrado=estado==='cobrado'?total:0,vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,fecha=q('m-fecha').value,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo';
+    const prod=modalProdSeleccionado,qty=parseInt(q('m-qty').value)||1,precio=parseFloat(q('m-precio').value)||0,estado=q('m-estado').value,total=qty*precio,cobrado=estado==='cobrado'?total:0,vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,fecha=q('m-fecha').value,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo',mpSubtipo=medioPago==='mercadopago'?(q('m-mp-subtipo')?.value||'transferencia'):null;
     const clienteNombreM=q('m-cliente').value.trim(),clienteTelM=q('m-clientetel')?.value.trim()||'',clienteDniM=q('m-clientedni')?.value.trim()||'';
     if(!clienteNombreM||!clienteTelM){alert('Completá el nombre y teléfono del cliente.');return;}
     if(factura==='factura-x'&&!clienteDniM){alert('La Factura X requiere el DNI del cliente.');return;}
     if(prod.stock<=0){alert('❌ Sin stock — '+prod.nombre+' no tiene unidades disponibles.');return;}
     if(qty>prod.stock){alert('❌ Stock insuficiente — '+prod.nombre+' tiene solo '+prod.stock+' unidad'+(prod.stock!==1?'es':'')+' disponible'+(prod.stock!==1?'s':'')+'.');return;}
-    data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente:clienteNombreM,clienteTel:clienteTelM,clienteDni:clienteDniM,vendedorId:vendId,items:[{productoId:prod.id,nombre:prod.nombre,categoriaId:prod.categoriaId,qty,precio}],total,cobrado,estado,factura,nroFactura,medioPago,notas:q('m-notas').value});
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente:clienteNombreM,clienteTel:clienteTelM,clienteDni:clienteDniM,vendedorId:vendId,items:[{productoId:prod.id,nombre:prod.nombre,categoriaId:prod.categoriaId,qty,precio}],total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});
     if(prod)prod.stock=Math.max(0,prod.stock-qty);
     modalProdSeleccionado=null;
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombreM,monto:total});}
@@ -2862,6 +2871,9 @@ window.checkMedioPagoAviso=function(sel){
   };
   if(msgs[sel.value]){aviso.textContent=msgs[sel.value];aviso.style.display='block';}
   else{aviso.style.display='none';}
+  // Mostrar/ocultar selector subtipo MP
+  const slot=document.getElementById('mp-subtipo-slot')||document.getElementById('mp-subtipo-slot-scan');
+  if(slot)slot.style.display=sel.value==='mercadopago'?'block':'none';
 };
 </script>
 
