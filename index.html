@@ -648,16 +648,44 @@ window.seleccionarProdModal=function(pid){
   const mp=document.getElementById('m-precio');
   if(mp&&modalProdSeleccionado)mp.value=modalProdSeleccionado.precio;
   actualizarComPreview();
+  // Bloque descuento efectivo
   const p=modalProdSeleccionado;
   const desc=p&&p.descEfectivo>0?p.descEfectivo:0;
   let bloque=document.getElementById('bloque-desc-efectivo');
+  if(bloque)bloque.remove(); // limpiar siempre antes
   if(desc){
     const precioDesc=Math.round(p.precio*(1-desc/100));
-    const inner=`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1"><input type="checkbox" id="m-aplicar-desc-ef" style="width:16px;height:16px;cursor:pointer" onchange="toggleDescEfectivo(this)"><span style="font-size:12px;color:#4ade80;font-weight:500">💵 Aplicar descuento efectivo <strong>${desc}%</strong></span></label><span style="font-size:12px;color:#94a3b8">${fmt(p.precio)} → <strong style="color:#4ade80">${fmt(precioDesc)}</strong></span>`;
-    if(bloque){bloque.innerHTML=inner;bloque.style.display='flex';}
-    else{const ref=document.getElementById('aviso-medio-pago');if(ref){const div=document.createElement('div');div.id='bloque-desc-efectivo';div.style.cssText='background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap';div.innerHTML=inner;ref.insertAdjacentElement('afterend',div);}}
-  } else {
-    if(bloque)bloque.style.display='none';
+    const ref=document.getElementById('aviso-medio-pago');
+    if(ref){
+      const div=document.createElement('div');
+      div.id='bloque-desc-efectivo';
+      div.style.cssText='background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap';
+      // label + checkbox
+      const label=document.createElement('label');
+      label.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;flex:1';
+      const cb=document.createElement('input');
+      cb.type='checkbox';cb.id='m-aplicar-desc-ef';cb.style.cssText='width:16px;height:16px;cursor:pointer';
+      cb.addEventListener('change',function(){
+        const mpI=document.getElementById('m-precio');
+        if(!mpI)return;
+        if(cb.checked){
+          mpI.value=Math.round(p.precio*(1-desc/100));
+          const mf=document.getElementById('m-factura');if(mf)mf.value='sin-factura';
+        } else {
+          mpI.value=p.precio;
+        }
+        actualizarComPreview();
+      });
+      const txt=document.createElement('span');
+      txt.style.cssText='font-size:12px;color:#4ade80;font-weight:500';
+      txt.innerHTML='💵 Aplicar descuento efectivo <strong>'+desc+'%</strong>';
+      label.appendChild(cb);label.appendChild(txt);
+      const info=document.createElement('span');
+      info.style.cssText='font-size:12px;color:#94a3b8';
+      info.innerHTML=fmt(p.precio)+' → <strong style="color:#4ade80">'+fmt(precioDesc)+'</strong>';
+      div.appendChild(label);div.appendChild(info);
+      ref.insertAdjacentElement('afterend',div);
+    }
   }
 }
 window.limpiarProdModal=function(){
