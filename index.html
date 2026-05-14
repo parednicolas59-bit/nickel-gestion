@@ -631,6 +631,50 @@ function renderBuscadorProductoModal(){
   if(p){const c=getCat(p.categoriaId);return`<div class="prod-sel-box"><div><div style="font-weight:500;font-size:13px">${p.nombre}</div><div style="font-size:11px;color:var(--text2)">${c?c.nombre:''} · Stock: ${p.stock} · ${fmt(p.precio)}</div></div><span class="psb-cambiar" onclick="limpiarProdModal()">Cambiar ✕</span></div>`;}
   return`<div class="busq-prod-wrap"><span class="busq-prod-ico">🔍</span><input id="busq-prod-modal" class="busq-prod-input" placeholder="Escribí para buscar producto..." autocomplete="off" oninput="buscarProdModal()"><div id="busq-prod-lista-modal" class="busq-prod-lista" style="display:none"></div></div>`;
 }
+window.buscarClienteVenta=function(val){
+  const lista=document.getElementById('m-cliente-lista');
+  if(!lista)return;
+  const q=(val||'').toLowerCase().trim();
+  if(q.length<1){lista.style.display='none';return;}
+  // Armar clientes únicos del historial de ventas
+  const vistos={};
+  const clientes=[];
+  data.ventas.forEach(v=>{
+    const key=(v.cliente||'').toLowerCase();
+    if(!vistos[key]&&key.includes(q)){
+      vistos[key]=true;
+      clientes.push({nombre:v.cliente,tel:v.clienteTel||'',dni:v.clienteDni||''});
+    }
+  });
+  if(!clientes.length){lista.style.display='none';return;}
+  lista.innerHTML=clientes.slice(0,8).map(c=>`
+    <div onclick="elegirClienteVenta('${c.nombre.replace(/'/g,"\\'")}','${c.tel}','${c.dni}')"
+      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px"
+      onmouseover="this.style.background='rgba(255,255,255,0.06)'"
+      onmouseout="this.style.background=''"
+    >
+      <div style="font-weight:500;color:#e2e8f0">${c.nombre}</div>
+      <div style="color:#64748b;font-size:11px">${c.tel}${c.dni?' · DNI '+c.dni:''}</div>
+    </div>`).join('');
+  lista.style.display='block';
+};
+window.elegirClienteVenta=function(nombre,tel,dni){
+  const inp=document.getElementById('m-cliente');
+  const telInp=document.getElementById('m-clientetel');
+  const dniInp=document.getElementById('m-clientedni');
+  const lista=document.getElementById('m-cliente-lista');
+  if(inp)inp.value=nombre;
+  if(telInp&&tel)telInp.value=tel;
+  if(dniInp&&dni)dniInp.value=dni;
+  if(lista)lista.style.display='none';
+};
+// Cerrar lista si click afuera
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#m-cliente-lista')&&e.target.id!=='m-cliente'){
+    const lista=document.getElementById('m-cliente-lista');
+    if(lista)lista.style.display='none';
+  }
+});
 window.buscarProdModal=function(){
   const q=document.getElementById('busq-prod-modal')?.value.trim().toLowerCase();
   const lista=document.getElementById('busq-prod-lista-modal');
@@ -651,41 +695,37 @@ window.seleccionarProdModal=function(pid){
   // Bloque descuento efectivo
   const p=modalProdSeleccionado;
   const desc=p&&p.descEfectivo>0?p.descEfectivo:0;
-  let bloque=document.getElementById('bloque-desc-efectivo');
-  if(bloque)bloque.remove(); // limpiar siempre antes
+  const slot=document.getElementById('desc-efectivo-slot');
+  if(!slot)return;
+  slot.innerHTML=''; // limpiar siempre
   if(desc){
     const precioDesc=Math.round(p.precio*(1-desc/100));
-    const ref=document.getElementById('aviso-medio-pago');
-    if(ref){
-      const div=document.createElement('div');
-      div.id='bloque-desc-efectivo';
-      div.style.cssText='background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap';
-      // label + checkbox
-      const label=document.createElement('label');
-      label.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;flex:1';
-      const cb=document.createElement('input');
-      cb.type='checkbox';cb.id='m-aplicar-desc-ef';cb.style.cssText='width:16px;height:16px;cursor:pointer';
-      cb.addEventListener('change',function(){
-        const mpI=document.getElementById('m-precio');
-        if(!mpI)return;
-        if(cb.checked){
-          mpI.value=Math.round(p.precio*(1-desc/100));
-          const mf=document.getElementById('m-factura');if(mf)mf.value='sin-factura';
-        } else {
-          mpI.value=p.precio;
-        }
-        actualizarComPreview();
-      });
-      const txt=document.createElement('span');
-      txt.style.cssText='font-size:12px;color:#4ade80;font-weight:500';
-      txt.innerHTML='💵 Aplicar descuento efectivo <strong>'+desc+'%</strong>';
-      label.appendChild(cb);label.appendChild(txt);
-      const info=document.createElement('span');
-      info.style.cssText='font-size:12px;color:#94a3b8';
-      info.innerHTML=fmt(p.precio)+' → <strong style="color:#4ade80">'+fmt(precioDesc)+'</strong>';
-      div.appendChild(label);div.appendChild(info);
-      ref.insertAdjacentElement('afterend',div);
-    }
+    const div=document.createElement('div');
+    div.style.cssText='background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap';
+    const label=document.createElement('label');
+    label.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;flex:1';
+    const cb=document.createElement('input');
+    cb.type='checkbox';cb.id='m-aplicar-desc-ef';cb.style.cssText='width:16px;height:16px;cursor:pointer';
+    cb.addEventListener('change',function(){
+      const mpI=document.getElementById('m-precio');
+      if(!mpI)return;
+      if(cb.checked){
+        mpI.value=Math.round(p.precio*(1-desc/100));
+        const mf=document.getElementById('m-factura');if(mf)mf.value='sin-factura';
+      } else {
+        mpI.value=p.precio;
+      }
+      actualizarComPreview();
+    });
+    const txt=document.createElement('span');
+    txt.style.cssText='font-size:12px;color:#4ade80;font-weight:500';
+    txt.innerHTML='💵 Aplicar descuento efectivo <strong>'+desc+'%</strong>';
+    label.appendChild(cb);label.appendChild(txt);
+    const info=document.createElement('span');
+    info.style.cssText='font-size:12px;color:#94a3b8';
+    info.innerHTML=fmt(p.precio)+' → <strong style="color:#4ade80">'+fmt(precioDesc)+'</strong>';
+    div.appendChild(label);div.appendChild(info);
+    slot.appendChild(div);
   }
 }
 window.limpiarProdModal=function(){
@@ -1365,7 +1405,12 @@ function renderModal(){
   if(m.type==='nueva-venta') return`<div class="modal-bg"><div class="modal">
     <div class="modal-title">Nueva venta manual</div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Cliente <span style="color:#f87171">*</span></label><input id="m-cliente" placeholder="Nombre del cliente" style="${INP}" required></div>
+      <div class="form-row"><label class="form-label">Cliente <span style="color:#f87171">*</span></label>
+        <div style="position:relative">
+          <input id="m-cliente" placeholder="Nombre del cliente" style="${INP}" autocomplete="off" oninput="buscarClienteVenta(this.value)">
+          <div id="m-cliente-lista" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:8px;z-index:999;max-height:180px;overflow-y:auto;margin-top:2px"></div>
+        </div>
+      </div>
       <div class="form-row"><label class="form-label">Teléfono cliente <span style="color:#f87171">*</span></label><input id="m-clientetel" placeholder="Ej: 3704001234" style="${INP}" type="tel" required></div>
       <div class="form-row"><label class="form-label">DNI cliente <span style="font-size:10px;color:#64748b">(opcional — requerido para Factura X)</span></label><input id="m-clientedni" placeholder="Ej: 30123456" style="${INP}" type="text" maxlength="10"></div>
       <div class="form-row"><label class="form-label">Vendedor</label><select id="m-vendedor" style="${INP}"><option value="">Sin asignar</option>${data.vendedores.map(v=>`<option value="${v.id}">${v.nombre}</option>`).join('')}</select></div>
@@ -1382,6 +1427,7 @@ function renderModal(){
       <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option><option value="tarjeta-nbch">💳 Tarjeta NBCH</option><option value="tarjeta-santander">💳 Santander (Brubank)</option><option value="tarjeta-galicia">💳 Yolo/Galicia</option></select></div>
     </div>
     <div id="aviso-medio-pago" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:7px;padding:8px 12px;font-size:12px;color:#fbbf24;margin-bottom:8px"></div>
+    <div id="desc-efectivo-slot"></div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
