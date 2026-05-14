@@ -1593,7 +1593,7 @@ function bindApp(){
   document.querySelectorAll('[data-print-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.printVenta);if(v)printComprobante(v);};});
   document.querySelectorAll('[data-cobrar]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.cobrar);modal={type:'cobrar-venta',venta:v};render();};});
   document.querySelectorAll('[data-del-venta]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.ventas=data.ventas.filter(v=>v.id!=b.dataset.delVenta);save(data);render();}};});
-  document.querySelectorAll('[data-pagar]').forEach(b=>{b.onclick=()=>{const e=data.egresos.find(x=>x.id==b.dataset.pagar);if(e){e.pagado=true;save(data);render();}};});
+  document.querySelectorAll('[data-pagar]').forEach(b=>{b.onclick=()=>{const e=data.egresos.find(x=>x.id==b.dataset.pagar);if(e){e.pagado=true;if(e.fuente==='NBCH'){if(!data.nbch)data.nbch=[];data.nbch.push({id:data.nextId.nbch++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Brubank'){if(!data.brubank)data.brubank=[];data.brubank.push({id:data.nextId.brubank++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Galicia'){if(!data.galicia)data.galicia=[];data.galicia.push({id:data.nextId.galicia++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}save(data);render();}};});
   document.querySelectorAll('[data-del-egreso]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.egresos=data.egresos.filter(e=>e.id!=b.dataset.delEgreso);save(data);render();}};});
   document.querySelectorAll('[data-edit-prod]').forEach(b=>{b.onclick=()=>{const p=data.productos.find(x=>x.id==b.dataset.editProd);modal={type:'nuevo-prod',prod:p};render();};});
   document.querySelectorAll('[data-del-prod]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.productos=data.productos.filter(p=>p.id!=b.dataset.delProd);save(data);render();}};});
@@ -1724,18 +1724,34 @@ function bindApp(){
     if(!monto){alert('Ingresá un monto.');return;}
     const provId=q('m-prov-eg').value?parseInt(q('m-prov-eg').value):null;
     const prov=provId?(data.proveedores||[]).find(p=>p.id===provId):null;
+    const fuente=q('m-fuente-eg').value||'Caja efectivo';
+    const fechaEg=q('m-fecha-eg').value;
+    const pagadoEg=q('m-pagado').value==='true';
     data.egresos.unshift({
       id:data.nextId.egreso++,
-      fecha:q('m-fecha-eg').value,
+      fecha:fechaEg,
       proveedor:prov?prov.nombre:'General',
       proveedorId:provId,
       concepto,
       monto,
-      fuente:q('m-fuente-eg').value||'Caja efectivo',
+      fuente,
       factura:q('m-factura-eg').value||'sin-factura',
       nroFactura:q('m-nro-factura-eg').value||'',
-      pagado:q('m-pagado').value==='true'
+      pagado:pagadoEg
     });
+    // Si la fuente es una cuenta, registrar el egreso como movimiento en esa cuenta
+    if(pagadoEg){
+      if(fuente==='NBCH'){
+        if(!data.nbch)data.nbch=[];
+        data.nbch.push({id:data.nextId.nbch++,fecha:fechaEg,concepto:'Egreso: '+concepto,tipo:'egreso',monto});
+      } else if(fuente==='Brubank'){
+        if(!data.brubank)data.brubank=[];
+        data.brubank.push({id:data.nextId.brubank++,fecha:fechaEg,concepto:'Egreso: '+concepto,tipo:'egreso',monto});
+      } else if(fuente==='Galicia'){
+        if(!data.galicia)data.galicia=[];
+        data.galicia.push({id:data.nextId.galicia++,fecha:fechaEg,concepto:'Egreso: '+concepto,tipo:'egreso',monto});
+      }
+    }
     save(data);modal=null;render();
   };
   const npde=q('nuevo-prov-desde-egreso-btn');
