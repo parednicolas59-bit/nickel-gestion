@@ -202,10 +202,13 @@ const def={
   cierres:[],
   creditos:[],
   proveedores:[],
-  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1}
+  nbch:[],
+  brubank:[],
+  galicia:[],
+  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1}
 };
 function load(){
-  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;return d;}}catch(e){}
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;return d;}}catch(e){}
   return JSON.parse(JSON.stringify(def));
 }
 async function loadFromFirebase(){
@@ -217,6 +220,12 @@ async function loadFromFirebase(){
       if(!d.nextId.credito)d.nextId.credito=1;
       if(!d.proveedores)d.proveedores=[];
       if(!d.nextId.proveedor)d.nextId.proveedor=1;
+      if(!d.nbch)d.nbch=[];
+      if(!d.nextId.nbch)d.nextId.nbch=1;
+      if(!d.brubank)d.brubank=[];
+      if(!d.nextId.brubank)d.nextId.brubank=1;
+      if(!d.galicia)d.galicia=[];
+      if(!d.nextId.galicia)d.nextId.galicia=1;
       d.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
       try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
       return d;
@@ -248,6 +257,12 @@ async function initApp(){
         if(!data.nextId.credito)data.nextId.credito=1;
         if(!data.proveedores)data.proveedores=[];
         if(!data.nextId.proveedor)data.nextId.proveedor=1;
+        if(!data.nbch)data.nbch=[];
+        if(!data.nextId.nbch)data.nextId.nbch=1;
+        if(!data.brubank)data.brubank=[];
+        if(!data.nextId.brubank)data.nextId.brubank=1;
+        if(!data.galicia)data.galicia=[];
+        if(!data.nextId.galicia)data.nextId.galicia=1;
         data.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
         try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
         render();
@@ -291,8 +306,8 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','financiera'];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
@@ -315,6 +330,9 @@ function renderTab(){
   if(tab==='vendedores')return renderVendedores();
   if(tab==='categorias')return renderCategorias();
   if(tab==='caja')return renderCaja();
+  if(tab==='nbch')return renderNbch();
+  if(tab==='brubank')return renderBrubank();
+  if(tab==='galicia')return renderGalicia();
   if(tab==='informes')return renderInformes();
   if(tab==='usuarios')return renderUsuarios();
   if(tab==='financiera')return renderFinanciera();
@@ -368,7 +386,37 @@ function renderDash(){
   const totalVMes=ventasMes.reduce((s,v)=>s+v.total,0);
   const gananciaNetaMes=totalVMes-inversionMes;
   const margenMes=totalVMes>0?Math.round(gananciaNetaMes/totalVMes*100):0;
-  return`<div class="resumen-row">
+  const nbchVencidas=getNbchVencidas();
+  const nbchPendientes=getNbchPendientes();
+  const saldoNbch=getSaldoNbch();
+  const brubankVencidas=getBrubankVencidas();
+  const brubankPendientes=getBrubankPendientes();
+  const saldoBrubank=getSaldoBrubank();
+  const galiciaVencidas=getGaliciaVencidas();
+  const galiciaPendientes=getGaliciaPendientes();
+  const saldoGalicia=getSaldoGalicia();
+  return`<div>
+  ${(nbchVencidas.length>0||brubankVencidas.length>0||galiciaVencidas.length>0)?`<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:8px">🔴 Liquidaciones vencidas — revisá si ya depositaron</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${nbchVencidas.length>0?`<div style="display:flex;align-items:center;gap:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 14px;flex:1;min-width:200px">
+        <span style="font-size:18px">💳</span>
+        <div style="flex:1"><div style="font-size:12px;font-weight:600;color:#f87171">NBCH — ${nbchVencidas.length} venta${nbchVencidas.length>1?'s':''}</div><div style="font-size:11px;color:#94a3b8">${fmt(nbchVencidas.reduce((s,v)=>s+v.total,0))}</div></div>
+        <button class="btn danger" onclick="window._irNbch&&window._irNbch()" style="font-size:11px;padding:3px 10px">Ver →</button>
+      </div>`:''}
+      ${brubankVencidas.length>0?`<div style="display:flex;align-items:center;gap:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 14px;flex:1;min-width:200px">
+        <span style="font-size:18px">💳</span>
+        <div style="flex:1"><div style="font-size:12px;font-weight:600;color:#f87171">Santander/Brubank — ${brubankVencidas.length} venta${brubankVencidas.length>1?'s':''}</div><div style="font-size:11px;color:#94a3b8">${fmt(brubankVencidas.reduce((s,v)=>s+v.total,0))}</div></div>
+        <button class="btn danger" onclick="window._irBrubank&&window._irBrubank()" style="font-size:11px;padding:3px 10px">Ver →</button>
+      </div>`:''}
+      ${galiciaVencidas.length>0?`<div style="display:flex;align-items:center;gap:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 14px;flex:1;min-width:200px">
+        <span style="font-size:18px">💳</span>
+        <div style="flex:1"><div style="font-size:12px;font-weight:600;color:#ff4d4d">Yolo/Galicia — ${galiciaVencidas.length} venta${galiciaVencidas.length>1?'s':''}</div><div style="font-size:11px;color:#94a3b8">${fmt(galiciaVencidas.reduce((s,v)=>s+v.total,0))}</div></div>
+        <button class="btn danger" onclick="window._irGalicia&&window._irGalicia()" style="font-size:11px;padding:3px 10px">Ver →</button>
+      </div>`:''}
+    </div>
+  </div>`:''}
+  <div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">💰</div><div><div class="resumen-label">Total ventas</div><div class="resumen-val" style="color:#38bdf8">${fmt(totalV)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">✅</div><div><div class="resumen-label">Cobrado</div><div class="resumen-val" style="color:#4ade80">${fmt(cobrado)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">⏳</div><div><div class="resumen-label">A cobrar</div><div class="resumen-val" style="color:#fbbf24">${fmt(totalV-cobrado)}</div></div></div>
@@ -378,11 +426,17 @@ function renderDash(){
   <div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">💵</div><div><div class="resumen-label">Cobrado — Efectivo</div><div class="resumen-val" style="color:#4ade80">${fmt(cobradoEfectivo)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">🏦</div><div><div class="resumen-label">Cobrado — Transferencia</div><div class="resumen-val" style="color:#38bdf8">${fmt(cobradoTransf)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(167,122,255,0.18)">💳</div><div><div class="resumen-label">NBCH — Saldo cta.</div><div class="resumen-val" style="color:#a78bfa">${fmt(saldoNbch)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">🏦</div><div><div class="resumen-label">Brubank — Saldo cta.</div><div class="resumen-val" style="color:#f87171">${fmt(saldoBrubank)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(255,77,77,0.18)">🏦</div><div><div class="resumen-label">Galicia — Saldo cta.</div><div class="resumen-val" style="color:#ff4d4d">${fmt(saldoGalicia)}</div></div></div>
   </div>
   <div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Pend. — CrediVIP</div><div class="resumen-val" style="color:#fbbf24">${fmt(pendCredivip)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Pend. — Rapicuota</div><div class="resumen-val" style="color:#a78bfa">${fmt(pendRapicuota)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">📄</div><div><div class="resumen-label">Pend. — Nickcel Pagarés</div><div class="resumen-val" style="color:#38bdf8">${fmt(pendNickcel)}</div></div></div>
+    ${nbchPendientes.length>0?`<div class="resumen-item" style="border-color:${nbchVencidas.length>0?'rgba(239,68,68,0.3)':'var(--border)'}"><div class="resumen-ico" style="background:rgba(167,122,255,0.18)">💳</div><div><div class="resumen-label">Pend. — Tarjeta NBCH</div><div class="resumen-val" style="color:${nbchVencidas.length>0?'#f87171':'#a78bfa'}">${fmt(nbchPendientes.reduce((s,v)=>s+v.total,0))}</div></div></div>`:''}
+    ${brubankPendientes.length>0?`<div class="resumen-item" style="border-color:${brubankVencidas.length>0?'rgba(239,68,68,0.3)':'var(--border)'}"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">💳</div><div><div class="resumen-label">Pend. — Santander</div><div class="resumen-val" style="color:#f87171">${fmt(brubankPendientes.reduce((s,v)=>s+v.total,0))}</div></div></div>`:''}
+    ${galiciaPendientes.length>0?`<div class="resumen-item" style="border-color:${galiciaVencidas.length>0?'rgba(239,68,68,0.3)':'var(--border)'}"><div class="resumen-ico" style="background:rgba(255,77,77,0.18)">💳</div><div><div class="resumen-label">Pend. — Yolo/Galicia</div><div class="resumen-val" style="color:${galiciaVencidas.length>0?'#f87171':'#ff4d4d'}">${fmt(galiciaPendientes.reduce((s,v)=>s+v.total,0))}</div></div></div>`:''}
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
     <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">📊</div><div class="metric-label">Vendido este mes</div><div class="metric-value" style="color:#38bdf8">${fmt(totalVMes)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">${ventasMes.length} operaciones</div></div>
@@ -402,6 +456,7 @@ function renderDash(){
       ${prodBajo.length===0?'<p style="color:#64748b;font-size:12px">Todo en nivel normal ✓</p>':
       `<table><thead><tr><th>Producto</th><th>Stock</th></tr></thead><tbody>${prodBajo.map(p=>`<tr><td>${p.nombre}</td><td style="color:#f87171;font-weight:500">${p.stock}</td></tr>`).join('')}</tbody></table>`}
     </div>
+  </div>
   </div>`;
 }
 
@@ -482,7 +537,7 @@ function renderVentas(){
   const vCredivip=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0):0;
   const vRapicuota=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0):0;
   const vNickcel=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+v.total,0):0;
-  const mpBadge=mp=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':mp==='tarjeta'?'#a78bfa':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='transferencia'?'🏦 Transf.':mp==='tarjeta'?'💳 Tarjeta':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span>`;
+  const mpBadge=mp=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='transferencia'?'rgba(30,143,207,0.15)':mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='tarjeta-nbch'?'rgba(167,122,255,0.2)':mp==='tarjeta-santander'?'rgba(234,67,53,0.15)':mp==='tarjeta-galicia'?'rgba(255,77,77,0.18)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='transferencia'?'#38bdf8':mp==='tarjeta'?'#a78bfa':mp==='tarjeta-nbch'?'#c4b5fd':mp==='tarjeta-santander'?'#f87171':mp==='tarjeta-galicia'?'#ff4d4d':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='transferencia'?'🏦 Transf.':mp==='tarjeta'?'💳 Tarjeta':mp==='tarjeta-nbch'?'💳 Tarjeta NBCH':mp==='tarjeta-santander'?'💳 Santander':mp==='tarjeta-galicia'?'💳 Yolo/Galicia':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span>`;
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Ventas</span><button class="btn primary" id="nueva-venta-btn">+ Nueva venta manual</button><button class="btn" id="devolucion-btn">Devolución</button></div>
     <div class="metrics">
@@ -672,8 +727,69 @@ function renderProveedores(){
   </div>`;
 }
 
-const FUENTES_EGRESO=['Caja efectivo','Caja transferencia','Supervielle','Capital propio','DolarApp','Otro'];
-const FUENTE_EGRESO_COLOR={'Caja efectivo':'#4ade80','Caja transferencia':'#38bdf8','Supervielle':'#00cfaa','Capital propio':'#fbbf24','DolarApp':'#a78bfa','Otro':'#94a3b8'};
+const FUENTES_EGRESO=['Caja efectivo','Caja transferencia','Supervielle','NBCH','Brubank','Galicia','Capital propio','DolarApp','Otro'];
+const FUENTE_EGRESO_COLOR={'Caja efectivo':'#4ade80','Caja transferencia':'#38bdf8','Supervielle':'#00cfaa','NBCH':'#a78bfa','Brubank':'#f87171','Galicia':'#ff4d4d','Capital propio':'#fbbf24','DolarApp':'#a0c4ff','Otro':'#94a3b8'};
+
+// ===== CUENTA NBCH =====
+function getNbchMovs(){if(!data.nbch)data.nbch=[];return data.nbch;}
+function getSaldoNbch(){return getNbchMovs().reduce((s,m)=>s+(m.tipo==='ingreso'?m.monto:-m.monto),0);}
+function getNbchPendientes(){
+  const hoy=new Date();
+  return data.ventas.filter(v=>v.medioPago==='tarjeta-nbch'&&!v.nbchLiquidado);
+}
+function getNbchVencidas(){
+  const hoy=new Date();
+  return getNbchPendientes().filter(v=>{
+    if(!v.fecha)return false;
+    const fechaVenta=new Date(v.fecha+'T12:00:00');
+    const limite=new Date(fechaVenta);
+    limite.setHours(limite.getHours()+48);
+    return hoy>limite;
+  });
+}
+
+// ===== CUENTA BRUBANK (Santander) =====
+function getBrubankMovs(){if(!data.brubank)data.brubank=[];return data.brubank;}
+function getSaldoBrubank(){return getBrubankMovs().reduce((s,m)=>s+(m.tipo==='ingreso'?m.monto:-m.monto),0);}
+function getBrubankPendientes(){
+  return data.ventas.filter(v=>v.medioPago==='tarjeta-santander'&&!v.brubankLiquidado);
+}
+// 48hs hábiles = saltear sábado y domingo
+function addHorasHabiles(fecha, horas){
+  let d=new Date(fecha);
+  let horasRestantes=horas;
+  while(horasRestantes>0){
+    d.setHours(d.getHours()+1);
+    const dia=d.getDay();
+    if(dia!==0&&dia!==6) horasRestantes--;
+  }
+  return d;
+}
+function getBrubankVencidas(){
+  const hoy=new Date();
+  return getBrubankPendientes().filter(v=>{
+    if(!v.fecha)return false;
+    const fechaVenta=new Date(v.fecha+'T12:00:00');
+    const limite=addHorasHabiles(fechaVenta,48);
+    return hoy>limite;
+  });
+}
+
+// ===== CUENTA GALICIA (Yolo) =====
+function getGaliciaMovs(){if(!data.galicia)data.galicia=[];return data.galicia;}
+function getSaldoGalicia(){return getGaliciaMovs().reduce((s,m)=>s+(m.tipo==='ingreso'?m.monto:-m.monto),0);}
+function getGaliciaPendientes(){
+  return data.ventas.filter(v=>v.medioPago==='tarjeta-galicia'&&!v.galiciaLiquidado);
+}
+function getGaliciaVencidas(){
+  const hoy=new Date();
+  return getGaliciaPendientes().filter(v=>{
+    if(!v.fecha)return false;
+    const fechaVenta=new Date(v.fecha+'T12:00:00');
+    const limite=addHorasHabiles(fechaVenta,48);
+    return hoy>limite;
+  });
+}
 
 function renderEgresos(){
   const total=data.egresos.reduce((s,e)=>s+e.monto,0),pagado=data.egresos.filter(e=>e.pagado).reduce((s,e)=>s+e.monto,0);
@@ -712,6 +828,222 @@ function renderEgresos(){
           <td><div class="actions-cell">${!e.pagado?`<button class="btn" data-pagar="${e.id}" style="font-size:11px;padding:3px 7px">Pagar</button>`:''}<button class="btn danger" data-del-egreso="${e.id}" style="font-size:11px;padding:3px 6px">✕</button></div></td>
         </tr>`;}).join('')}
       </tbody></table></div>
+  </div>`;
+}
+
+function renderNbch(){
+  if(!data.nbch)data.nbch=[];
+  const saldo=getSaldoNbch();
+  const pendientes=getNbchPendientes();
+  const vencidas=getNbchVencidas();
+  const hoy=new Date();
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">💳 Cuenta NBCH — Tarjeta</span>
+      <button class="btn" id="nuevo-nbch-btn" style="border-color:rgba(167,122,255,0.4);color:#a78bfa">+ Movimiento manual</button>
+    </div>
+    <div class="metrics">
+      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">💳</div><div class="metric-label">Saldo NBCH</div><div class="metric-value" style="color:#a78bfa">${fmt(saldo)}</div></div>
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">Liquidaciones pendientes</div><div class="metric-value" style="color:#fbbf24">${fmt(pendientes.reduce((s,v)=>s+v.total,0))}</div></div>
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">🔴</div><div class="metric-label">Vencidas +48hs</div><div class="metric-value" style="color:${vencidas.length>0?'#f87171':'#4ade80'}">${vencidas.length}</div></div>
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📋</div><div class="metric-label">Movimientos</div><div class="metric-value">${data.nbch.length}</div></div>
+    </div>
+
+    ${vencidas.length>0?`<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:10px">🔴 Liquidaciones vencidas — revisá si el NBCH ya depositó</div>
+      <table><thead><tr><th>Fecha venta</th><th>Cliente</th><th>Venta N°</th><th>Monto</th><th>Hrs. transcurridas</th><th></th></tr></thead>
+      <tbody>${vencidas.map(v=>{
+        const fechaVenta=new Date(v.fecha+'T12:00:00');
+        const hrsTranscurridas=Math.round((hoy-fechaVenta)/3600000);
+        return`<tr style="background:rgba(239,68,68,0.05)">
+          <td>${fd(v.fecha)}</td>
+          <td style="font-weight:500">${v.cliente}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
+          <td style="color:#f87171;font-weight:500">${fmt(v.total)}</td>
+          <td><span style="background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-size:11px">${hrsTranscurridas}hs</span></td>
+          <td><button class="btn success" data-confirmar-nbch="${v.id}" style="font-size:11px;padding:3px 8px">✓ Confirmar depósito</button></td>
+        </tr>`;}).join('')}
+      </tbody></table>
+    </div>`:''}
+
+    ${pendientes.filter(v=>!vencidas.find(x=>x.id===v.id)).length>0?`<div class="card" style="margin-bottom:14px">
+      <div class="card-title">⏳ Pendientes de liquidación (dentro de las 48hs)</div>
+      <table><thead><tr><th>Fecha venta</th><th>Cliente</th><th>Venta N°</th><th>Monto</th><th>Tiempo restante</th><th></th></tr></thead>
+      <tbody>${pendientes.filter(v=>!vencidas.find(x=>x.id===v.id)).map(v=>{
+        const fechaVenta=new Date(v.fecha+'T12:00:00');
+        const limite=new Date(fechaVenta);limite.setHours(limite.getHours()+48);
+        const msRestantes=limite-hoy;
+        const hrsRestantes=Math.max(0,Math.round(msRestantes/3600000));
+        return`<tr>
+          <td>${fd(v.fecha)}</td>
+          <td>${v.cliente}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
+          <td style="font-weight:500">${fmt(v.total)}</td>
+          <td><span style="background:rgba(245,158,11,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:11px">${hrsRestantes}hs restantes</span></td>
+          <td><button class="btn" data-confirmar-nbch="${v.id}" style="font-size:11px;padding:3px 8px;color:#a78bfa;border-color:rgba(167,122,255,0.3)">Confirmar depósito</button></td>
+        </tr>`;}).join('')}
+      </tbody></table>
+    </div>`:''}
+
+    <div class="card">
+      <div class="card-title">Movimientos cuenta NBCH</div>
+      ${data.nbch.length===0&&pendientes.length===0?`<div class="empty">Sin movimientos en NBCH todavía</div>`:`
+      <table><thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th></th></tr></thead>
+      <tbody>${data.nbch.slice().reverse().map(m=>`<tr>
+        <td>${fd(m.fecha)}</td>
+        <td>${m.descripcion}</td>
+        <td><span class="badge" style="background:${m.tipo==='ingreso'?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.15)'};color:${m.tipo==='ingreso'?'#4ade80':'#f87171'}">${m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso'}</span></td>
+        <td style="font-family:var(--font-mono);font-weight:500;color:${m.tipo==='ingreso'?'#4ade80':'#f87171'}">${m.tipo==='ingreso'?'+':'-'}${fmt(m.monto)}</td>
+        <td><button class="btn danger" data-del-nbch="${m.id}" style="font-size:10px;padding:2px 6px">✕</button></td>
+      </tr>`).join('')}
+      </tbody></table>`}
+    </div>
+  </div>`;
+}
+
+function renderBrubank(){
+  if(!data.brubank)data.brubank=[];
+  const saldo=getSaldoBrubank();
+  const pendientes=getBrubankPendientes();
+  const vencidas=getBrubankVencidas();
+  const hoy=new Date();
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">🏦 Cuenta Brubank — Santander</span>
+      <button class="btn" id="nuevo-brubank-btn" style="border-color:rgba(248,113,113,0.4);color:#f87171">+ Movimiento manual</button>
+    </div>
+    <div class="metrics">
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">🏦</div><div class="metric-label">Saldo Brubank</div><div class="metric-value" style="color:#f87171">${fmt(saldo)}</div></div>
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">Liq. pendientes</div><div class="metric-value" style="color:#fbbf24">${fmt(pendientes.reduce((s,v)=>s+v.total,0))}</div></div>
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">🔴</div><div class="metric-label">Vencidas +48hs háb.</div><div class="metric-value" style="color:${vencidas.length>0?'#f87171':'#4ade80'}">${vencidas.length}</div></div>
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📋</div><div class="metric-label">Movimientos</div><div class="metric-value">${data.brubank.length}</div></div>
+    </div>
+    <div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:8px;padding:10px 14px;font-size:11px;color:#94a3b8;margin-bottom:14px">
+      ⏰ <strong style="color:#f87171">48hs hábiles</strong> — Los sábados y domingos no cuentan. El plazo se calcula sobre días hábiles.
+    </div>
+
+    ${vencidas.length>0?`<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:10px">🔴 Liquidaciones vencidas — revisá si Santander/Brubank ya depositó</div>
+      <table><thead><tr><th>Fecha venta</th><th>Cliente</th><th>Venta N°</th><th>Monto</th><th>Hs. transcurridas</th><th></th></tr></thead>
+      <tbody>${vencidas.map(v=>{
+        const fechaVenta=new Date(v.fecha+'T12:00:00');
+        const hrsTranscurridas=Math.round((hoy-fechaVenta)/3600000);
+        return`<tr style="background:rgba(239,68,68,0.05)">
+          <td>${fd(v.fecha)}</td>
+          <td style="font-weight:500">${v.cliente}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
+          <td style="color:#f87171;font-weight:500">${fmt(v.total)}</td>
+          <td><span style="background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-size:11px">${hrsTranscurridas}hs</span></td>
+          <td><button class="btn success" data-confirmar-brubank="${v.id}" style="font-size:11px;padding:3px 8px">✓ Confirmar depósito</button></td>
+        </tr>`;}).join('')}
+      </tbody></table>
+    </div>`:''}
+
+    ${pendientes.filter(v=>!vencidas.find(x=>x.id===v.id)).length>0?`<div class="card" style="margin-bottom:14px">
+      <div class="card-title">⏳ Pendientes (dentro de las 48hs hábiles)</div>
+      <table><thead><tr><th>Fecha venta</th><th>Cliente</th><th>Venta N°</th><th>Monto</th><th>Tiempo restante</th><th></th></tr></thead>
+      <tbody>${pendientes.filter(v=>!vencidas.find(x=>x.id===v.id)).map(v=>{
+        const fechaVenta=new Date(v.fecha+'T12:00:00');
+        const limite=addHorasHabiles(fechaVenta,48);
+        const msRestantes=limite-hoy;
+        const hrsRestantes=Math.max(0,Math.round(msRestantes/3600000));
+        return`<tr>
+          <td>${fd(v.fecha)}</td>
+          <td>${v.cliente}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
+          <td style="font-weight:500">${fmt(v.total)}</td>
+          <td><span style="background:rgba(245,158,11,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:11px">${hrsRestantes}hs háb. restantes</span></td>
+          <td><button class="btn" data-confirmar-brubank="${v.id}" style="font-size:11px;padding:3px 8px;color:#f87171;border-color:rgba(248,113,113,0.3)">Confirmar depósito</button></td>
+        </tr>`;}).join('')}
+      </tbody></table>
+    </div>`:''}
+
+    <div class="card">
+      <div class="card-title">Movimientos cuenta Brubank</div>
+      ${data.brubank.length===0&&pendientes.length===0?`<div class="empty">Sin movimientos en Brubank todavía</div>`:`
+      <table><thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th></th></tr></thead>
+      <tbody>${data.brubank.slice().reverse().map(m=>`<tr>
+        <td>${fd(m.fecha)}</td>
+        <td>${m.descripcion}</td>
+        <td><span class="badge" style="background:${m.tipo==='ingreso'?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.15)'};color:${m.tipo==='ingreso'?'#4ade80':'#f87171'}">${m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso'}</span></td>
+        <td style="font-family:var(--font-mono);font-weight:500;color:${m.tipo==='ingreso'?'#4ade80':'#f87171'}">${m.tipo==='ingreso'?'+':'-'}${fmt(m.monto)}</td>
+        <td><button class="btn danger" data-del-brubank="${m.id}" style="font-size:10px;padding:2px 6px">✕</button></td>
+      </tr>`).join('')}
+      </tbody></table>`}
+    </div>
+  </div>`;
+}
+
+function renderGalicia(){
+  if(!data.galicia)data.galicia=[];
+  const saldo=getSaldoGalicia();
+  const pendientes=getGaliciaPendientes();
+  const vencidas=getGaliciaVencidas();
+  const hoy=new Date();
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">🏦 Cuenta Galicia — Yolo</span>
+      <button class="btn" id="nuevo-galicia-btn" style="border-color:rgba(255,77,77,0.4);color:#ff4d4d">+ Movimiento manual</button>
+    </div>
+    <div class="metrics">
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">🏦</div><div class="metric-label">Saldo Galicia</div><div class="metric-value" style="color:#ff4d4d">${fmt(saldo)}</div></div>
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">Liq. pendientes</div><div class="metric-value" style="color:#fbbf24">${fmt(pendientes.reduce((s,v)=>s+v.total,0))}</div></div>
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">🔴</div><div class="metric-label">Vencidas +48hs háb.</div><div class="metric-value" style="color:${vencidas.length>0?'#f87171':'#4ade80'}">${vencidas.length}</div></div>
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📋</div><div class="metric-label">Movimientos</div><div class="metric-value">${data.galicia.length}</div></div>
+    </div>
+    <div style="background:rgba(255,77,77,0.06);border:1px solid rgba(255,77,77,0.15);border-radius:8px;padding:10px 14px;font-size:11px;color:#94a3b8;margin-bottom:14px">
+      ⏰ <strong style="color:#ff4d4d">48hs hábiles</strong> — Los sábados y domingos no cuentan. El plazo se calcula sobre días hábiles.
+    </div>
+
+    ${vencidas.length>0?`<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:#ff4d4d;margin-bottom:10px">🔴 Liquidaciones vencidas — revisá si Yolo/Galicia ya depositó</div>
+      <table><thead><tr><th>Fecha venta</th><th>Cliente</th><th>Venta N°</th><th>Monto</th><th>Hs. transcurridas</th><th></th></tr></thead>
+      <tbody>${vencidas.map(v=>{
+        const fechaVenta=new Date(v.fecha+'T12:00:00');
+        const hrsTranscurridas=Math.round((hoy-fechaVenta)/3600000);
+        return`<tr style="background:rgba(239,68,68,0.05)">
+          <td>${fd(v.fecha)}</td>
+          <td style="font-weight:500">${v.cliente}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
+          <td style="color:#ff4d4d;font-weight:500">${fmt(v.total)}</td>
+          <td><span style="background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-size:11px">${hrsTranscurridas}hs</span></td>
+          <td><button class="btn success" data-confirmar-galicia="${v.id}" style="font-size:11px;padding:3px 8px">✓ Confirmar depósito</button></td>
+        </tr>`;}).join('')}
+      </tbody></table>
+    </div>`:''}
+
+    ${pendientes.filter(v=>!vencidas.find(x=>x.id===v.id)).length>0?`<div class="card" style="margin-bottom:14px">
+      <div class="card-title">⏳ Pendientes (dentro de las 48hs hábiles)</div>
+      <table><thead><tr><th>Fecha venta</th><th>Cliente</th><th>Venta N°</th><th>Monto</th><th>Tiempo restante</th><th></th></tr></thead>
+      <tbody>${pendientes.filter(v=>!vencidas.find(x=>x.id===v.id)).map(v=>{
+        const fechaVenta=new Date(v.fecha+'T12:00:00');
+        const limite=addHorasHabiles(fechaVenta,48);
+        const msRestantes=limite-hoy;
+        const hrsRestantes=Math.max(0,Math.round(msRestantes/3600000));
+        return`<tr>
+          <td>${fd(v.fecha)}</td>
+          <td>${v.cliente}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
+          <td style="font-weight:500">${fmt(v.total)}</td>
+          <td><span style="background:rgba(245,158,11,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:11px">${hrsRestantes}hs háb. restantes</span></td>
+          <td><button class="btn" data-confirmar-galicia="${v.id}" style="font-size:11px;padding:3px 8px;color:#ff4d4d;border-color:rgba(255,77,77,0.3)">Confirmar depósito</button></td>
+        </tr>`;}).join('')}
+      </tbody></table>
+    </div>`:''}
+
+    <div class="card">
+      <div class="card-title">Movimientos cuenta Galicia</div>
+      ${data.galicia.length===0&&pendientes.length===0?`<div class="empty">Sin movimientos en Galicia todavía</div>`:`
+      <table><thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th></th></tr></thead>
+      <tbody>${data.galicia.slice().reverse().map(m=>`<tr>
+        <td>${fd(m.fecha)}</td>
+        <td>${m.descripcion}</td>
+        <td><span class="badge" style="background:${m.tipo==='ingreso'?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.15)'};color:${m.tipo==='ingreso'?'#4ade80':'#f87171'}">${m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso'}</span></td>
+        <td style="font-family:var(--font-mono);font-weight:500;color:${m.tipo==='ingreso'?'#4ade80':'#f87171'}">${m.tipo==='ingreso'?'+':'-'}${fmt(m.monto)}</td>
+        <td><button class="btn danger" data-del-galicia="${m.id}" style="font-size:10px;padding:2px 6px">✕</button></td>
+      </tr>`).join('')}
+      </tbody></table>`}
+    </div>
   </div>`;
 }
 
@@ -860,7 +1192,7 @@ function renderModal(){
     </div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
-      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option><option value="tarjeta-nbch">💳 Tarjeta NBCH</option><option value="tarjeta-santander">💳 Santander (Brubank)</option><option value="tarjeta-galicia">💳 Yolo/Galicia</option></select></div>
     </div>
     <div id="aviso-medio-pago" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:7px;padding:8px 12px;font-size:12px;color:#fbbf24;margin-bottom:8px"></div>
     <div class="two-col">
@@ -887,7 +1219,7 @@ function renderModal(){
     <div id="m-com-preview" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:7px;padding:8px 10px;font-size:12px;color:#a78bfa;margin-bottom:10px">Seleccioná un vendedor para ver la comisión</div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Estado pago</label><select id="m-estado" style="${INP}"><option value="pendiente">Pendiente</option><option value="cobrado">Cobrado</option></select></div>
-      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option></select></div>
+      <div class="form-row"><label class="form-label">Medio de pago</label><select id="m-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="tarjeta">💳 Tarjeta</option><option value="credivip">🟠 CrediVIP</option><option value="rapicuota">🟣 Rapicuota</option><option value="nickcel-pagares">📄 Nickcel Pagarés</option><option value="tarjeta-nbch">💳 Tarjeta NBCH</option><option value="tarjeta-santander">💳 Santander (Brubank)</option><option value="tarjeta-galicia">💳 Yolo/Galicia</option></select></div>
     </div>
     <div id="aviso-medio-pago" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:7px;padding:8px 12px;font-size:12px;color:#fbbf24;margin-bottom:8px"></div>
     <div class="two-col">
@@ -1064,6 +1396,150 @@ function renderModal(){
     </div>
     <div id="print-area">${renderPagare(m.credito)}</div>
   </div></div>`;
+  if(m.type==='confirmar-nbch'){
+    const v=m.venta;
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">✓ Confirmar depósito NBCH</div>
+      <div style="background:rgba(167,122,255,0.08);border:1px solid rgba(167,122,255,0.2);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px">
+        <div style="color:#94a3b8;margin-bottom:4px">Venta #${v.id} — ${fd(v.fecha)}</div>
+        <div style="font-weight:500">${v.cliente}</div>
+        <div style="color:#a78bfa;font-size:13px;margin-top:4px">Total venta: ${fmt(v.total)}</div>
+      </div>
+      <div class="form-row"><label class="form-label">Monto depositado por NBCH *<br><span style="color:#64748b;font-weight:400;font-size:10px">Puede diferir del total por descuentos del banco</span></label>
+        <input type="number" id="nbch-monto-dep" value="${v.total}" style="${INP}" step="0.01">
+      </div>
+      <div class="form-row"><label class="form-label">Fecha del depósito</label>
+        <input type="date" id="nbch-fecha-dep" value="${new Date().toISOString().split('T')[0]}" style="${INP}">
+      </div>
+      <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
+        <input type="text" id="nbch-notas-dep" placeholder="Ej: Depósito con descuento 2%" style="${INP}">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-nbch-dep" data-venta-id="${v.id}" style="background:#a78bfa;border-color:#a78bfa;color:#0f0a1a">Confirmar ingreso a NBCH</button>
+      </div>
+    </div></div>`;
+  }
+  if(m.type==='nuevo-nbch'){
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">💳 Movimiento NBCH</div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="nbch-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Tipo</label>
+          <select id="nbch-tipo" style="${INP}">
+            <option value="ingreso">↑ Ingreso</option>
+            <option value="egreso">↓ Egreso / Retiro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Descripción *</label>
+        <input type="text" id="nbch-desc" placeholder="Ej: Retiro a caja, depósito manual..." style="${INP}">
+      </div>
+      <div class="form-row"><label class="form-label">Monto *</label>
+        <input type="number" id="nbch-monto" placeholder="0" style="${INP}" step="0.01">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-nbch" style="background:#a78bfa;border-color:#a78bfa;color:#0f0a1a">Guardar</button>
+      </div>
+    </div></div>`;
+  }
+  if(m.type==='confirmar-brubank'){
+    const v=m.venta;
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">✓ Confirmar depósito Brubank</div>
+      <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px">
+        <div style="color:#94a3b8;margin-bottom:4px">Venta #${v.id} — ${fd(v.fecha)} — Santander/Brubank</div>
+        <div style="font-weight:500">${v.cliente}</div>
+        <div style="color:#f87171;font-size:13px;margin-top:4px">Total venta: ${fmt(v.total)}</div>
+      </div>
+      <div class="form-row"><label class="form-label">Monto depositado por Brubank *<br><span style="color:#64748b;font-weight:400;font-size:10px">Puede diferir del total por descuentos de Santander</span></label>
+        <input type="number" id="brubank-monto-dep" value="${v.total}" style="${INP}" step="0.01">
+      </div>
+      <div class="form-row"><label class="form-label">Fecha del depósito</label>
+        <input type="date" id="brubank-fecha-dep" value="${new Date().toISOString().split('T')[0]}" style="${INP}">
+      </div>
+      <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
+        <input type="text" id="brubank-notas-dep" placeholder="Ej: Depósito con descuento 3%" style="${INP}">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-brubank-dep" data-venta-id="${v.id}" style="background:#f87171;border-color:#f87171;color:#1a0000">Confirmar ingreso a Brubank</button>
+      </div>
+    </div></div>`;
+  }
+  if(m.type==='nuevo-brubank'){
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">🏦 Movimiento Brubank</div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="brubank-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Tipo</label>
+          <select id="brubank-tipo" style="${INP}">
+            <option value="ingreso">↑ Ingreso</option>
+            <option value="egreso">↓ Egreso / Retiro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Descripción *</label>
+        <input type="text" id="brubank-desc" placeholder="Ej: Retiro a caja, depósito manual..." style="${INP}">
+      </div>
+      <div class="form-row"><label class="form-label">Monto *</label>
+        <input type="number" id="brubank-monto" placeholder="0" style="${INP}" step="0.01">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-brubank" style="background:#f87171;border-color:#f87171;color:#1a0000">Guardar</button>
+      </div>
+    </div></div>`;
+  }
+  if(m.type==='confirmar-galicia'){
+    const v=m.venta;
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">✓ Confirmar depósito Galicia</div>
+      <div style="background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.2);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px">
+        <div style="color:#94a3b8;margin-bottom:4px">Venta #${v.id} — ${fd(v.fecha)} — Yolo/Galicia</div>
+        <div style="font-weight:500">${v.cliente}</div>
+        <div style="color:#ff4d4d;font-size:13px;margin-top:4px">Total venta: ${fmt(v.total)}</div>
+      </div>
+      <div class="form-row"><label class="form-label">Monto depositado por Galicia *<br><span style="color:#64748b;font-weight:400;font-size:10px">Puede diferir del total por descuentos de Yolo/Galicia</span></label>
+        <input type="number" id="galicia-monto-dep" value="${v.total}" style="${INP}" step="0.01">
+      </div>
+      <div class="form-row"><label class="form-label">Fecha del depósito</label>
+        <input type="date" id="galicia-fecha-dep" value="${new Date().toISOString().split('T')[0]}" style="${INP}">
+      </div>
+      <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
+        <input type="text" id="galicia-notas-dep" placeholder="Ej: Depósito con descuento 3%" style="${INP}">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-galicia-dep" data-venta-id="${v.id}" style="background:#ff4d4d;border-color:#ff4d4d;color:#fff">Confirmar ingreso a Galicia</button>
+      </div>
+    </div></div>`;
+  }
+  if(m.type==='nuevo-galicia'){
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">🏦 Movimiento Galicia</div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="galicia-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Tipo</label>
+          <select id="galicia-tipo" style="${INP}">
+            <option value="ingreso">↑ Ingreso</option>
+            <option value="egreso">↓ Egreso / Retiro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Descripción *</label>
+        <input type="text" id="galicia-desc" placeholder="Ej: Retiro a caja, depósito manual..." style="${INP}">
+      </div>
+      <div class="form-row"><label class="form-label">Monto *</label>
+        <input type="number" id="galicia-monto" placeholder="0" style="${INP}" step="0.01">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-galicia" style="background:#ff4d4d;border-color:#ff4d4d;color:#fff">Guardar</button>
+      </div>
+    </div></div>`;
+  }
   return '';
 }
 
@@ -1286,7 +1762,189 @@ function bindApp(){
   const mscat=q('modal-save-cat');if(mscat)mscat.onclick=()=>{data.categorias.push({id:data.nextId.categoria++,nombre:q('m-catnombre').value,color:q('m-catcolor').value});save(data);modal=null;render();};
   const msd=q('modal-save-dev');if(msd)msd.onclick=()=>{const vid=parseInt(q('m-dev-venta').value),v=data.ventas.find(x=>x.id===vid);if(v){v.estado='cancelado';v.cobrado=0;v.notas='DEV: '+(q('m-dev-motivo').value||'');v.items.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock+=i.qty;});}save(data);modal=null;render();};
   const mcc=q('modal-confirm-cierre');if(mcc)mcc.onclick=()=>{data.cierres.push({id:data.nextId.cierre++,mes:modal.mes,fecha:new Date().toISOString().split('T')[0],detalle:modal.detalle});save(data);modal=null;render();};
+  // ===== GALICIA =====
+  window._irGalicia=()=>{tab='galicia';render();};
+  const ngalicia=q('nuevo-galicia-btn');if(ngalicia)ngalicia.onclick=()=>{modal={type:'nuevo-galicia'};render();};
+  document.querySelectorAll('[data-confirmar-galicia]').forEach(b=>{
+    b.onclick=()=>{
+      const v=data.ventas.find(x=>x.id==b.dataset.confirmarGalicia);
+      if(v){modal={type:'confirmar-galicia',venta:v};render();}
+    };
+  });
+  const msgaliciad=q('modal-save-galicia-dep');
+  if(msgaliciad)msgaliciad.onclick=()=>{
+    const ventaId=parseInt(msgaliciad.dataset.ventaId);
+    const monto=parseFloat(q('galicia-monto-dep').value)||0;
+    const fecha=q('galicia-fecha-dep').value||new Date().toISOString().split('T')[0];
+    const notas=q('galicia-notas-dep').value.trim();
+    if(!monto){alert('Ingresá el monto depositado.');return;}
+    const venta=data.ventas.find(x=>x.id===ventaId);
+    if(venta){
+      venta.galiciaLiquidado=true;
+      venta.galiciaFechaDeposito=fecha;
+      venta.galiciaMontoDeposito=monto;
+      venta.cobrado=venta.total;
+      venta.estado='cobrado';
+    }
+    if(!data.galicia)data.galicia=[];
+    if(!data.nextId.galicia)data.nextId.galicia=1;
+    data.galicia.unshift({
+      id:data.nextId.galicia++,
+      fecha,
+      tipo:'ingreso',
+      descripcion:`Liq. Yolo/Galicia — Venta #${ventaId} (${venta?venta.cliente:''})${notas?' — '+notas:''}`,
+      monto,
+      ventaId
+    });
+    save(data);modal=null;render();
+  };
+  const msgalicia=q('modal-save-galicia');
+  if(msgalicia)msgalicia.onclick=()=>{
+    const tipo=q('galicia-tipo').value;
+    const desc=q('galicia-desc').value.trim();
+    const monto=parseFloat(q('galicia-monto').value)||0;
+    const fecha=q('galicia-fecha').value;
+    if(!desc){alert('Ingresá una descripción.');return;}
+    if(!monto){alert('Ingresá el monto.');return;}
+    if(!data.galicia)data.galicia=[];
+    if(!data.nextId.galicia)data.nextId.galicia=1;
+    if(tipo==='egreso'){
+      const saldo=getSaldoGalicia();
+      if(monto>saldo){alert(`Saldo insuficiente en Galicia. Disponible: ${fmt(saldo)}`);return;}
+    }
+    data.galicia.unshift({id:data.nextId.galicia++,fecha,tipo,descripcion:desc,monto});
+    save(data);modal=null;render();
+  };
+  document.querySelectorAll('[data-del-galicia]').forEach(b=>{
+    b.onclick=()=>{
+      if(!confirm('¿Eliminar este movimiento Galicia?'))return;
+      data.galicia=data.galicia.filter(m=>m.id!=b.dataset.delGalicia);
+      save(data);render();
+    };
+  });
   const mvs=q('m-vendedor');if(mvs)mvs.onchange=actualizarComPreview;
+
+  // ===== NBCH =====
+  window._irNbch=()=>{tab='nbch';render();};
+  const nnbch=q('nuevo-nbch-btn');if(nnbch)nnbch.onclick=()=>{modal={type:'nuevo-nbch'};render();};
+  document.querySelectorAll('[data-confirmar-nbch]').forEach(b=>{
+    b.onclick=()=>{
+      const v=data.ventas.find(x=>x.id==b.dataset.confirmarNbch);
+      if(v){modal={type:'confirmar-nbch',venta:v};render();}
+    };
+  });
+  const msnbchd=q('modal-save-nbch-dep');
+  if(msnbchd)msnbchd.onclick=()=>{
+    const ventaId=parseInt(msnbchd.dataset.ventaId);
+    const monto=parseFloat(q('nbch-monto-dep').value)||0;
+    const fecha=q('nbch-fecha-dep').value||new Date().toISOString().split('T')[0];
+    const notas=q('nbch-notas-dep').value.trim();
+    if(!monto){alert('Ingresá el monto depositado.');return;}
+    const venta=data.ventas.find(x=>x.id===ventaId);
+    if(venta){
+      venta.nbchLiquidado=true;
+      venta.nbchFechaDeposito=fecha;
+      venta.nbchMontoDeposito=monto;
+      venta.cobrado=venta.total;
+      venta.estado='cobrado';
+    }
+    if(!data.nbch)data.nbch=[];
+    if(!data.nextId.nbch)data.nextId.nbch=1;
+    data.nbch.unshift({
+      id:data.nextId.nbch++,
+      fecha,
+      tipo:'ingreso',
+      descripcion:`Liq. tarjeta — Venta #${ventaId} (${venta?venta.cliente:''})${notas?' — '+notas:''}`,
+      monto,
+      ventaId
+    });
+    save(data);modal=null;render();
+  };
+  const msnbch=q('modal-save-nbch');
+  if(msnbch)msnbch.onclick=()=>{
+    const tipo=q('nbch-tipo').value;
+    const desc=q('nbch-desc').value.trim();
+    const monto=parseFloat(q('nbch-monto').value)||0;
+    const fecha=q('nbch-fecha').value;
+    if(!desc){alert('Ingresá una descripción.');return;}
+    if(!monto){alert('Ingresá el monto.');return;}
+    if(!data.nbch)data.nbch=[];
+    if(!data.nextId.nbch)data.nextId.nbch=1;
+    if(tipo==='egreso'){
+      const saldo=getSaldoNbch();
+      if(monto>saldo){alert(`Saldo insuficiente en NBCH. Disponible: ${fmt(saldo)}`);return;}
+    }
+    data.nbch.unshift({id:data.nextId.nbch++,fecha,tipo,descripcion:desc,monto});
+    save(data);modal=null;render();
+  };
+  document.querySelectorAll('[data-del-nbch]').forEach(b=>{
+    b.onclick=()=>{
+      if(!confirm('¿Eliminar este movimiento NBCH?'))return;
+      data.nbch=data.nbch.filter(m=>m.id!=b.dataset.delNbch);
+      save(data);render();
+    };
+  });
+
+  // ===== BRUBANK =====
+  window._irBrubank=()=>{tab='brubank';render();};
+  const nbrubank=q('nuevo-brubank-btn');if(nbrubank)nbrubank.onclick=()=>{modal={type:'nuevo-brubank'};render();};
+  document.querySelectorAll('[data-confirmar-brubank]').forEach(b=>{
+    b.onclick=()=>{
+      const v=data.ventas.find(x=>x.id==b.dataset.confirmarBrubank);
+      if(v){modal={type:'confirmar-brubank',venta:v};render();}
+    };
+  });
+  const msbrubankd=q('modal-save-brubank-dep');
+  if(msbrubankd)msbrubankd.onclick=()=>{
+    const ventaId=parseInt(msbrubankd.dataset.ventaId);
+    const monto=parseFloat(q('brubank-monto-dep').value)||0;
+    const fecha=q('brubank-fecha-dep').value||new Date().toISOString().split('T')[0];
+    const notas=q('brubank-notas-dep').value.trim();
+    if(!monto){alert('Ingresá el monto depositado.');return;}
+    const venta=data.ventas.find(x=>x.id===ventaId);
+    if(venta){
+      venta.brubankLiquidado=true;
+      venta.brubankFechaDeposito=fecha;
+      venta.brubankMontoDeposito=monto;
+      venta.cobrado=venta.total;
+      venta.estado='cobrado';
+    }
+    if(!data.brubank)data.brubank=[];
+    if(!data.nextId.brubank)data.nextId.brubank=1;
+    data.brubank.unshift({
+      id:data.nextId.brubank++,
+      fecha,
+      tipo:'ingreso',
+      descripcion:`Liq. Santander — Venta #${ventaId} (${venta?venta.cliente:''})${notas?' — '+notas:''}`,
+      monto,
+      ventaId
+    });
+    save(data);modal=null;render();
+  };
+  const msbrubank=q('modal-save-brubank');
+  if(msbrubank)msbrubank.onclick=()=>{
+    const tipo=q('brubank-tipo').value;
+    const desc=q('brubank-desc').value.trim();
+    const monto=parseFloat(q('brubank-monto').value)||0;
+    const fecha=q('brubank-fecha').value;
+    if(!desc){alert('Ingresá una descripción.');return;}
+    if(!monto){alert('Ingresá el monto.');return;}
+    if(!data.brubank)data.brubank=[];
+    if(!data.nextId.brubank)data.nextId.brubank=1;
+    if(tipo==='egreso'){
+      const saldo=getSaldoBrubank();
+      if(monto>saldo){alert(`Saldo insuficiente en Brubank. Disponible: ${fmt(saldo)}`);return;}
+    }
+    data.brubank.unshift({id:data.nextId.brubank++,fecha,tipo,descripcion:desc,monto});
+    save(data);modal=null;render();
+  };
+  document.querySelectorAll('[data-del-brubank]').forEach(b=>{
+    b.onclick=()=>{
+      if(!confirm('¿Eliminar este movimiento Brubank?'))return;
+      data.brubank=data.brubank.filter(m=>m.id!=b.dataset.delBrubank);
+      save(data);render();
+    };
+  });
 }
 
 window.irACategoria=function(catId){filtroCategoria=catId;tab='productos';render();}
@@ -1706,7 +2364,10 @@ window.checkMedioPagoAviso=function(sel){
   const msgs={
     'credivip':'🟠 CrediVIP — quedará pendiente hasta que confirmes la liquidación.',
     'rapicuota':'🟣 Rapicuota — quedará pendiente hasta que confirmes la liquidación.',
-    'nickcel-pagares':'📄 Nickcel Pagarés — quedará pendiente hasta confirmar el pagaré.'
+    'nickcel-pagares':'📄 Nickcel Pagarés — quedará pendiente hasta confirmar el pagaré.',
+    'tarjeta-nbch':'💳 Tarjeta NBCH — quedará pendiente. El banco deposita a las 48hs; el sistema te avisará cuando venza el plazo.',
+    'tarjeta-santander':'💳 Santander (Brubank) — quedará pendiente. Paga a las 48hs hábiles; el sistema te avisará cuando venza el plazo.',
+    'tarjeta-galicia':'💳 Yolo/Galicia — quedará pendiente. Paga a las 48hs hábiles; el sistema te avisará cuando venza el plazo.'
   };
   if(msgs[sel.value]){aviso.textContent=msgs[sel.value];aviso.style.display='block';}
   else{aviso.style.display='none';}
