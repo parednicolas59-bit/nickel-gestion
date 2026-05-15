@@ -1268,14 +1268,13 @@ function renderVendedores(){
 // ===== RAPICUOTA =====
 // La semana corre de miércoles a martes. El cobro es el miércoles 21 días después del cierre de semana (martes).
 function getRapicuotaSemana(fechaStr){
-  // Semana corre de miércoles a martes. Cobro = miércoles de inicio + 21 días.
+  // Semana: mié→mar. Cobro = martes de cierre + 22 días (= miércoles siguiente 3 semanas después)
   const d=new Date(fechaStr+'T12:00:00');
-  const dow=d.getDay(); // 0=dom,1=lun,2=mar,3=mie,4=jue,5=vie,6=sab
-  // Días a retroceder para llegar al miércoles de inicio
-  const retro=dow===3?0:dow===4?1:dow===5?2:dow===6?3:dow===0?4:dow===1?5:6;
+  const dow=d.getDay();
+  const retro=dow===3?0:dow===4?1:dow===5?2:dow===6?3:dow===0?4:dow===1?5:dow===2?6:0;
   const inicio=new Date(d);inicio.setDate(d.getDate()-retro);
   const cierre=new Date(inicio);cierre.setDate(inicio.getDate()+6); // martes
-  const cobro=new Date(inicio);cobro.setDate(inicio.getDate()+21); // mié exacto 3 semanas después
+  const cobro=new Date(cierre);cobro.setDate(cierre.getDate()+22); // mié exacto
   const fmt2=dt=>dt.toISOString().split('T')[0];
   return{inicio:fmt2(inicio),cierre:fmt2(cierre),cobro:fmt2(cobro)};
 }
