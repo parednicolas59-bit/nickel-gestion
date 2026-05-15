@@ -292,6 +292,15 @@ const getProd=cod=>data.productos.find(p=>p.codigo===cod.trim());
 const getProdById=id=>data.productos.find(p=>p.id==id);
 function calcCom(venta){const v=getVend(venta.vendedorId);if(!v)return 0;return venta.items.reduce((s,i)=>{const pct=(v.comisiones&&v.comisiones[i.categoriaId])||0;return s+(i.precio*i.qty*pct/100);},0);}
 
+function mostrarToast(msg,color){
+  let t=document.getElementById('_toast');
+  if(!t){t=document.createElement('div');t.id='_toast';t.style.cssText='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:12px 28px;border-radius:12px;font-size:14px;font-weight:600;color:#fff;z-index:9999;pointer-events:none;transition:opacity 0.4s';document.body.appendChild(t);}
+  t.textContent=msg;
+  t.style.background=color||'#22c55e';
+  t.style.opacity='1';
+  clearTimeout(t._tid);
+  t._tid=setTimeout(()=>{t.style.opacity='0';},2200);
+}
 function render(){
   const root=document.getElementById('root');
   if(!currentUser){root.innerHTML=renderLogin();bindLogin();return;}
@@ -1737,7 +1746,7 @@ function renderModal(){
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
     </div>
     <div class="form-row"><label class="form-label">Notas</label><textarea id="m-notas" style="${INP};height:46px;resize:vertical"></textarea></div>
-    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-venta">Guardar</button></div>
+    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn success" id="modal-save-venta">✓ Confirmar venta</button></div>
   </div></div>`;
   if(m.type==='ver-venta'){const v=m.venta,vnd=getVend(v.vendedorId),mp=v.medioPago||'efectivo';return`<div class="modal-bg"><div class="modal" style="max-width:480px">
     <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center">Detalle de venta <button class="btn" id="modal-cancel" style="font-size:11px;padding:3px 8px">✕</button></div>
@@ -2432,7 +2441,7 @@ function bindApp(){
     if(factura==='factura-x'&&!clienteDni){alert('La Factura X requiere el DNI del cliente.');return;}
     data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombre,monto:total});}
-    save(data);const ventaGuardada=data.ventas[0];modal={type:'ver-venta',venta:ventaGuardada,mostrarComp:true};render();};
+    save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();};
   const msv=q('modal-save-venta');
   if(msv)msv.onclick=()=>{
     if(!modalProdSeleccionado){alert('Seleccioná un producto primero.');return;}
@@ -2446,7 +2455,7 @@ function bindApp(){
     if(prod)prod.stock=Math.max(0,prod.stock-qty);
     modalProdSeleccionado=null;
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombreM,monto:total});}
-    save(data);const ventaGuardadaM=data.ventas[0];modal={type:'ver-venta',venta:ventaGuardadaM,mostrarComp:true};render();
+    save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
   };
   const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{const monto=parseFloat(q('m-monto-cobro').value)||0,venta=data.ventas.find(x=>x.id===modal.venta.id);if(venta){venta.cobrado=Math.min(venta.total,venta.cobrado+monto);venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';}save(data);modal=null;render();};
   const mse=q('modal-save-egreso');if(mse)mse.onclick=()=>{
