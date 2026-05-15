@@ -2766,6 +2766,7 @@ function bindApp(){
       } else if(fuente==='Mercado Pago'){
         if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;
         data.mercadopago.push({id:data.nextId.mercadopago++,fecha:fechaEg,descripcion:'Egreso: '+concepto,tipo:'egreso',monto});
+        console.log('MP egreso registrado, nuevo saldo:', data.mercadopago.reduce((s,m)=>s+(m.tipo==='ingreso'?m.monto:-m.monto),0));
       } else if(fuente==='Supervielle'){
         if(!data.supervielle)data.supervielle=[];if(!data.nextId.supervielle)data.nextId.supervielle=1;
         data.supervielle.unshift({id:data.nextId.supervielle++,fecha:fechaEg,tipo:'egreso',descripcion:'Egreso: '+concepto,monto});
