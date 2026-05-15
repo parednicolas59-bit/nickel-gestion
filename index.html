@@ -316,7 +316,7 @@ function bindLogin(){
 function renderApp(){
   const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','cobranza-credivip','cobranza-rapicuota','informes','financiera','usuarios'];
   const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
-  const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','financiera'];
+  const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','financiera'];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
       <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
