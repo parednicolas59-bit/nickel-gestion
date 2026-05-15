@@ -2436,15 +2436,18 @@ function bindApp(){
     u.password=nueva;if(isMe)currentUser.password=nueva;save(data);modal=null;render();alert('Contraseña actualizada correctamente');
   };
   const msvs=q('modal-save-venta-scan');
-  if(msvs)msvs.onclick=()=>{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo',mpSubtipo=medioPago==='mercadopago'?(q('m-mp-subtipo-scan')?.value||'transferencia'):null;const clienteNombre=q('m-cliente').value.trim(),clienteTel=q('m-clientetel')?.value.trim()||'',clienteDni=q('m-clientedni')?.value.trim()||'';
+  if(msvs)msvs.onclick=()=>{try{const fecha=q('m-fecha').value,mes=fecha.substring(0,7),vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,total=carrito.reduce((s,i)=>s+i.precio*i.qty,0),estado=q('m-estado').value,cobrado=estado==='cobrado'?total:0,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo',mpSubtipo=medioPago==='mercadopago'?(q('m-mp-subtipo-scan')?.value||'transferencia'):null;const clienteNombre=q('m-cliente').value.trim(),clienteTel=q('m-clientetel')?.value.trim()||'',clienteDni=q('m-clientedni')?.value.trim()||'';
+    if(carrito.length===0){alert('Agregá al menos un producto al carrito.');return;}
     if(!clienteNombre||!clienteTel){alert('Completá el nombre y teléfono del cliente.');return;}
     if(factura==='factura-x'&&!clienteDni){alert('La Factura X requiere el DNI del cliente.');return;}
     data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombre,monto:total});}
-    save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();};
+    save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
+  }catch(err){alert('Error al guardar: '+err.message);console.error(err);}};
   const msv=q('modal-save-venta');
   if(msv)msv.onclick=()=>{
     if(!modalProdSeleccionado){alert('Seleccioná un producto primero.');return;}
+    try{
     const prod=modalProdSeleccionado,qty=parseInt(q('m-qty').value)||1,precio=parseFloat(q('m-precio').value)||0,estado=q('m-estado').value,total=qty*precio,cobrado=estado==='cobrado'?total:0,vendId=q('m-vendedor').value?parseInt(q('m-vendedor').value):null,fecha=q('m-fecha').value,factura=q('m-factura')?.value||'sin-factura',nroFactura=q('m-nro-factura')?.value||'',medioPago=q('m-medio-pago')?.value||'efectivo',mpSubtipo=medioPago==='mercadopago'?(q('m-mp-subtipo')?.value||'transferencia'):null;
     const clienteNombreM=q('m-cliente').value.trim(),clienteTelM=q('m-clientetel')?.value.trim()||'',clienteDniM=q('m-clientedni')?.value.trim()||'';
     if(!clienteNombreM||!clienteTelM){alert('Completá el nombre y teléfono del cliente.');return;}
@@ -2456,6 +2459,7 @@ function bindApp(){
     modalProdSeleccionado=null;
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombreM,monto:total});}
     save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
+    }catch(err){alert('Error al guardar: '+err.message);console.error(err);}
   };
   const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{const monto=parseFloat(q('m-monto-cobro').value)||0,venta=data.ventas.find(x=>x.id===modal.venta.id);if(venta){venta.cobrado=Math.min(venta.total,venta.cobrado+monto);venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';}save(data);modal=null;render();};
   const mse=q('modal-save-egreso');if(mse)mse.onclick=()=>{
