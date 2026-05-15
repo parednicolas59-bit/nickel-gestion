@@ -2755,19 +2755,19 @@ function bindApp(){
     // Si la fuente es una cuenta, registrar el egreso como movimiento en esa cuenta
     if(pagadoEg){
       if(fuente==='NBCH'){
-        if(!data.nbch)data.nbch=[];
+        if(!data.nbch)data.nbch=[];if(!data.nextId.nbch)data.nextId.nbch=1;
         data.nbch.push({id:data.nextId.nbch++,fecha:fechaEg,concepto:'Egreso: '+concepto,tipo:'egreso',monto});
       } else if(fuente==='Brubank'){
-        if(!data.brubank)data.brubank=[];
+        if(!data.brubank)data.brubank=[];if(!data.nextId.brubank)data.nextId.brubank=1;
         data.brubank.push({id:data.nextId.brubank++,fecha:fechaEg,concepto:'Egreso: '+concepto,tipo:'egreso',monto});
       } else if(fuente==='Galicia'){
         if(!data.galicia)data.galicia=[];
         data.galicia.push({id:data.nextId.galicia++,fecha:fechaEg,concepto:'Egreso: '+concepto,tipo:'egreso',monto});
       } else if(fuente==='Mercado Pago'){
-        if(!data.mercadopago)data.mercadopago=[];
+        if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;
         data.mercadopago.push({id:data.nextId.mercadopago++,fecha:fechaEg,descripcion:'Egreso: '+concepto,tipo:'egreso',monto});
       } else if(fuente==='Supervielle'){
-        if(!data.supervielle)data.supervielle=[];
+        if(!data.supervielle)data.supervielle=[];if(!data.nextId.supervielle)data.nextId.supervielle=1;
         data.supervielle.unshift({id:data.nextId.supervielle++,fecha:fechaEg,tipo:'egreso',descripcion:'Egreso: '+concepto,monto});
       } else if(fuente==='Cobr. CrediVIP'){
         if(!data.cobranzaCredivip)data.cobranzaCredivip=[];
