@@ -228,6 +228,8 @@ async function loadFromFirebase(){
       if(!d.nextId.galicia)d.nextId.galicia=1;
       if(!d.mercadopago)d.mercadopago=[];
       if(!d.nextId.mercadopago)d.nextId.mercadopago=1;
+      if(!d.cheques)d.cheques=[];
+      if(!d.nextId.cheque)d.nextId.cheque=1;
       if(!d.cobranzaCredivip)d.cobranzaCredivip=[];
       if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;
       if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];
@@ -314,8 +316,8 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','cobranza-credivip','cobranza-rapicuota','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','cobranza-credivip','cobranza-rapicuota','cheques','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','financiera'];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
@@ -345,6 +347,7 @@ function renderTab(){
   if(tab==='mercadopago')return renderMercadoPago();
   if(tab==='cobranza-credivip')return renderCobranza('credivip');
   if(tab==='cobranza-rapicuota')return renderCobranza('rapicuota');
+  if(tab==='cheques')return renderCheques();
   if(tab==='informes')return renderInformes();
   if(tab==='usuarios')return renderUsuarios();
   if(tab==='financiera')return renderFinanciera();
@@ -412,8 +415,13 @@ function renderDash(){
   const saldoMp=getSaldoMp();
   const saldoCobranzaCredivip=getSaldoCobranza('credivip');
   const saldoCobranzaRapicuota=getSaldoCobranza('rapicuota');
+  // Cheques próximos a vencer (2 días)
+  const hoyDashStr=new Date().toISOString().split('T')[0];
+  const en2d=new Date();en2d.setDate(en2d.getDate()+2);
+  const en2dStr=en2d.toISOString().split('T')[0];
+  const chequesProximos=(data.cheques||[]).filter(c=>!c.pagado&&c.fechaPago<=en2dStr);
   return`<div>
-  ${(nbchVencidas.length>0||brubankVencidas.length>0||galiciaVencidas.length>0)?`<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+  ${(nbchVencidas.length>0||brubankVencidas.length>0||galiciaVencidas.length>0||chequesProximos.length>0)?`<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
     <div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:8px">🔴 Liquidaciones vencidas — revisá si ya depositaron</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       ${nbchVencidas.length>0?`<div style="display:flex;align-items:center;gap:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 14px;flex:1;min-width:200px">
@@ -431,6 +439,7 @@ function renderDash(){
         <div style="flex:1"><div style="font-size:12px;font-weight:600;color:#ff4d4d">Yolo/Galicia — ${galiciaVencidas.length} venta${galiciaVencidas.length>1?'s':''}</div><div style="font-size:11px;color:#94a3b8">${fmt(galiciaVencidas.reduce((s,v)=>s+v.total,0))}</div></div>
         <button class="btn danger" onclick="window._irGalicia&&window._irGalicia()" style="font-size:11px;padding:3px 10px">Ver →</button>
       </div>`:''}
+      ${chequesProximos.length>0?`<div style="display:flex;align-items:center;gap:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 14px;flex:1;min-width:200px"><span style="font-size:18px">📄</span><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#f87171">Cheques — ${chequesProximos.length} próximo${chequesProximos.length>1?'s':''}</div><div style="font-size:11px;color:#94a3b8">${fmt(chequesProximos.reduce((s,c)=>s+c.monto,0))}</div></div><button class="btn danger" onclick="tab='cheques';render()" style="font-size:11px;padding:3px 10px">Ver →</button></div>`:''}
     </div>
   </div>`:''}
   <div class="resumen-row">
@@ -667,6 +676,25 @@ function renderBuscadorProductoModal(){
   if(p){const c=getCat(p.categoriaId);return`<div class="prod-sel-box"><div><div style="font-weight:500;font-size:13px">${p.nombre}</div><div style="font-size:11px;color:var(--text2)">${c?c.nombre:''} · Stock: ${p.stock} · ${fmt(p.precio)}</div></div><span class="psb-cambiar" onclick="limpiarProdModal()">Cambiar ✕</span></div>`;}
   return`<div class="busq-prod-wrap"><span class="busq-prod-ico">🔍</span><input id="busq-prod-modal" class="busq-prod-input" placeholder="Escribí para buscar producto..." autocomplete="off" oninput="buscarProdModal()"><div id="busq-prod-lista-modal" class="busq-prod-lista" style="display:none"></div></div>`;
 }
+window.filtrarProductosTabla=function(){
+  const busq=(window._busqProd||'').toLowerCase().trim();
+  const limpiar=document.getElementById('limpiar-busq-prod');
+  if(limpiar)limpiar.style.display=busq?'inline-flex':'none';
+  const tbody=document.querySelector('#tabla-productos tbody');
+  const contador=document.getElementById('prod-contador');
+  if(!tbody)return;
+  let visible=0;
+  tbody.querySelectorAll('tr[data-prod-id]').forEach(tr=>{
+    const nombre=(tr.dataset.nombre||'').toLowerCase();
+    const codigo=(tr.dataset.codigo||'').toLowerCase();
+    const match=!busq||nombre.includes(busq)||codigo.includes(busq);
+    tr.style.display=match?'':'none';
+    if(match)visible++;
+  });
+  const empty=tbody.querySelector('tr.prod-empty');
+  if(empty)empty.style.display=visible===0&&busq?'':'none';
+  if(contador)contador.textContent=visible+' producto'+(visible!==1?'s':'');
+};
 window.buscarClienteVenta=function(val){
   const lista=document.getElementById('m-cliente-lista');
   if(!lista)return;
@@ -787,10 +815,10 @@ function renderProductos(){
         <input id="busq-prod-tabla" placeholder="Buscar por nombre o código..." autocomplete="off"
           value="${window._busqProd||''}"
           style="width:100%;padding:7px 12px 7px 32px;background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#f1f5f9;font-size:13px;outline:none;box-sizing:border-box"
-          oninput="window._busqProd=this.value;render()">
+          oninput="window._busqProd=this.value;filtrarProductosTabla()">
       </div>
-      ${busq?`<button class="btn" id="limpiar-busq-prod" style="font-size:11px;padding:5px 10px">✕ Limpiar</button>`:''}
-      <span style="font-size:11px;color:#64748b;margin-left:4px">${prodsFiltrados.length} producto${prodsFiltrados.length!==1?'s':''}</span>
+      ${busq?`<button class="btn" id="limpiar-busq-prod" style="font-size:11px;padding:5px 10px">✕ Limpiar</button>`:`<button class="btn" id="limpiar-busq-prod" style="font-size:11px;padding:5px 10px;display:none">✕ Limpiar</button>`}
+      <span id="prod-contador" style="font-size:11px;color:#64748b;margin-left:4px">${prodsFiltrados.length} producto${prodsFiltrados.length!==1?'s':''}</span>
     </div>
     <div class="stock-scan-box">
       <div style="font-size:13px;font-weight:500;margin-bottom:8px">🔫 Agregar stock con pistola</div>
@@ -801,15 +829,15 @@ function renderProductos(){
       </div>
       <div id="scan-stock-feedback" class="scan-feedback" style="margin-top:8px;margin-bottom:0"></div>
     </div>
-    <div class="card"><table>
+    <div class="card"><table id="tabla-productos">
       <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Proveedor</th><th>Precio venta</th>${currentUser.role==='admin'?'<th style="color:#f87171">Costo</th><th style="color:#4ade80">Ganancia/u</th>':''}<th>Stock</th><th></th></tr></thead>
-      <tbody>${prodsFiltrados.length===0?`<tr><td colspan="9" style="text-align:center;color:#64748b;padding:20px">${busq?`Sin resultados para "<strong>${window._busqProd}</strong>"`:'No hay productos'}</td></tr>`:prodsFiltrados.map(p=>{
+      <tbody>${prodsFiltrados.length===0?`<tr class="prod-empty"><td colspan="9" style="text-align:center;color:#64748b;padding:20px">${busq?`Sin resultados para "<strong>${window._busqProd}</strong>"`:'No hay productos'}</td></tr>`:prodsFiltrados.map(p=>{
         const c=getCat(p.categoriaId);
         const prov=data.proveedores?data.proveedores.find(x=>x.id==p.proveedorId):null;
         const ganU=p.precio-(p.costo||0);
         const nombreHl=busq?p.nombre.replace(new RegExp(`(${busq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark style="background:rgba(167,122,255,0.35);color:#e2e8f0;border-radius:3px">$1</mark>'):p.nombre;
         const codigoHl=busq?p.codigo.replace(new RegExp(`(${busq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark style="background:rgba(167,122,255,0.35);color:#e2e8f0;border-radius:3px">$1</mark>'):p.codigo;
-        return`<tr>
+        return`<tr data-prod-id="${p.id}" data-nombre="${(p.nombre||'').toLowerCase().replace(/"/g,'&quot;')}" data-codigo="${(p.codigo||'').toLowerCase().replace(/"/g,'&quot;')}">
           <td style="font-family:var(--font-mono);font-size:11px;color:#64748b">${codigoHl}</td>
           <td>${nombreHl}</td>
           <td>${c?`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${c.color}22;color:${c.color}">${c.nombre}</span>`:'-'}</td>
@@ -1429,6 +1457,76 @@ function renderCobranza(tipo){
         </tbody>
       </table>`}
     </div>
+  </div>`;
+}
+
+// ===== CHEQUES =====
+function getCheques(){if(!data.cheques)data.cheques=[];return data.cheques;}
+function renderCheques(){
+  if(!data.cheques)data.cheques=[];
+  if(!data.nextId.cheque)data.nextId.cheque=1;
+  const hoy=new Date();
+  const hoyStr=hoy.toISOString().split('T')[0];
+  const en2dias=new Date(hoy);en2dias.setDate(hoy.getDate()+2);
+  const en2diasStr=en2dias.toISOString().split('T')[0];
+  const cheques=data.cheques.slice().sort((a,b)=>a.fechaPago.localeCompare(b.fechaPago));
+  const pendientes=cheques.filter(c=>!c.pagado);
+  const pagados=cheques.filter(c=>c.pagado);
+  const proximos=pendientes.filter(c=>c.fechaPago<=en2diasStr);
+  const vencidos=pendientes.filter(c=>c.fechaPago<hoyStr);
+  const totalPendiente=pendientes.reduce((s,c)=>s+c.monto,0);
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">📄 Cheques emitidos</span>
+      <button class="btn primary" id="nuevo-cheque-btn">+ Nuevo cheque</button>
+    </div>
+    ${proximos.length>0?`<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:8px">🔴 ${proximos.length} cheque${proximos.length!==1?'s':''} próximos a vencer (en 2 días o menos)</div>
+      ${proximos.map(c=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span style="color:#e2e8f0">N° ${c.nroCheque} — ${c.proveedor}</span>
+        <span style="color:${c.fechaPago<hoyStr?'#f87171':'#fbbf24'};font-weight:500">📅 ${fd(c.fechaPago)}${c.fechaPago<hoyStr?' ⚠️ VENCIDO':''} — ${fmt(c.monto)}</span>
+      </div>`).join('')}
+    </div>`:''}
+    <div class="metrics">
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">📄</div><div class="metric-label">Total pendiente</div><div class="metric-value" style="color:#f87171">${fmt(totalPendiente)}</div></div>
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">Cheques pendientes</div><div class="metric-value">${pendientes.length}</div></div>
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">✅</div><div class="metric-label">Cheques pagados</div><div class="metric-value" style="color:#4ade80">${pagados.length}</div></div>
+      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">🔴</div><div class="metric-label">Vencidos</div><div class="metric-value" style="color:${vencidos.length>0?'#f87171':'#4ade80'}">${vencidos.length}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Cheques pendientes</div>
+      ${pendientes.length===0?`<div class="empty">Sin cheques pendientes</div>`:`
+      <table><thead><tr><th>N° Cheque</th><th>Proveedor</th><th>Emisión</th><th>Pago</th><th>Monto</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${pendientes.map(c=>{
+        const vencido=c.fechaPago<hoyStr;
+        const proximo=!vencido&&c.fechaPago<=en2diasStr;
+        return`<tr>
+          <td style="font-family:var(--font-mono);font-weight:500">${c.nroCheque}</td>
+          <td>${c.proveedor}</td>
+          <td style="font-size:11px;color:#94a3b8">${fd(c.emision)}</td>
+          <td style="color:${vencido?'#f87171':proximo?'#fbbf24':'#e2e8f0'};font-weight:500">${fd(c.fechaPago)}${vencido?' ⚠️':proximo?' 🔔':''}</td>
+          <td style="font-weight:500;color:#f87171">${fmt(c.monto)}</td>
+          <td><span style="background:${vencido?'rgba(239,68,68,0.15)':proximo?'rgba(251,191,36,0.15)':'rgba(100,116,139,0.15)'};color:${vencido?'#f87171':proximo?'#fbbf24':'#94a3b8'};padding:2px 8px;border-radius:10px;font-size:11px">${vencido?'⚠️ Vencido':proximo?'🔔 Próximo':'Pendiente'}</span></td>
+          <td><div class="actions-cell">
+            <button class="btn success" data-pagar-cheque="${c.id}" style="font-size:11px;padding:3px 7px">✓ Pagar</button>
+            <button class="btn danger" data-del-cheque="${c.id}" style="font-size:11px;padding:3px 6px">✕</button>
+          </div></td>
+        </tr>`;}).join('')}
+      </tbody></table>`}
+    </div>
+    ${pagados.length>0?`<div class="card" style="margin-top:12px">
+      <div class="card-title">Cheques pagados</div>
+      <table><thead><tr><th>N° Cheque</th><th>Proveedor</th><th>Emisión</th><th>Pago</th><th>Monto</th><th></th></tr></thead>
+      <tbody>${pagados.map(c=>`<tr>
+        <td style="font-family:var(--font-mono);color:#64748b">${c.nroCheque}</td>
+        <td style="color:#64748b">${c.proveedor}</td>
+        <td style="font-size:11px;color:#64748b">${fd(c.emision)}</td>
+        <td style="font-size:11px;color:#4ade80">${fd(c.fechaPago)}</td>
+        <td style="color:#64748b">${fmt(c.monto)}</td>
+        <td><button class="btn danger" data-del-cheque="${c.id}" style="font-size:10px;padding:2px 6px">✕</button></td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>`:''}
   </div>`;
 }
 
@@ -2096,6 +2194,30 @@ function renderModal(){
       </div>
     </div></div>`;
   }
+  if(m.type==='nuevo-cheque'){
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">📄 ${m.cheque?'Editar cheque':'Nuevo cheque'}</div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">N° de Cheque *</label><input type="text" id="ch-nro" value="${m.cheque?.nroCheque||''}" placeholder="Ej: 00000017" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Monto *</label><input type="number" id="ch-monto" value="${m.cheque?.monto||''}" placeholder="0" style="${INP}" step="0.01"></div>
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Fecha de emisión *</label><input type="date" id="ch-emision" value="${m.cheque?.emision||new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha de pago *</label><input type="date" id="ch-fechapago" value="${m.cheque?.fechaPago||''}" style="${INP}"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Proveedor / Beneficiario *</label>
+        <input type="text" id="ch-proveedor" value="${m.cheque?.proveedor||''}" placeholder="Nombre del proveedor o beneficiario" style="${INP}" list="ch-prov-list" autocomplete="off">
+        <datalist id="ch-prov-list">${data.proveedores.map(p=>`<option value="${p.nombre}">`).join('')}</datalist>
+      </div>
+      <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
+        <input type="text" id="ch-notas" value="${m.cheque?.notas||''}" placeholder="Ej: Pago mercadería mayo" style="${INP}">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-cheque" style="background:#e2e8f0;border-color:#e2e8f0;color:#0f172a">Guardar</button>
+      </div>
+    </div></div>`;
+  }
   return '';
 }
 
@@ -2142,7 +2264,14 @@ function bindApp(){
       window._adminTimerActivo=false;
     }
   }
-  document.addEventListener('click',e=>{if(!e.target.closest('.busq-prod-wrap'))document.querySelectorAll('.busq-prod-lista').forEach(l=>l.style.display='none');});
+  if(!window._busqClickListener){
+    window._busqClickListener=true;
+    document.addEventListener('click',e=>{if(!e.target.closest('.busq-prod-wrap'))document.querySelectorAll('.busq-prod-lista').forEach(l=>l.style.display='none');});
+  }
+  if(!window._clienteClickListener){
+    window._clienteClickListener=true;
+    document.addEventListener('click',function(e){if(!e.target.closest('#m-cliente-lista')&&e.target.id!=='m-cliente'){const lista=document.getElementById('m-cliente-lista');if(lista)lista.style.display='none';}});
+  }
   document.querySelectorAll('.nav-tab').forEach(b=>{b.onclick=()=>{tab=b.dataset.tab;render();};});
 
   const svi=q('scan-venta-input');
@@ -2181,7 +2310,7 @@ function bindApp(){
   document.querySelectorAll('[data-del-egreso]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.egresos=data.egresos.filter(e=>e.id!=b.dataset.delEgreso);save(data);render();}};});
   document.querySelectorAll('[data-edit-prod]').forEach(b=>{b.onclick=()=>{const p=data.productos.find(x=>x.id==b.dataset.editProd);modal={type:'nuevo-prod',prod:p};render();};});
   document.querySelectorAll('[data-del-prod]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.productos=data.productos.filter(p=>p.id!=b.dataset.delProd);save(data);render();}};});
-  const lbp=q('limpiar-busq-prod');if(lbp)lbp.onclick=()=>{window._busqProd='';render();};
+  const lbp=q('limpiar-busq-prod');if(lbp)lbp.onclick=()=>{window._busqProd='';const inp=q('busq-prod-tabla');if(inp)inp.value='';filtrarProductosTabla();};
   document.querySelectorAll('[data-del-contacto]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.contactos=data.contactos.filter(c=>c.id!=b.dataset.delContacto);save(data);render();}};});
   document.querySelectorAll('[data-del-prov]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar este proveedor?')){data.proveedores=data.proveedores.filter(p=>p.id!=b.dataset.delProv);save(data);render();}};});
   document.querySelectorAll('[data-del-cat]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.categorias=data.categorias.filter(c=>c.id!=b.dataset.delCat);save(data);render();}};});
@@ -2427,6 +2556,45 @@ function bindApp(){
   };
   // ===== MERCADO PAGO =====
   window._irMercadoPago=()=>{tab='mercadopago';render();};
+  // ===== CHEQUES =====
+  const nchbtn=q('nuevo-cheque-btn');
+  if(nchbtn)nchbtn.onclick=()=>{modal={type:'nuevo-cheque'};render();};
+  const msch=q('modal-save-cheque');
+  if(msch)msch.onclick=()=>{
+    const nro=q('ch-nro').value.trim();
+    const monto=parseFloat(q('ch-monto').value)||0;
+    const emision=q('ch-emision').value;
+    const fechaPago=q('ch-fechapago').value;
+    const proveedor=q('ch-proveedor').value.trim();
+    if(!nro){alert('Ingresá el número de cheque.');return;}
+    if(!monto){alert('Ingresá el monto.');return;}
+    if(!fechaPago){alert('Ingresá la fecha de pago.');return;}
+    if(!proveedor){alert('Ingresá el proveedor/beneficiario.');return;}
+    if(!data.cheques)data.cheques=[];
+    if(!data.nextId.cheque)data.nextId.cheque=1;
+    if(modal.cheque){
+      const ch=data.cheques.find(x=>x.id===modal.cheque.id);
+      if(ch){ch.nroCheque=nro;ch.monto=monto;ch.emision=emision;ch.fechaPago=fechaPago;ch.proveedor=proveedor;ch.notas=q('ch-notas').value.trim();}
+    } else {
+      data.cheques.push({id:data.nextId.cheque++,nroCheque:nro,monto,emision,fechaPago,proveedor,notas:q('ch-notas').value.trim(),pagado:false});
+    }
+    save(data);modal=null;render();
+  };
+  document.querySelectorAll('[data-pagar-cheque]').forEach(b=>{
+    b.onclick=()=>{
+      if(!confirm('¿Confirmar que este cheque fue pagado?'))return;
+      const ch=data.cheques.find(x=>x.id==b.dataset.pagarCheque);
+      if(ch){ch.pagado=true;ch.fechaPagado=new Date().toISOString().split('T')[0];}
+      save(data);render();
+    };
+  });
+  document.querySelectorAll('[data-del-cheque]').forEach(b=>{
+    b.onclick=()=>{
+      if(!confirm('¿Eliminar este cheque?'))return;
+      data.cheques=data.cheques.filter(x=>x.id!=b.dataset.delCheque);
+      save(data);render();
+    };
+  });
   // ===== COBRANZA =====
   const ncobrbtn=q('nueva-cobranza-btn');
   if(ncobrbtn)ncobrbtn.onclick=()=>{
