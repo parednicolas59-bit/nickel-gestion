@@ -419,7 +419,9 @@ function renderDash(){
   const hoyDashStr=new Date().toISOString().split('T')[0];
   const en2d=new Date();en2d.setDate(en2d.getDate()+2);
   const en2dStr=en2d.toISOString().split('T')[0];
-  const chequesProximos=(data.cheques||[]).filter(c=>!c.pagado&&c.fechaPago<=en2dStr);
+  const chequesPendientes=(data.cheques||[]).filter(c=>!c.pagado);
+  const chequesProximos=chequesPendientes.filter(c=>c.fechaPago<=en2dStr);
+  const totalChequesPendientes=chequesPendientes.reduce((s,c)=>s+c.monto,0);
   return`<div>
   ${(nbchVencidas.length>0||brubankVencidas.length>0||galiciaVencidas.length>0||chequesProximos.length>0)?`<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
     <div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:8px">🔴 Liquidaciones vencidas — revisá si ya depositaron</div>
@@ -458,6 +460,14 @@ function renderDash(){
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(0,174,243,0.18)">💙</div><div><div class="resumen-label">Mercado Pago — Saldo</div><div class="resumen-val" style="color:#00aef3">${fmt(saldoMp)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Cobr. CrediVIP — Saldo</div><div class="resumen-val" style="color:#fbbf24">${fmt(saldoCobranzaCredivip)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Cobr. Rapicuota — Saldo</div><div class="resumen-val" style="color:#a78bfa">${fmt(saldoCobranzaRapicuota)}</div></div></div>
+    <div class="resumen-item" style="cursor:pointer" onclick="tab='cheques';render()">
+      <div class="resumen-ico" style="background:${chequesProximos.length>0?'rgba(239,68,68,0.25)':'rgba(226,232,240,0.1)'}">📄</div>
+      <div>
+        <div class="resumen-label">Cheques pendientes</div>
+        <div class="resumen-val" style="color:${chequesProximos.length>0?'#f87171':'#e2e8f0'}">${fmt(totalChequesPendientes)}</div>
+        ${chequesProximos.length>0?`<div style="font-size:10px;color:#f87171;margin-top:2px">⚠️ ${chequesProximos.length} vence${chequesProximos.length===1?'':'n'} en 2 días</div>`:`<div style="font-size:10px;color:#64748b;margin-top:2px">${chequesPendientes.length} cheque${chequesPendientes.length!==1?'s':''}</div>`}
+      </div>
+    </div>
   </div>
   <div class="resumen-row">
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Pend. — CrediVIP</div><div class="resumen-val" style="color:#fbbf24">${fmt(pendCredivip)}</div></div></div>
