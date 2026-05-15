@@ -1768,21 +1768,36 @@ function renderModal(){
     </div></div>`;
   }
   if(m.type==='nuevo-nbch'){
-    return`<div class="modal-bg"><div class="modal">
+    const ventasNbch=data.ventas.filter(v=>v.medioPago==='tarjeta-nbch'&&v.estado!=='cancelado'&&!v._nbchMigrado);
+    return`<div class="modal-bg"><div class="modal" style="max-width:520px">
       <div class="modal-title">💳 Movimiento NBCH</div>
       <div class="two-col">
         <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="nbch-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
-          <select id="nbch-tipo" style="${INP}">
+          <select id="nbch-tipo" style="${INP}" onchange="toggleNbchVentasSelector(this)">
             <option value="ingreso">↑ Ingreso</option>
             <option value="egreso">↓ Egreso / Retiro</option>
           </select>
         </div>
       </div>
+      ${ventasNbch.length>0?`<div id="nbch-ventas-bloque">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">¿Acreditar ventas NBCH? <span style="color:#64748b">(tildá las que ya liquidó la tarjeta)</span></div>
+        <div style="max-height:160px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:6px 8px;background:#0f172a">
+          ${ventasNbch.map(v=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.04)">
+            <input type="checkbox" class="nbch-venta-check" data-id="${v.id}" data-monto="${v.total}" style="width:14px;height:14px" onchange="recalcNbchTotal()">
+            <span style="flex:1;color:#e2e8f0">#${v.id} — ${v.cliente}</span>
+            <span style="color:#94a3b8;font-size:11px">${fd(v.fecha)}</span>
+            <span style="color:#a78bfa;font-weight:500;min-width:80px;text-align:right">${fmt(v.total)}</span>
+          </label>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:4px;font-size:11px;color:#64748b">
+          Seleccionado: <strong id="nbch-total-sel" style="color:#a78bfa;margin-left:4px">$0</strong>
+        </div>
+      </div>`:''}
       <div class="form-row"><label class="form-label">Descripción *</label>
-        <input type="text" id="nbch-desc" placeholder="Ej: Retiro a caja, depósito manual..." style="${INP}">
+        <input type="text" id="nbch-desc" placeholder="Ej: Liquidación NBCH, retiro a caja..." style="${INP}">
       </div>
-      <div class="form-row"><label class="form-label">Monto *</label>
+      <div class="form-row"><label class="form-label">Monto * <span style="font-size:10px;color:#64748b">(se completa solo si seleccionás ventas)</span></label>
         <input type="number" id="nbch-monto" placeholder="0" style="${INP}" step="0.01">
       </div>
       <div class="form-actions">
@@ -1816,21 +1831,36 @@ function renderModal(){
     </div></div>`;
   }
   if(m.type==='nuevo-brubank'){
-    return`<div class="modal-bg"><div class="modal">
-      <div class="modal-title">🏦 Movimiento Brubank</div>
+    const ventasSantander=data.ventas.filter(v=>v.medioPago==='tarjeta-santander'&&v.estado!=='cancelado'&&!v._brubankMigrado);
+    return`<div class="modal-bg"><div class="modal" style="max-width:520px">
+      <div class="modal-title">🏦 Movimiento Brubank / Santander</div>
       <div class="two-col">
         <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="brubank-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
-          <select id="brubank-tipo" style="${INP}">
+          <select id="brubank-tipo" style="${INP}" onchange="toggleBrubankVentasSelector(this)">
             <option value="ingreso">↑ Ingreso</option>
             <option value="egreso">↓ Egreso / Retiro</option>
           </select>
         </div>
       </div>
+      ${ventasSantander.length>0?`<div id="brubank-ventas-bloque">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">¿Acreditar ventas Santander? <span style="color:#64748b">(tildá las que ya depositó el banco)</span></div>
+        <div style="max-height:160px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:6px 8px;background:#0f172a">
+          ${ventasSantander.map(v=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.04)">
+            <input type="checkbox" class="brubank-venta-check" data-id="${v.id}" data-monto="${v.total}" style="width:14px;height:14px" onchange="recalcBrubankTotal()">
+            <span style="flex:1;color:#e2e8f0">#${v.id} — ${v.cliente}</span>
+            <span style="color:#94a3b8;font-size:11px">${fd(v.fecha)}</span>
+            <span style="color:#f87171;font-weight:500;min-width:80px;text-align:right">${fmt(v.total)}</span>
+          </label>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:4px;font-size:11px;color:#64748b">
+          Seleccionado: <strong id="brubank-total-sel" style="color:#f87171;margin-left:4px">$0</strong>
+        </div>
+      </div>`:''}
       <div class="form-row"><label class="form-label">Descripción *</label>
-        <input type="text" id="brubank-desc" placeholder="Ej: Retiro a caja, depósito manual..." style="${INP}">
+        <input type="text" id="brubank-desc" placeholder="Ej: Depósito Santander, retiro a caja..." style="${INP}">
       </div>
-      <div class="form-row"><label class="form-label">Monto *</label>
+      <div class="form-row"><label class="form-label">Monto * <span style="font-size:10px;color:#64748b">(se completa solo si seleccionás ventas)</span></label>
         <input type="number" id="brubank-monto" placeholder="0" style="${INP}" step="0.01">
       </div>
       <div class="form-actions">
@@ -1864,21 +1894,36 @@ function renderModal(){
     </div></div>`;
   }
   if(m.type==='nuevo-galicia'){
-    return`<div class="modal-bg"><div class="modal">
+    const ventasGalicia=data.ventas.filter(v=>v.medioPago==='tarjeta-galicia'&&v.estado!=='cancelado'&&!v._galiciaMigrado);
+    return`<div class="modal-bg"><div class="modal" style="max-width:520px">
       <div class="modal-title">🏦 Movimiento Galicia</div>
       <div class="two-col">
         <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="galicia-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
-          <select id="galicia-tipo" style="${INP}">
+          <select id="galicia-tipo" style="${INP}" onchange="toggleGaliciaVentasSelector(this)">
             <option value="ingreso">↑ Ingreso</option>
             <option value="egreso">↓ Egreso / Retiro</option>
           </select>
         </div>
       </div>
+      ${ventasGalicia.length>0?`<div id="galicia-ventas-bloque">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">¿Acreditar ventas Galicia? <span style="color:#64748b">(tildá las que ya depositó Yolo/Galicia)</span></div>
+        <div style="max-height:160px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:6px 8px;background:#0f172a">
+          ${ventasGalicia.map(v=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.04)">
+            <input type="checkbox" class="galicia-venta-check" data-id="${v.id}" data-monto="${v.total}" style="width:14px;height:14px" onchange="recalcGaliciaTotal()">
+            <span style="flex:1;color:#e2e8f0">#${v.id} — ${v.cliente}</span>
+            <span style="color:#94a3b8;font-size:11px">${fd(v.fecha)}</span>
+            <span style="color:#ff4d4d;font-weight:500;min-width:80px;text-align:right">${fmt(v.total)}</span>
+          </label>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:4px;font-size:11px;color:#64748b">
+          Seleccionado: <strong id="galicia-total-sel" style="color:#ff4d4d;margin-left:4px">$0</strong>
+        </div>
+      </div>`:''}
       <div class="form-row"><label class="form-label">Descripción *</label>
-        <input type="text" id="galicia-desc" placeholder="Ej: Retiro a caja, depósito manual..." style="${INP}">
+        <input type="text" id="galicia-desc" placeholder="Ej: Depósito Galicia, retiro a caja..." style="${INP}">
       </div>
-      <div class="form-row"><label class="form-label">Monto *</label>
+      <div class="form-row"><label class="form-label">Monto * <span style="font-size:10px;color:#64748b">(se completa solo si seleccionás ventas)</span></label>
         <input type="number" id="galicia-monto" placeholder="0" style="${INP}" step="0.01">
       </div>
       <div class="form-actions">
@@ -1914,21 +1959,37 @@ function renderModal(){
     </div></div>`;
   }
   if(m.type==='nuevo-mp'){
-    return`<div class="modal-bg"><div class="modal">
+    // Ventas MP (antes transferencia) que no tienen movimiento generado aún
+    const ventasMP=data.ventas.filter(v=>(v.medioPago==='mercadopago'||v.medioPago==='transferencia')&&v.estado!=='cancelado'&&!v._mpMigrado);
+    return`<div class="modal-bg"><div class="modal" style="max-width:520px">
       <div class="modal-title">💙 Movimiento Mercado Pago</div>
       <div class="two-col">
         <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="mp-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
-          <select id="mp-tipo" style="${INP}">
+          <select id="mp-tipo" style="${INP}" onchange="toggleMpVentasSelector(this)">
             <option value="ingreso">↑ Ingreso</option>
             <option value="egreso">↓ Egreso / Retiro</option>
           </select>
         </div>
       </div>
+      ${ventasMP.length>0?`<div id="mp-ventas-bloque">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">¿Acreditar ventas existentes? <span style="color:#64748b">(opcional — tildá las que querés sumar al saldo)</span></div>
+        <div style="max-height:160px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:6px 8px;background:#0f172a">
+          ${ventasMP.map(v=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.04)">
+            <input type="checkbox" class="mp-venta-check" data-id="${v.id}" data-monto="${v.total}" style="width:14px;height:14px" onchange="recalcMpTotal()">
+            <span style="flex:1;color:#e2e8f0">#${v.id} — ${v.cliente}</span>
+            <span style="color:#94a3b8;font-size:11px">${fd(v.fecha)}</span>
+            <span style="color:#00aef3;font-weight:500;min-width:80px;text-align:right">${fmt(v.total)}</span>
+          </label>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:4px;font-size:11px;color:#64748b">
+          Seleccionado: <strong id="mp-total-sel" style="color:#00aef3;margin-left:4px">$0</strong>
+        </div>
+      </div>`:''}
       <div class="form-row"><label class="form-label">Descripción *</label>
-        <input type="text" id="mp-desc" placeholder="Ej: Retiro a caja, transferencia..." style="${INP}">
+        <input type="text" id="mp-desc" placeholder="Ej: Retiro a caja, saldo inicial..." style="${INP}">
       </div>
-      <div class="form-row"><label class="form-label">Monto *</label>
+      <div class="form-row"><label class="form-label">Monto * <span style="font-size:10px;color:#64748b">(se completa solo si seleccionás ventas)</span></label>
         <input type="number" id="mp-monto" placeholder="0" style="${INP}" step="0.01">
       </div>
       <div class="form-actions">
@@ -2242,6 +2303,18 @@ function bindApp(){
       save(data);render();
     };
   });
+  window.toggleMpVentasSelector=function(sel){
+    const bloque=document.getElementById('mp-ventas-bloque');
+    if(bloque)bloque.style.display=sel.value==='ingreso'?'block':'none';
+  };
+  window.recalcMpTotal=function(){
+    const checks=document.querySelectorAll('.mp-venta-check:checked');
+    const total=Array.from(checks).reduce((s,c)=>s+parseFloat(c.dataset.monto||0),0);
+    const totalEl=document.getElementById('mp-total-sel');
+    const montoEl=document.getElementById('mp-monto');
+    if(totalEl)totalEl.textContent=fmt(total);
+    if(montoEl&&total>0)montoEl.value=total;
+  };
   const msmp=q('modal-save-mp');
   if(msmp)msmp.onclick=()=>{
     const tipo=q('mp-tipo').value;
@@ -2256,7 +2329,12 @@ function bindApp(){
       const saldo=getSaldoMp();
       if(monto>saldo){alert(`Saldo insuficiente en MP. Disponible: ${fmt(saldo)}`);return;}
     }
-    data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo,descripcion:desc,monto});
+    // Marcar ventas seleccionadas como migradas para que no aparezcan de nuevo
+    const checks=document.querySelectorAll('.mp-venta-check:checked');
+    const ventaIds=Array.from(checks).map(c=>parseInt(c.dataset.id));
+    ventaIds.forEach(id=>{const v=data.ventas.find(x=>x.id===id);if(v)v._mpMigrado=true;});
+    const descFinal=ventaIds.length>0?desc+' (ventas: '+ventaIds.map(id=>'#'+id).join(', ')+')':desc;
+    data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo,descripcion:descFinal,monto});
     save(data);modal=null;render();
   };
   const ngalicia=q('nuevo-galicia-btn');if(ngalicia)ngalicia.onclick=()=>{modal={type:'nuevo-galicia'};render();};
@@ -2307,8 +2385,24 @@ function bindApp(){
       const saldo=getSaldoGalicia();
       if(monto>saldo){alert(`Saldo insuficiente en Galicia. Disponible: ${fmt(saldo)}`);return;}
     }
-    data.galicia.unshift({id:data.nextId.galicia++,fecha,tipo,descripcion:desc,monto});
+    const checksG=document.querySelectorAll('.galicia-venta-check:checked');
+    const ventaIdsG=Array.from(checksG).map(c=>parseInt(c.dataset.id));
+    ventaIdsG.forEach(id=>{const v=data.ventas.find(x=>x.id===id);if(v)v._galiciaMigrado=true;});
+    const descFinalG=ventaIdsG.length>0?desc+' (ventas: '+ventaIdsG.map(id=>'#'+id).join(', ')+')':desc;
+    data.galicia.unshift({id:data.nextId.galicia++,fecha,tipo,descripcion:descFinalG,monto});
     save(data);modal=null;render();
+  };
+  window.toggleGaliciaVentasSelector=function(sel){
+    const bloque=document.getElementById('galicia-ventas-bloque');
+    if(bloque)bloque.style.display=sel.value==='ingreso'?'block':'none';
+  };
+  window.recalcGaliciaTotal=function(){
+    const checks=document.querySelectorAll('.galicia-venta-check:checked');
+    const total=Array.from(checks).reduce((s,c)=>s+parseFloat(c.dataset.monto||0),0);
+    const totalEl=document.getElementById('galicia-total-sel');
+    const montoEl=document.getElementById('galicia-monto');
+    if(totalEl)totalEl.textContent=fmt(total);
+    if(montoEl&&total>0)montoEl.value=total;
   };
   document.querySelectorAll('[data-del-galicia]').forEach(b=>{
     b.onclick=()=>{
@@ -2369,8 +2463,24 @@ function bindApp(){
       const saldo=getSaldoNbch();
       if(monto>saldo){alert(`Saldo insuficiente en NBCH. Disponible: ${fmt(saldo)}`);return;}
     }
-    data.nbch.unshift({id:data.nextId.nbch++,fecha,tipo,descripcion:desc,monto});
+    const checksN=document.querySelectorAll('.nbch-venta-check:checked');
+    const ventaIdsN=Array.from(checksN).map(c=>parseInt(c.dataset.id));
+    ventaIdsN.forEach(id=>{const v=data.ventas.find(x=>x.id===id);if(v)v._nbchMigrado=true;});
+    const descFinalN=ventaIdsN.length>0?desc+' (ventas: '+ventaIdsN.map(id=>'#'+id).join(', ')+')':desc;
+    data.nbch.unshift({id:data.nextId.nbch++,fecha,tipo,descripcion:descFinalN,monto});
     save(data);modal=null;render();
+  };
+  window.toggleNbchVentasSelector=function(sel){
+    const bloque=document.getElementById('nbch-ventas-bloque');
+    if(bloque)bloque.style.display=sel.value==='ingreso'?'block':'none';
+  };
+  window.recalcNbchTotal=function(){
+    const checks=document.querySelectorAll('.nbch-venta-check:checked');
+    const total=Array.from(checks).reduce((s,c)=>s+parseFloat(c.dataset.monto||0),0);
+    const totalEl=document.getElementById('nbch-total-sel');
+    const montoEl=document.getElementById('nbch-monto');
+    if(totalEl)totalEl.textContent=fmt(total);
+    if(montoEl&&total>0)montoEl.value=total;
   };
   document.querySelectorAll('[data-del-nbch]').forEach(b=>{
     b.onclick=()=>{
@@ -2430,8 +2540,24 @@ function bindApp(){
       const saldo=getSaldoBrubank();
       if(monto>saldo){alert(`Saldo insuficiente en Brubank. Disponible: ${fmt(saldo)}`);return;}
     }
-    data.brubank.unshift({id:data.nextId.brubank++,fecha,tipo,descripcion:desc,monto});
+    const checksBB=document.querySelectorAll('.brubank-venta-check:checked');
+    const ventaIdsBB=Array.from(checksBB).map(c=>parseInt(c.dataset.id));
+    ventaIdsBB.forEach(id=>{const v=data.ventas.find(x=>x.id===id);if(v)v._brubankMigrado=true;});
+    const descFinalBB=ventaIdsBB.length>0?desc+' (ventas: '+ventaIdsBB.map(id=>'#'+id).join(', ')+')':desc;
+    data.brubank.unshift({id:data.nextId.brubank++,fecha,tipo,descripcion:descFinalBB,monto});
     save(data);modal=null;render();
+  };
+  window.toggleBrubankVentasSelector=function(sel){
+    const bloque=document.getElementById('brubank-ventas-bloque');
+    if(bloque)bloque.style.display=sel.value==='ingreso'?'block':'none';
+  };
+  window.recalcBrubankTotal=function(){
+    const checks=document.querySelectorAll('.brubank-venta-check:checked');
+    const total=Array.from(checks).reduce((s,c)=>s+parseFloat(c.dataset.monto||0),0);
+    const totalEl=document.getElementById('brubank-total-sel');
+    const montoEl=document.getElementById('brubank-monto');
+    if(totalEl)totalEl.textContent=fmt(total);
+    if(montoEl&&total>0)montoEl.value=total;
   };
   document.querySelectorAll('[data-del-brubank]').forEach(b=>{
     b.onclick=()=>{
