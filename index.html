@@ -660,7 +660,7 @@ function renderVentas(){
       ${currentUser.role==='admin'?`<td>${mpBadge(mp,sub)}${mp==='rapicuota'&&!v.rapicuotaLiquidado?`<div style="font-size:10px;color:#a78bfa;margin-top:2px">📅 ${fd(getRapicuotaSemana(v.fecha).cobro)}</div>`:''}</td>`:''}
       <td>${v.factura&&v.factura!=='sin-factura'?`<span class="badge" style="background:rgba(30,143,207,0.15);color:#38bdf8;font-size:10px">${v.factura==='factura-a'?'F.A':v.factura==='factura-x'?'F.X':'F.B'}${v.nroFactura?' #'+v.nroFactura:''}</span>`:'<span style="color:#475569;font-size:11px">—</span>'}</td>
       <td><div class="actions-cell">
-        ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button><button class="btn" data-print-venta="${v.id}" style="font-size:11px;padding:3px 7px">🖨️</button>`:''}
+        ${currentUser.role==='admin'?`<button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button><button class="btn" data-edit-venta="${v.id}" style="font-size:11px;padding:3px 7px">✏️</button><button class="btn" data-print-venta="${v.id}" style="font-size:11px;padding:3px 7px">🖨️</button>`:''}
         <button class="btn" data-cobrar="${v.id}" style="font-size:11px;padding:3px 7px">Cobrar</button>
         ${currentUser.role==='admin'?`<button class="btn danger" data-del-venta="${v.id}" style="font-size:11px;padding:3px 6px">✕</button>`:''}
       </div></td></tr>`;}).join('')}</tbody></table></div>
@@ -2280,6 +2280,58 @@ function renderModal(){
       </div>
     </div></div>`;
   }
+  if(m.type==='editar-venta'){
+    const v=m.venta;
+    const mp=v.medioPago||'efectivo';
+    return`<div class="modal-bg"><div class="modal" style="max-width:500px">
+      <div class="modal-title">✏️ Editar venta #${v.id}</div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="ev-fecha" value="${v.fecha}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Estado</label>
+          <select id="ev-estado" style="${INP}">
+            <option value="cobrado"${v.estado==='cobrado'?' selected':''}>Cobrado</option>
+            <option value="pendiente"${v.estado==='pendiente'?' selected':''}>Pendiente</option>
+            <option value="cancelado"${v.estado==='cancelado'?' selected':''}>Cancelado</option>
+          </select>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Cliente</label><input type="text" id="ev-cliente" value="${v.cliente}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Teléfono</label><input type="text" id="ev-tel" value="${v.clienteTel||''}" style="${INP}"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Medio de pago</label>
+        <select id="ev-medio-pago" style="${INP}" onchange="checkMedioPagoAviso(this)">
+          <option value="efectivo"${mp==='efectivo'?' selected':''}>💵 Efectivo</option>
+          <option value="mercadopago"${mp==='mercadopago'?' selected':''}>💙 Mercado Pago</option>
+          <option value="tarjeta"${mp==='tarjeta'?' selected':''}>💳 Tarjeta</option>
+          <option value="tarjeta-nbch"${mp==='tarjeta-nbch'?' selected':''}>💳 Tarjeta NBCH</option>
+          <option value="tarjeta-santander"${mp==='tarjeta-santander'?' selected':''}>💳 Santander</option>
+          <option value="tarjeta-galicia"${mp==='tarjeta-galicia'?' selected':''}>💳 Yolo/Galicia</option>
+          <option value="credivip"${mp==='credivip'?' selected':''}>🟠 CrediVIP</option>
+          <option value="rapicuota"${mp==='rapicuota'?' selected':''}>🟣 Rapicuota</option>
+          <option value="nickcel-pagares"${mp==='nickcel-pagares'?' selected':''}>📄 Nickcel Pagarés</option>
+        </select>
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Vendedor</label>
+          <select id="ev-vendedor" style="${INP}"><option value="">Sin asignar</option>${data.vendedores.map(vd=>`<option value="${vd.id}"${v.vendedorId==vd.id?' selected':''}>${vd.nombre}</option>`).join('')}</select>
+        </div>
+        <div class="form-row"><label class="form-label">Factura</label>
+          <select id="ev-factura" style="${INP}">
+            <option value="sin-factura"${v.factura==='sin-factura'?' selected':''}>Sin factura</option>
+            <option value="factura-a"${v.factura==='factura-a'?' selected':''}>Factura A</option>
+            <option value="factura-b"${v.factura==='factura-b'?' selected':''}>Factura B</option>
+            <option value="factura-x"${v.factura==='factura-x'?' selected':''}>Factura X</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Notas</label><input type="text" id="ev-notas" value="${v.notas||''}" style="${INP}"></div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-editar-venta" data-id="${v.id}">Guardar cambios</button>
+      </div>
+    </div></div>`;
+  }
   return '';
 }
 
@@ -2365,6 +2417,24 @@ function bindApp(){
   document.querySelectorAll('[data-pass-user]').forEach(b=>{b.onclick=()=>{const u=data.users.find(x=>x.id==b.dataset.passUser);modal={type:'cambiar-pass',user:u};render();};});
   document.querySelectorAll('[data-del-user]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar usuario?')){data.users=data.users.filter(u=>u.id!=b.dataset.delUser);save(data);render();}};});
   document.querySelectorAll('[data-ver-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.verVenta);modal={type:'ver-venta',venta:v};render();};});
+  document.querySelectorAll('[data-edit-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.editVenta);if(v){modal={type:'editar-venta',venta:v};render();}};});
+  const msev=q('modal-save-editar-venta');
+  if(msev)msev.onclick=()=>{
+    const id=parseInt(msev.dataset.id);
+    const v=data.ventas.find(x=>x.id===id);
+    if(!v)return;
+    v.fecha=q('ev-fecha').value;
+    v.mes=v.fecha.substring(0,7);
+    v.cliente=q('ev-cliente').value.trim();
+    v.clienteTel=q('ev-tel').value.trim();
+    v.medioPago=q('ev-medio-pago').value;
+    v.vendedorId=q('ev-vendedor').value?parseInt(q('ev-vendedor').value):null;
+    v.factura=q('ev-factura').value;
+    v.notas=q('ev-notas').value.trim();
+    v.estado=q('ev-estado').value;
+    v.cobrado=v.estado==='cobrado'?v.total:0;
+    save(data);modal=null;mostrarToast('✅ Venta actualizada');render();
+  };
   document.querySelectorAll('[data-print-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.printVenta);if(v)printComprobante(v);};});
   document.querySelectorAll('[data-cobrar]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.cobrar);modal={type:'cobrar-venta',venta:v};render();};});
   document.querySelectorAll('[data-del-venta]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.ventas=data.ventas.filter(v=>v.id!=b.dataset.delVenta);save(data);render();}};});
