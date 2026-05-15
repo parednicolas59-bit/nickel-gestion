@@ -1088,6 +1088,7 @@ function renderBrubank(){
   return`<div>
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">🏦 Cuenta Brubank — Santander</span>
+      <button class="btn" id="nueva-venta-historica-brubank-btn" style="border-color:rgba(248,113,113,0.4);color:#f87171;font-size:11px">+ Venta histórica</button>
       <button class="btn" id="nuevo-brubank-btn" style="border-color:rgba(248,113,113,0.4);color:#f87171">+ Movimiento manual</button>
     </div>
     <div class="metrics">
@@ -1112,7 +1113,10 @@ function renderBrubank(){
           <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
           <td style="color:#f87171;font-weight:500">${fmt(v.total)}</td>
           <td><span style="background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-size:11px">${hrsTranscurridas}hs</span></td>
-          <td><button class="btn success" data-confirmar-brubank="${v.id}" style="font-size:11px;padding:3px 8px">✓ Confirmar depósito</button></td>
+          <td><div class="actions-cell">
+            <button class="btn success" data-confirmar-brubank="${v.id}" style="font-size:11px;padding:3px 8px">✓ Confirmar depósito</button>
+            <button class="btn" data-edit-vh="${v.id}" style="font-size:11px;padding:3px 7px">Editar</button>
+          </div></td>
         </tr>`;}).join('')}
       </tbody></table>
     </div>`:''}
@@ -1161,6 +1165,7 @@ function renderGalicia(){
   return`<div>
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">🏦 Cuenta Galicia — Yolo</span>
+      <button class="btn" id="nueva-venta-historica-galicia-btn" style="border-color:rgba(255,77,77,0.4);color:#ff4d4d;font-size:11px">+ Venta histórica</button>
       <button class="btn" id="nuevo-galicia-btn" style="border-color:rgba(255,77,77,0.4);color:#ff4d4d">+ Movimiento manual</button>
     </div>
     <div class="metrics">
@@ -1185,7 +1190,10 @@ function renderGalicia(){
           <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">#${v.id}</td>
           <td style="color:#ff4d4d;font-weight:500">${fmt(v.total)}</td>
           <td><span style="background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-size:11px">${hrsTranscurridas}hs</span></td>
-          <td><button class="btn success" data-confirmar-galicia="${v.id}" style="font-size:11px;padding:3px 8px">✓ Confirmar depósito</button></td>
+          <td><div class="actions-cell">
+            <button class="btn success" data-confirmar-galicia="${v.id}" style="font-size:11px;padding:3px 8px">✓ Confirmar depósito</button>
+            <button class="btn" data-edit-vh="${v.id}" style="font-size:11px;padding:3px 7px">Editar</button>
+          </div></td>
         </tr>`;}).join('')}
       </tbody></table>
     </div>`:''}
@@ -2236,6 +2244,42 @@ function renderModal(){
       </div>
     </div></div>`;
   }
+  if(m.type==='venta-historica-brubank'||m.type==='venta-historica-galicia'){
+    const esBrubank=m.type==='venta-historica-brubank';
+    const color=esBrubank?'#f87171':'#ff4d4d';
+    const mpVal=esBrubank?'tarjeta-santander':'tarjeta-galicia';
+    const mpLabel=esBrubank?'💳 Santander':'💳 Yolo/Galicia';
+    const saveId=esBrubank?'modal-save-vh-brubank':'modal-save-vh-galicia';
+    const titulo=esBrubank?'💳 Venta histórica — Santander':'💳 Venta histórica — Yolo/Galicia';
+    const v=m.venta||null; // para edición
+    return`<div class="modal-bg"><div class="modal" style="max-width:500px">
+      <div class="modal-title">${titulo}</div>
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 14px;font-size:11px;color:#94a3b8;margin-bottom:14px">
+        Esta venta se agregará al historial con fecha indicada y acreditará al saldo de la cuenta.
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Fecha de la venta *</label><input type="date" id="vh-fecha" value="${v?.fecha||new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Monto total *</label><input type="number" id="vh-monto" value="${v?.total||''}" placeholder="0" style="${INP}" step="0.01"></div>
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Cliente *</label><input type="text" id="vh-cliente" value="${v?.cliente||''}" placeholder="Nombre del cliente" style="${INP}" autocomplete="off"></div>
+        <div class="form-row"><label class="form-label">Teléfono</label><input type="text" id="vh-tel" value="${v?.clienteTel||''}" placeholder="Ej: 3704001234" style="${INP}"></div>
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Producto / Descripción *</label><input type="text" id="vh-producto" value="${v?.items?.[0]?.nombre||''}" placeholder="Ej: Samsung A55, TV 50'..." style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Vendedor</label>
+          <select id="vh-vendedor" style="${INP}"><option value="">Sin asignar</option>${data.vendedores.map(vd=>`<option value="${vd.id}"${v?.vendedorId==vd.id?' selected':''}>${vd.nombre}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
+        <input type="text" id="vh-notas" value="${v?.notas||''}" placeholder="Ej: 1 cuota, diferido..." style="${INP}">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="${saveId}" style="background:${color};border-color:${color};color:#fff">${v?'Actualizar venta':'Registrar venta'}</button>
+      </div>
+    </div></div>`;
+  }
   return '';
 }
 
@@ -2699,6 +2743,49 @@ function bindApp(){
     save(data);modal=null;render();
   };
   const ngalicia=q('nuevo-galicia-btn');if(ngalicia)ngalicia.onclick=()=>{modal={type:'nuevo-galicia'};render();};
+  // Ventas históricas
+  const nvhg=q('nueva-venta-historica-galicia-btn');if(nvhg)nvhg.onclick=()=>{modal={type:'venta-historica-galicia'};render();};
+  const nvhb=q('nueva-venta-historica-brubank-btn');if(nvhb)nvhb.onclick=()=>{modal={type:'venta-historica-brubank'};render();};
+  // Botones editar venta histórica en tabla
+  document.querySelectorAll('[data-edit-vh]').forEach(b=>{
+    b.onclick=()=>{
+      const v=data.ventas.find(x=>x.id==b.dataset.editVh);
+      const tipo=v?.medioPago==='tarjeta-santander'?'venta-historica-brubank':'venta-historica-galicia';
+      if(v){modal={type:tipo,venta:v};render();}
+    };
+  });
+  function guardarVentaHistorica(medioPago){
+    const fecha=q('vh-fecha').value;
+    const monto=parseFloat(q('vh-monto').value)||0;
+    const cliente=q('vh-cliente').value.trim();
+    const producto=q('vh-producto').value.trim();
+    const tel=q('vh-tel').value.trim()||'';
+    const vendId=q('vh-vendedor').value?parseInt(q('vh-vendedor').value):null;
+    const notas=q('vh-notas').value.trim();
+    if(!cliente){alert('Ingresá el nombre del cliente.');return false;}
+    if(!monto){alert('Ingresá el monto.');return false;}
+    if(!producto){alert('Ingresá el producto o descripción.');return false;}
+    if(modal.venta){
+      // Editar venta existente
+      const v=data.ventas.find(x=>x.id===modal.venta.id);
+      if(v){v.fecha=fecha;v.mes=fecha.substring(0,7);v.cliente=cliente;v.clienteTel=tel;v.vendedorId=vendId;v.total=monto;v.cobrado=monto;v.items=[{productoId:null,nombre:producto,qty:1,precio:monto}];v.notas=notas;}
+    } else {
+      // Nueva venta histórica
+      data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente,clienteTel:tel,clienteDni:'',vendedorId:vendId,items:[{productoId:null,nombre:producto,categoriaId:null,qty:1,precio:monto}],total:monto,cobrado:monto,estado:'cobrado',factura:'sin-factura',nroFactura:'',medioPago,mpSubtipo:null,notas,_historica:true});
+      // Acreditar en la cuenta correspondiente
+      if(medioPago==='tarjeta-santander'){
+        if(!data.brubank)data.brubank=[];
+        data.brubank.unshift({id:data.nextId.brubank++,fecha,tipo:'ingreso',descripcion:'Venta histórica #'+data.ventas[0].id+' — '+cliente,monto});
+      } else if(medioPago==='tarjeta-galicia'){
+        if(!data.galicia)data.galicia=[];
+        data.galicia.unshift({id:data.nextId.galicia++,fecha,tipo:'ingreso',descripcion:'Venta histórica #'+data.ventas[0].id+' — '+cliente,monto});
+      }
+    }
+    save(data);modal=null;mostrarToast('✅ Venta registrada con éxito');render();
+    return true;
+  }
+  const msvhb=q('modal-save-vh-brubank');if(msvhb)msvhb.onclick=()=>guardarVentaHistorica('tarjeta-santander');
+  const msvhg=q('modal-save-vh-galicia');if(msvhg)msvhg.onclick=()=>guardarVentaHistorica('tarjeta-galicia');
   document.querySelectorAll('[data-confirmar-galicia]').forEach(b=>{
     b.onclick=()=>{
       const v=data.ventas.find(x=>x.id==b.dataset.confirmarGalicia);
