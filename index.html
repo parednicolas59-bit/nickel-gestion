@@ -208,7 +208,7 @@ const def={
   nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1}
 };
 function load(){
-  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;if(!d.cobranzaCredivip)d.cobranzaCredivip=[];if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;if(!d.supervielle)d.supervielle=[];if(!d.nextId.supervielle)d.nextId.supervielle=1;if(!d.cobranzaCredivip)d.cobranzaCredivip=[];if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;if(!d.cobranzaPagares)d.cobranzaPagares=[];if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
   return JSON.parse(JSON.stringify(def));
 }
 async function loadFromFirebase(){
@@ -228,12 +228,16 @@ async function loadFromFirebase(){
       if(!d.nextId.galicia)d.nextId.galicia=1;
       if(!d.mercadopago)d.mercadopago=[];
       if(!d.nextId.mercadopago)d.nextId.mercadopago=1;
+      if(!d.supervielle)d.supervielle=[];
+      if(!d.nextId.supervielle)d.nextId.supervielle=1;
       if(!d.cheques)d.cheques=[];
       if(!d.nextId.cheque)d.nextId.cheque=1;
       if(!d.cobranzaCredivip)d.cobranzaCredivip=[];
       if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;
       if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];
       if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;
+      if(!d.cobranzaPagares)d.cobranzaPagares=[];
+      if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;
       // Migrar ventas con medioPago=transferencia a mercadopago (solo renombra, sin generar movimientos)
       d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});
       d.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
@@ -325,9 +329,9 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','cobranza-credivip','cobranza-rapicuota','cheques','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
-  const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','financiera'];
+  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
       <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
@@ -354,8 +358,10 @@ function renderTab(){
   if(tab==='galicia')return renderGalicia();
   if(tab==='rapicuota')return renderRapicuota();
   if(tab==='mercadopago')return renderMercadoPago();
+  if(tab==='supervielle')return renderSupervielle();
   if(tab==='cobranza-credivip')return renderCobranza('credivip');
   if(tab==='cobranza-rapicuota')return renderCobranza('rapicuota');
+  if(tab==='cobranza-pagares')return renderCobranzaPagares();
   if(tab==='cheques')return renderCheques();
   if(tab==='informes')return renderInformes();
   if(tab==='usuarios')return renderUsuarios();
@@ -422,8 +428,10 @@ function renderDash(){
   const galiciaPendientes=getGaliciaPendientes();
   const saldoGalicia=getSaldoGalicia();
   const saldoMp=getSaldoMp();
+  const saldoSupervielle=getSaldoSupervielle();
   const saldoCobranzaCredivip=getSaldoCobranza('credivip');
   const saldoCobranzaRapicuota=getSaldoCobranza('rapicuota');
+  const saldoCobranzaPagares=getSaldoCobranzaPagares();
   // Cheques próximos a vencer (2 días)
   const hoyDashStr=new Date().toISOString().split('T')[0];
   const en2d=new Date();en2d.setDate(en2d.getDate()+2);
@@ -466,9 +474,11 @@ function renderDash(){
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(167,122,255,0.18)">💳</div><div><div class="resumen-label">NBCH — Saldo cta.</div><div class="resumen-val" style="color:#a78bfa">${fmt(saldoNbch)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">🏦</div><div><div class="resumen-label">Brubank — Saldo cta.</div><div class="resumen-val" style="color:#f87171">${fmt(saldoBrubank)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(255,77,77,0.18)">🏦</div><div><div class="resumen-label">Galicia — Saldo cta.</div><div class="resumen-val" style="color:#ff4d4d">${fmt(saldoGalicia)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(0,207,170,0.18)">🏦</div><div><div class="resumen-label">Supervielle — Saldo</div><div class="resumen-val" style="color:#00cfaa">${fmt(saldoSupervielle)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(0,174,243,0.18)">💙</div><div><div class="resumen-label">Mercado Pago — Saldo</div><div class="resumen-val" style="color:#00aef3">${fmt(saldoMp)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Cobr. CrediVIP — Saldo</div><div class="resumen-val" style="color:#fbbf24">${fmt(saldoCobranzaCredivip)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Cobr. Rapicuota — Saldo</div><div class="resumen-val" style="color:#a78bfa">${fmt(saldoCobranzaRapicuota)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(56,189,248,0.18)">📄</div><div><div class="resumen-label">Cobr. Pagarés — Saldo</div><div class="resumen-val" style="color:#38bdf8">${fmt(saldoCobranzaPagares)}</div></div></div>
     <div class="resumen-item" style="cursor:pointer" onclick="tab='cheques';render()">
       <div class="resumen-ico" style="background:${chequesProximos.length>0?'rgba(239,68,68,0.25)':'rgba(226,232,240,0.1)'}">📄</div>
       <div>
@@ -1432,6 +1442,93 @@ function renderMercadoPago(){
   </div>`;
 }
 
+// ===== SUPERVIELLE =====
+function getSaldoSupervielle(){
+  if(!data.supervielle)data.supervielle=[];
+  return data.supervielle.reduce((s,m)=>s+(m.tipo==='ingreso'?m.monto:-m.monto),0);
+}
+function renderSupervielle(){
+  if(!data.supervielle)data.supervielle=[];
+  if(!data.nextId.supervielle)data.nextId.supervielle=1;
+  const saldo=getSaldoSupervielle();
+  const movs=data.supervielle.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const totalIngresos=movs.filter(m=>m.tipo==='ingreso').reduce((s,m)=>s+m.monto,0);
+  const totalEgresos=movs.filter(m=>m.tipo==='egreso').reduce((s,m)=>s+m.monto,0);
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">🏦 Banco Supervielle</span>
+      <button class="btn" id="nuevo-supervielle-btn" style="border-color:rgba(0,207,170,0.4);color:#00cfaa">+ Movimiento manual</button>
+    </div>
+    <div class="metrics">
+      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">🏦</div><div class="metric-label">Saldo Supervielle</div><div class="metric-value" style="color:#00cfaa">${fmt(saldo)}</div></div>
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">↑</div><div class="metric-label">Total ingresos</div><div class="metric-value" style="color:#4ade80">${fmt(totalIngresos)}</div></div>
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">↓</div><div class="metric-label">Total egresos</div><div class="metric-value" style="color:#f87171">${fmt(totalEgresos)}</div></div>
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📋</div><div class="metric-label">Movimientos</div><div class="metric-value">${movs.length}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Movimientos</div>
+      ${movs.length===0?`<div class="empty">Sin movimientos todavía</div>`:`
+      <table><thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th></th></tr></thead>
+      <tbody>${movs.map(m=>`<tr>
+        <td>${fd(m.fecha)}</td>
+        <td>${m.descripcion}</td>
+        <td><span style="background:${m.tipo==='ingreso'?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.15)'};color:${m.tipo==='ingreso'?'#4ade80':'#f87171'};padding:2px 8px;border-radius:10px;font-size:11px">${m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso'}</span></td>
+        <td style="font-weight:500;color:${m.tipo==='ingreso'?'#4ade80':'#f87171'}">${m.tipo==='ingreso'?'+':'-'}${fmt(m.monto)}</td>
+        <td><button class="btn danger" data-del-supervielle="${m.id}" style="font-size:10px;padding:2px 6px">✕</button></td>
+      </tr>`).join('')}</tbody></table>`}
+    </div>
+  </div>`;
+}
+
+// ===== COBRANZA PAGARÉS =====
+function getSaldoCobranzaPagares(){
+  if(!data.cobranzaPagares)data.cobranzaPagares=[];
+  return data.cobranzaPagares.reduce((s,c)=>s+c.monto,0);
+}
+function renderCobranzaPagares(){
+  if(!data.cobranzaPagares)data.cobranzaPagares=[];
+  const cobros=data.cobranzaPagares.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const saldo=getSaldoCobranzaPagares();
+  const totalEfectivo=cobros.filter(c=>c.formaPago==='efectivo').reduce((s,c)=>s+c.monto,0);
+  const totalTransf=cobros.filter(c=>c.formaPago==='transferencia').reduce((s,c)=>s+c.monto,0);
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">📄 Cobranza Nickcel Pagarés</span>
+      <button class="btn" id="nueva-cobranza-pagares-btn" style="border-color:rgba(56,189,248,0.4);color:#38bdf8">+ Registrar cobro</button>
+    </div>
+    <div style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:10px 14px;font-size:11px;color:#94a3b8;margin-bottom:14px">
+      💵 <strong style="color:#4ade80">Efectivo</strong> → acredita en <strong>Caja efectivo</strong> &nbsp;|&nbsp; 🏦 <strong style="color:#00cfaa">Transferencia</strong> → acredita en <strong style="color:#00cfaa">Banco Supervielle</strong>
+    </div>
+    <div class="metrics">
+      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">📄</div><div class="metric-label">Total cobrado</div><div class="metric-value" style="color:#38bdf8">${fmt(saldo)}</div></div>
+      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">💵</div><div class="metric-label">Cobrado efectivo</div><div class="metric-value" style="color:#4ade80">${fmt(totalEfectivo)}</div></div>
+      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">🏦</div><div class="metric-label">Cobrado transf.</div><div class="metric-value" style="color:#00cfaa">${fmt(totalTransf)}</div></div>
+      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📋</div><div class="metric-label">Cuotas cobradas</div><div class="metric-value">${cobros.length}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Cuotas cobradas</div>
+      ${cobros.length===0?`<div class="empty">Sin cobros registrados todavía</div>`:`
+      <table>
+        <thead><tr><th>Fecha</th><th>Cliente</th><th>DNI</th><th>N° Cuota</th><th>Pagaré N°</th><th>Forma de pago</th><th>Monto</th><th></th></tr></thead>
+        <tbody>${cobros.map(c=>`<tr>
+          <td>${fd(c.fecha)}</td>
+          <td style="font-weight:500">${c.cliente}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#64748b">${c.dni||'—'}</td>
+          <td><span style="background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:10px;font-size:11px">Cuota ${c.nroCuota}</span></td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#94a3b8">${c.nroPagare||'—'}</td>
+          <td>${c.formaPago==='transferencia'
+            ?`<span style="background:rgba(0,207,170,0.12);color:#00cfaa;padding:2px 8px;border-radius:10px;font-size:11px">🏦 Transferencia</span>`
+            :`<span style="background:rgba(34,197,94,0.12);color:#4ade80;padding:2px 8px;border-radius:10px;font-size:11px">💵 Efectivo</span>`
+          }</td>
+          <td style="font-weight:500;color:#38bdf8">${fmt(c.monto)}</td>
+          <td><button class="btn danger" data-del-cobr-pagares="${c.id}" style="font-size:10px;padding:2px 6px">✕</button></td>
+        </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  </div>`;
+}
+
 // ===== COBRANZA =====
 function getCobranzaData(tipo){
   const key=tipo==='credivip'?'cobranzaCredivip':'cobranzaRapicuota';
@@ -2146,6 +2243,30 @@ function renderModal(){
       </div>
     </div></div>`;
   }
+  if(m.type==='nuevo-supervielle'){
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">🏦 Movimiento Supervielle</div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="sv-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Tipo</label>
+          <select id="sv-tipo" style="${INP}">
+            <option value="ingreso">↑ Ingreso</option>
+            <option value="egreso">↓ Egreso / Retiro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Descripción *</label>
+        <input type="text" id="sv-desc" placeholder="Ej: Depósito, retiro, transferencia..." style="${INP}">
+      </div>
+      <div class="form-row"><label class="form-label">Monto *</label>
+        <input type="number" id="sv-monto" placeholder="0" style="${INP}" step="0.01">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-supervielle" style="background:#00cfaa;border-color:#00cfaa;color:#0f172a">Guardar</button>
+      </div>
+    </div></div>`;
+  }
   if(m.type==='nuevo-mp'){
     // Ventas MP (antes transferencia) que no tienen movimiento generado aún
     const ventasMP=data.ventas.filter(v=>(v.medioPago==='mercadopago'||v.medioPago==='transferencia')&&v.estado!=='cancelado'&&!v._mpMigrado);
@@ -2183,6 +2304,39 @@ function renderModal(){
       <div class="form-actions">
         <button class="btn" id="modal-cancel">Cancelar</button>
         <button class="btn primary" id="modal-save-mp" style="background:#00aef3;border-color:#00aef3;color:#fff">Guardar</button>
+      </div>
+    </div></div>`;
+  }
+  if(m.type==='nueva-cobranza-pagares'){
+    return`<div class="modal-bg"><div class="modal">
+      <div class="modal-title">📄 Registrar cobro — Nickcel Pagarés</div>
+      <div style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:7px;padding:8px 12px;font-size:11px;color:#94a3b8;margin-bottom:12px">
+        💵 <strong style="color:#4ade80">Efectivo</strong> → acredita en Caja &nbsp;|&nbsp; 🏦 <strong style="color:#00cfaa">Transferencia</strong> → acredita en Supervielle
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Fecha *</label><input type="date" id="cp-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">N° Cuota *</label><input type="number" id="cp-nro" min="1" placeholder="1" style="${INP}"></div>
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">N° Pagaré</label><input type="text" id="cp-pagare" placeholder="Ej: 00001" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Monto *</label><input type="number" id="cp-monto" placeholder="0" style="${INP}" step="0.01"></div>
+      </div>
+      <div class="two-col">
+        <div class="form-row"><label class="form-label">Cliente *</label><input type="text" id="cp-cliente" placeholder="Nombre del cliente" style="${INP}" autocomplete="off"></div>
+        <div class="form-row"><label class="form-label">DNI <span style="color:#64748b;font-size:10px">(opcional)</span></label><input type="text" id="cp-dni" placeholder="Ej: 30123456" style="${INP}" maxlength="10"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Forma de cobro</label>
+        <select id="cp-forma" style="${INP}">
+          <option value="efectivo">💵 Efectivo</option>
+          <option value="transferencia">🏦 Transferencia</option>
+        </select>
+      </div>
+      <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
+        <input type="text" id="cp-notas" placeholder="Ej: Cuota atrasada, acuerdo de pago..." style="${INP}">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="modal-cancel">Cancelar</button>
+        <button class="btn primary" id="modal-save-cobr-pagares" style="background:#38bdf8;border-color:#38bdf8;color:#0f172a">Registrar cobro</button>
       </div>
     </div></div>`;
   }
@@ -2438,7 +2592,7 @@ function bindApp(){
   document.querySelectorAll('[data-print-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.printVenta);if(v)printComprobante(v);};});
   document.querySelectorAll('[data-cobrar]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.cobrar);modal={type:'cobrar-venta',venta:v};render();};});
   document.querySelectorAll('[data-del-venta]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.ventas=data.ventas.filter(v=>v.id!=b.dataset.delVenta);save(data);render();}};});
-  document.querySelectorAll('[data-pagar]').forEach(b=>{b.onclick=()=>{const e=data.egresos.find(x=>x.id==b.dataset.pagar);if(e){e.pagado=true;if(e.fuente==='NBCH'){if(!data.nbch)data.nbch=[];data.nbch.push({id:data.nextId.nbch++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Brubank'){if(!data.brubank)data.brubank=[];data.brubank.push({id:data.nextId.brubank++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Galicia'){if(!data.galicia)data.galicia=[];data.galicia.push({id:data.nextId.galicia++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Mercado Pago'){if(!data.mercadopago)data.mercadopago=[];data.mercadopago.push({id:data.nextId.mercadopago++,fecha:e.fecha,descripcion:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Cobr. CrediVIP'){if(!data.cobranzaCredivip)data.cobranzaCredivip=[];data.cobranzaCredivip.push({id:data.nextId.cobranzaCredivip++,fecha:e.fecha,cliente:'Egreso',dni:'',nroCuota:0,monto:-e.monto,formaPago:'efectivo',notas:'Egreso: '+e.concepto});}else if(e.fuente==='Cobr. Rapicuota'){if(!data.cobranzaRapicuota)data.cobranzaRapicuota=[];data.cobranzaRapicuota.push({id:data.nextId.cobranzaRapicuota++,fecha:e.fecha,cliente:'Egreso',dni:'',nroCuota:0,monto:-e.monto,formaPago:'efectivo',notas:'Egreso: '+e.concepto});}save(data);render();}};});
+  document.querySelectorAll('[data-pagar]').forEach(b=>{b.onclick=()=>{const e=data.egresos.find(x=>x.id==b.dataset.pagar);if(e){e.pagado=true;if(e.fuente==='NBCH'){if(!data.nbch)data.nbch=[];data.nbch.push({id:data.nextId.nbch++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Brubank'){if(!data.brubank)data.brubank=[];data.brubank.push({id:data.nextId.brubank++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Galicia'){if(!data.galicia)data.galicia=[];data.galicia.push({id:data.nextId.galicia++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Mercado Pago'){if(!data.mercadopago)data.mercadopago=[];data.mercadopago.push({id:data.nextId.mercadopago++,fecha:e.fecha,descripcion:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Supervielle'){if(!data.supervielle)data.supervielle=[];data.supervielle.unshift({id:data.nextId.supervielle++,fecha:e.fecha,tipo:'egreso',descripcion:'Egreso: '+e.concepto,monto:e.monto});}else if(e.fuente==='Cobr. CrediVIP'){if(!data.cobranzaCredivip)data.cobranzaCredivip=[];data.cobranzaCredivip.push({id:data.nextId.cobranzaCredivip++,fecha:e.fecha,cliente:'Egreso',dni:'',nroCuota:0,monto:-e.monto,formaPago:'efectivo',notas:'Egreso: '+e.concepto});}else if(e.fuente==='Cobr. Rapicuota'){if(!data.cobranzaRapicuota)data.cobranzaRapicuota=[];data.cobranzaRapicuota.push({id:data.nextId.cobranzaRapicuota++,fecha:e.fecha,cliente:'Egreso',dni:'',nroCuota:0,monto:-e.monto,formaPago:'efectivo',notas:'Egreso: '+e.concepto});}save(data);render();}};});
   document.querySelectorAll('[data-del-egreso]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.egresos=data.egresos.filter(e=>e.id!=b.dataset.delEgreso);save(data);render();}};});
   document.querySelectorAll('[data-edit-prod]').forEach(b=>{b.onclick=()=>{const p=data.productos.find(x=>x.id==b.dataset.editProd);modal={type:'nuevo-prod',prod:p};render();};});
   document.querySelectorAll('[data-del-prod]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.productos=data.productos.filter(p=>p.id!=b.dataset.delProd);save(data);render();}};});
@@ -2610,6 +2764,9 @@ function bindApp(){
       } else if(fuente==='Mercado Pago'){
         if(!data.mercadopago)data.mercadopago=[];
         data.mercadopago.push({id:data.nextId.mercadopago++,fecha:fechaEg,descripcion:'Egreso: '+concepto,tipo:'egreso',monto});
+      } else if(fuente==='Supervielle'){
+        if(!data.supervielle)data.supervielle=[];
+        data.supervielle.unshift({id:data.nextId.supervielle++,fecha:fechaEg,tipo:'egreso',descripcion:'Egreso: '+concepto,monto});
       } else if(fuente==='Cobr. CrediVIP'){
         if(!data.cobranzaCredivip)data.cobranzaCredivip=[];
         data.cobranzaCredivip.push({id:data.nextId.cobranzaCredivip++,fecha:fechaEg,cliente:'Egreso',dni:'',nroCuota:0,monto:-monto,formaPago:'efectivo',notas:'Egreso: '+concepto});
@@ -2692,6 +2849,34 @@ function bindApp(){
   };
   // ===== MERCADO PAGO =====
   window._irMercadoPago=()=>{tab='mercadopago';render();};
+  // ===== SUPERVIELLE =====
+  window._irSupervielle=()=>{tab='supervielle';render();};
+  const nsvbtn=q('nuevo-supervielle-btn');
+  if(nsvbtn)nsvbtn.onclick=()=>{modal={type:'nuevo-supervielle'};render();};
+  document.querySelectorAll('[data-del-supervielle]').forEach(b=>{
+    b.onclick=()=>{
+      if(!confirm('¿Eliminar este movimiento?'))return;
+      data.supervielle=data.supervielle.filter(m=>m.id!=b.dataset.delSupervielle);
+      save(data);render();
+    };
+  });
+  const mssv=q('modal-save-supervielle');
+  if(mssv)mssv.onclick=()=>{
+    const tipo=q('sv-tipo').value;
+    const desc=q('sv-desc').value.trim();
+    const monto=parseFloat(q('sv-monto').value)||0;
+    const fecha=q('sv-fecha').value;
+    if(!desc){alert('Ingresá una descripción.');return;}
+    if(!monto){alert('Ingresá el monto.');return;}
+    if(!data.supervielle)data.supervielle=[];
+    if(!data.nextId.supervielle)data.nextId.supervielle=1;
+    if(tipo==='egreso'){
+      const saldo=getSaldoSupervielle();
+      if(monto>saldo){alert(`Saldo insuficiente en Supervielle. Disponible: ${fmt(saldo)}`);return;}
+    }
+    data.supervielle.unshift({id:data.nextId.supervielle++,fecha,tipo,descripcion:desc,monto});
+    save(data);modal=null;render();
+  };
   // ===== CHEQUES =====
   const nchbtn=q('nuevo-cheque-btn');
   if(nchbtn)nchbtn.onclick=()=>{modal={type:'nuevo-cheque'};render();};
@@ -2736,6 +2921,45 @@ function bindApp(){
   if(ncobrbtn)ncobrbtn.onclick=()=>{
     const tipo=tab==='cobranza-credivip'?'credivip':'rapicuota';
     modal={type:'nueva-cobranza-'+tipo};render();
+  };
+  // Cobranza Pagarés
+  const ncpbtn=q('nueva-cobranza-pagares-btn');
+  if(ncpbtn)ncpbtn.onclick=()=>{modal={type:'nueva-cobranza-pagares'};render();};
+  document.querySelectorAll('[data-del-cobr-pagares]').forEach(b=>{
+    b.onclick=()=>{
+      if(!confirm('¿Eliminar este cobro? El monto NO se revertirá de Supervielle.'))return;
+      data.cobranzaPagares=data.cobranzaPagares.filter(c=>c.id!=b.dataset.delCobrPagares);
+      save(data);render();
+    };
+  });
+  const mscobp=q('modal-save-cobr-pagares');
+  if(mscobp)mscobp.onclick=()=>{
+    const cliente=q('cp-cliente').value.trim();
+    const monto=parseFloat(q('cp-monto').value)||0;
+    const nroCuota=parseInt(q('cp-nro').value)||1;
+    const fecha=q('cp-fecha').value;
+    const formaPago=q('cp-forma').value;
+    if(!cliente){alert('Ingresá el nombre del cliente.');return;}
+    if(!monto){alert('Ingresá el monto.');return;}
+    if(!data.cobranzaPagares)data.cobranzaPagares=[];
+    if(!data.nextId.cobranzaPagares)data.nextId.cobranzaPagares=1;
+    const cobro={id:data.nextId.cobranzaPagares++,fecha,cliente,dni:q('cp-dni').value.trim(),nroCuota,nroPagare:q('cp-pagare').value.trim(),monto,formaPago,notas:q('cp-notas').value.trim()};
+    data.cobranzaPagares.unshift(cobro);
+    const desc='Cobro pagaré — '+cliente+' Cuota '+nroCuota+(cobro.nroPagare?' Pag.'+cobro.nroPagare:'');
+    if(formaPago==='transferencia'){
+      // Acredita en Supervielle
+      if(!data.supervielle)data.supervielle=[];
+      if(!data.nextId.supervielle)data.nextId.supervielle=1;
+      data.supervielle.unshift({id:data.nextId.supervielle++,fecha,tipo:'ingreso',descripcion:desc,monto});
+      mostrarToast('✅ Cobro registrado — acreditado en Supervielle');
+    } else {
+      // Efectivo — acredita en Caja (movimiento de caja)
+      if(!data.caja)data.caja=[];
+      if(!data.nextId.caja)data.nextId.caja=1;
+      data.caja.unshift({id:data.nextId.caja++,fecha,concepto:desc,tipo:'ingreso',monto});
+      mostrarToast('✅ Cobro registrado — acreditado en Caja efectivo');
+    }
+    save(data);modal=null;render();
   };
   document.querySelectorAll('[data-del-cobranza]').forEach(b=>{
     b.onclick=()=>{
