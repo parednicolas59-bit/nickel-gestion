@@ -242,8 +242,14 @@ let _fbUnsubscribe=null;
 let _fbInitialized=false;
 
 async function initApp(){
-  document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando con la nube...</div></div></div>';
-  try{const fbData=await loadFromFirebase();if(fbData)data=fbData;}catch(e){console.log("Usando datos locales");}
+  document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando...</div></div></div>';
+  try{
+    const fbData=await Promise.race([
+      loadFromFirebase(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000))
+    ]);
+    if(fbData)data=fbData;
+  }catch(e){console.log("Usando datos locales");}
   _fbInitialized=true;
   render();
   if(window._fbListen){
@@ -269,7 +275,7 @@ async function initApp(){
 }
 
 if(window._firebaseReady){initApp();}
-else{document.addEventListener('firebase-ready',initApp);setTimeout(()=>{if(!_fbInitialized)initApp();},3000);}
+else{document.addEventListener('firebase-ready',initApp);setTimeout(()=>{if(!_fbInitialized)initApp();},2000);}
 
 const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
 const fd=d=>d?d.split('-').reverse().join('/'):'';
