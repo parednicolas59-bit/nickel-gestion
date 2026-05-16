@@ -1700,33 +1700,15 @@ function getFechaHoyISO(){return new Date().toISOString().split('T')[0];}
 function calcTotalesTurno(turno){
   const desde=turno.apertura.ts;
   const hasta=turno.cierre?turno.cierre.ts:Date.now();
-  // Ventas del turno
-  const ventasTurno=data.ventas.filter(v=>{
-    const vts=new Date(v.fecha+'T12:00:00').getTime();
-    return v.cobrado>0&&vts>=desde&&vts<=hasta;
-  });
-  // Egresos del turno
-  const egresosTurno=(data.egresos||[]).filter(e=>{
-    if(!e.pagado)return false;
-    const ets=new Date(e.fecha+'T12:00:00').getTime();
-    return ets>=desde&&ets<=hasta;
-  });
-  // Cobros financieras del turno (solo montos positivos, excluye egresos internos con monto negativo)
-  const cobranzaCredivipTurno=(data.cobranzaCredivip||[]).filter(c=>{
-    if(c.monto<=0)return false;
-    const cts=new Date(c.fecha+'T12:00:00').getTime();
-    return cts>=desde&&cts<=hasta;
-  });
-  const cobranzaRapicuotaTurno=(data.cobranzaRapicuota||[]).filter(c=>{
-    if(c.monto<=0)return false;
-    const cts=new Date(c.fecha+'T12:00:00').getTime();
-    return cts>=desde&&cts<=hasta;
-  });
-  const cobranzaPagaresTurno=(data.cobranzaPagares||[]).filter(c=>{
-    if(c.monto<=0)return false;
-    const cts=new Date(c.fecha+'T12:00:00').getTime();
-    return cts>=desde&&cts<=hasta;
-  });
+  // Ventas del turno — se toman todas las ventas de la fecha del turno (el vendedor abre y cierra en el mismo día)
+  const fechaTurno=turno.fecha;
+  const ventasTurno=data.ventas.filter(v=>v.cobrado>0&&v.fecha===fechaTurno&&(v.vendedorId===turno.usuarioVendedorId||true));
+  // Egresos del turno — misma lógica por fecha
+  const egresosTurno=(data.egresos||[]).filter(e=>e.pagado&&e.fecha===fechaTurno);
+  // Cobros financieras del turno — por fecha
+  const cobranzaCredivipTurno=(data.cobranzaCredivip||[]).filter(c=>c.monto>0&&c.fecha===fechaTurno);
+  const cobranzaRapicuotaTurno=(data.cobranzaRapicuota||[]).filter(c=>c.monto>0&&c.fecha===fechaTurno);
+  const cobranzaPagaresTurno=(data.cobranzaPagares||[]).filter(c=>c.monto>0&&c.fecha===fechaTurno);
   const totalCobrCredivip=cobranzaCredivipTurno.reduce((s,c)=>s+c.monto,0);
   const totalCobrRapicuota=cobranzaRapicuotaTurno.reduce((s,c)=>s+c.monto,0);
   const totalCobrPagares=cobranzaPagaresTurno.reduce((s,c)=>s+c.monto,0);
