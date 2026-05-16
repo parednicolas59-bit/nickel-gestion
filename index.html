@@ -2256,7 +2256,7 @@ function renderModal(){
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
     </div>
     <div class="form-row"><label class="form-label">Notas</label><textarea id="m-notas" style="${INP};height:40px;resize:vertical"></textarea></div>
-    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn success" id="modal-save-venta" ${carritoManual.length===0?'disabled style="opacity:0.5;cursor:not-allowed"':''}>✓ Confirmar venta ${carritoManual.length>0?'('+fmt(carritoTotal)+')':''}</button></div>
+    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn success" id="modal-save-venta" ${carritoManual.length===0?'disabled':''}style="${carritoManual.length===0?'opacity:0.5;cursor:not-allowed':''}">✓ Confirmar venta ${carritoManual.length>0?'('+fmt(carritoTotal)+')':''}</button></div>
   </div></div>`;
   }
   if(m.type==='ver-venta'){const v=m.venta,vnd=getVend(v.vendedorId),mp=v.medioPago||'efectivo';return`<div class="modal-bg"><div class="modal" style="max-width:480px">
