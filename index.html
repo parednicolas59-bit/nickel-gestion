@@ -1791,7 +1791,7 @@ function renderCaja(){
               <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${abierto?'rgba(74,222,128,0.15)':'rgba(148,163,184,0.15)'};color:${abierto?'#4ade80':'#94a3b8'}">${abierto?'🟢 Abierto':'✓ Cerrado'}</span>
             </div>
             <div style="font-size:11px;color:#64748b">⏰ Abierto: ${t.apertura.hora}${t.cierre?` &nbsp;|&nbsp; Cerrado: ${t.cierre.hora}`:' &nbsp;|&nbsp; <span style="color:#4ade80">En curso</span>'} &nbsp;|&nbsp; Apertura con: ${fmt(t.saldoApertura||0)}</div>
-            <div style="font-size:12px;margin-top:6px;color:#94a3b8">🛒 ${tot.ventasTurno.length} ventas · ${fmt(tot.totalVentas)} · Efectivo en caja: <strong style="color:#4ade80">${fmt(tot.saldoEfectivo)}</strong>${tot.totalEgresos>0?` · Egresos: <strong style="color:#f87171">${fmt(tot.totalEgresos)}</strong>`:''}</div>
+            <div style="font-size:12px;margin-top:6px;color:#94a3b8">🛒 ${tot.ventasTurno.length} ventas · ${fmt(tot.totalVentas)} · Efectivo en caja: <strong style="color:#4ade80">${fmt(tot.saldoEfectivo)}</strong></div>
           </div>`;
         }).join('')}
       </div>
@@ -1827,7 +1827,6 @@ function renderCaja(){
       <div style="display:flex;gap:16px;font-size:13px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.07)">
         <span>🛒 <strong>${tot.ventasTurno.length}</strong> ventas</span>
         <span>📥 Total cobrado: <strong style="color:#4ade80">${fmt(tot.totalVentas)}</strong></span>
-        ${tot.totalEgresos>0?`<span>📤 Egresos: <strong style="color:#f87171">${fmt(tot.totalEgresos)}</strong></span>`:''}
         <span>💵 Efectivo en caja: <strong style="color:#4ade80">${fmt(tot.saldoEfectivo)}</strong></span>
       </div>
       ${(tot.totalCobrCredivip>0||tot.totalCobrRapicuota>0||tot.totalCobrPagares>0)?`
@@ -1847,13 +1846,7 @@ function renderCaja(){
         <tbody>${tot.ventasTurno.map(v=>`<tr><td style="color:#64748b">#${v.id}</td><td>${v.cliente}</td><td>${v.medioPago||'efectivo'}</td><td style="color:#4ade80;font-weight:500">${fmt(v.cobrado)}</td></tr>`).join('')}
         </tbody></table>
       </div>`:''}
-      ${tot.egresosTurno.length>0?`
-      <div style="margin-top:10px">
-        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Egresos del turno</div>
-        <table><thead><tr><th>Concepto</th><th>Monto</th></tr></thead>
-        <tbody>${tot.egresosTurno.map(e=>`<tr><td>${e.concepto}</td><td style="color:#f87171;font-weight:500">${fmt(e.monto)}</td></tr>`).join('')}
-        </tbody></table>
-      </div>`:''}
+
     </div>`:`
     <!-- SIN TURNO: APERTURA -->
     <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:20px;margin-bottom:14px;text-align:center">
@@ -1882,7 +1875,7 @@ function renderCaja(){
             <span style="font-size:11px;color:#94a3b8">✓ Cerrado ${t.cierre.hora.split(',')[1]||''}</span>
           </div>
           <div style="font-size:11px;color:#64748b">⏰ ${t.apertura.hora.split(',')[1]||''} → ${t.cierre?t.cierre.hora.split(',')[1]||'':''}</div>
-          <div style="font-size:12px;margin-top:4px">💵 Ef: ${fmt(tot2.medios.efectivo)} · 💙 MP: ${fmt(tot2.medios.mercadopago)} · Total: <strong style="color:#4ade80">${fmt(tot2.totalVentas)}</strong>${tot2.totalEgresos>0?` · Egresos: <strong style="color:#f87171">${fmt(tot2.totalEgresos)}</strong>`:''}</div>
+          <div style="font-size:12px;margin-top:4px">💵 Ef: ${fmt(tot2.medios.efectivo)} · 💙 MP: ${fmt(tot2.medios.mercadopago)} · Total: <strong style="color:#4ade80">${fmt(tot2.totalVentas)}</strong></div>
         </div>`;
       }).join('')}
     </div>`:''}
