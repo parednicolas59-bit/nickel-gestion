@@ -1824,28 +1824,56 @@ function renderCaja(){
         ${tot.medios.rapicuota>0?`<div style="background:rgba(139,92,246,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🟣 Rapicuota</div><div style="font-size:16px;font-weight:700;color:#c4b5fd">${fmt(tot.medios.rapicuota)}</div></div>`:''}
         ${tot.medios['nickcel-pagares']>0?`<div style="background:rgba(56,189,248,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📄 Pagarés</div><div style="font-size:16px;font-weight:700;color:#38bdf8">${fmt(tot.medios['nickcel-pagares'])}</div></div>`:''}
       </div>
-      <div style="display:flex;gap:16px;font-size:13px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.07)">
-        <span>🛒 <strong>${tot.ventasTurno.length}</strong> ventas</span>
-        <span>📥 Total cobrado: <strong style="color:#4ade80">${fmt(tot.totalVentas)}</strong></span>
-        <span>💵 Efectivo en caja: <strong style="color:#4ade80">${fmt(tot.saldoEfectivo)}</strong></span>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid rgba(255,255,255,0.07);margin-top:4px">
+        <span style="font-size:13px;color:#94a3b8">🛒 <strong style="color:#e2e8f0">${tot.ventasTurno.length}</strong> ventas del turno</span>
+        <span style="font-size:15px;font-weight:700;color:#4ade80">Total: ${fmt(tot.totalVentas)}</span>
       </div>
+      <div style="font-size:12px;color:#64748b;padding-bottom:10px">💵 Efectivo en caja: <strong style="color:#4ade80">${fmt(tot.saldoEfectivo)}</strong></div>
       ${(tot.totalCobrCredivip>0||tot.totalCobrRapicuota>0||tot.totalCobrPagares>0)?`
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.07)">
-        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Cobros financieras del turno</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">
-          ${tot.totalCobrCredivip>0?`<div style="background:rgba(245,158,11,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🟠 CrediVIP (${tot.cobranzaCredivipTurno.length} cobros)</div><div style="font-size:15px;font-weight:700;color:#fbbf24">${fmt(tot.totalCobrCredivip)}</div></div>`:''}
-          ${tot.totalCobrRapicuota>0?`<div style="background:rgba(139,92,246,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🟣 Rapicuota (${tot.cobranzaRapicuotaTurno.length} cobros)</div><div style="font-size:15px;font-weight:700;color:#c4b5fd">${fmt(tot.totalCobrRapicuota)}</div></div>`:''}
-          ${tot.totalCobrPagares>0?`<div style="background:rgba(56,189,248,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📄 Pagarés (${tot.cobranzaPagaresTurno.length} cobros)</div><div style="font-size:15px;font-weight:700;color:#38bdf8">${fmt(tot.totalCobrPagares)}</div></div>`:''}
+      <div style="margin-top:4px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07)">
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">💼 Cobros financieras</div>
+        ${tot.totalCobrCredivip>0?`
+        <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:600;color:#fbbf24">🟠 CrediVIP</span>
+            <span style="font-size:14px;font-weight:700;color:#fbbf24">${fmt(tot.totalCobrCredivip)}</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:11px;color:#94a3b8">
+            ${(()=>{const ef=tot.cobranzaCredivipTurno.filter(c=>c.formaPago==='efectivo'||!c.formaPago).reduce((s,c)=>s+c.monto,0);const otro=tot.totalCobrCredivip-ef;return (ef>0?`<span>💵 Efectivo: <strong style="color:#e2e8f0">${fmt(ef)}</strong></span>`:'')+' '+(otro>0?`<span>💳 Otro: <strong style="color:#e2e8f0">${fmt(otro)}</strong></span>`:'')+` (${tot.cobranzaCredivipTurno.length} cobros)`;})()}
+          </div>
+        </div>`:``}
+        ${tot.totalCobrRapicuota>0?`
+        <div style="background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:600;color:#c4b5fd">🟣 Rapicuota</span>
+            <span style="font-size:14px;font-weight:700;color:#c4b5fd">${fmt(tot.totalCobrRapicuota)}</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:11px;color:#94a3b8">
+            ${(()=>{const ef=tot.cobranzaRapicuotaTurno.filter(c=>c.formaPago==='efectivo'||!c.formaPago).reduce((s,c)=>s+c.monto,0);const otro=tot.totalCobrRapicuota-ef;return (ef>0?`<span>💵 Efectivo: <strong style="color:#e2e8f0">${fmt(ef)}</strong></span>`:'')+' '+(otro>0?`<span>💳 Otro: <strong style="color:#e2e8f0">${fmt(otro)}</strong></span>`:'')+` (${tot.cobranzaRapicuotaTurno.length} cobros)`;})()}
+          </div>
+        </div>`:``}
+        ${tot.totalCobrPagares>0?`
+        <div style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:600;color:#38bdf8">📄 Pagarés</span>
+            <span style="font-size:14px;font-weight:700;color:#38bdf8">${fmt(tot.totalCobrPagares)}</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:11px;color:#94a3b8">
+            ${(()=>{const ef=tot.cobranzaPagaresTurno.filter(c=>c.formaPago==='efectivo'||!c.formaPago).reduce((s,c)=>s+c.monto,0);const otro=tot.totalCobrPagares-ef;return (ef>0?`<span>💵 Efectivo: <strong style="color:#e2e8f0">${fmt(ef)}</strong></span>`:'')+' '+(otro>0?`<span>💳 Otro: <strong style="color:#e2e8f0">${fmt(otro)}</strong></span>`:'')+` (${tot.cobranzaPagaresTurno.length} cobros)`;})()}
+          </div>
+        </div>`:``}
+        <div style="font-size:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between">
+          <span style="color:#64748b">Total cobros financieras</span>
+          <strong style="color:#e2e8f0">${fmt(tot.totalFinancieras)}</strong>
         </div>
-        <div style="font-size:12px;margin-top:8px;color:#94a3b8">Total financieras: <strong style="color:#e2e8f0">${fmt(tot.totalFinancieras)}</strong></div>
-      </div>`:''}
+      </div>`:``}
       ${tot.ventasTurno.length>0?`
-      <div style="margin-top:12px">
-        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Ventas del turno</div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.07)">
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Detalle ventas</div>
         <table><thead><tr><th>Venta</th><th>Cliente</th><th>Medio</th><th>Cobrado</th></tr></thead>
         <tbody>${tot.ventasTurno.map(v=>`<tr><td style="color:#64748b">#${v.id}</td><td>${v.cliente}</td><td>${v.medioPago||'efectivo'}</td><td style="color:#4ade80;font-weight:500">${fmt(v.cobrado)}</td></tr>`).join('')}
         </tbody></table>
-      </div>`:''}
+      </div>`:``}
 
     </div>`:`
     <!-- SIN TURNO: APERTURA -->
