@@ -1387,7 +1387,15 @@ function renderRapicuota(){
 
 // ===== MERCADO PAGO =====
 function getMpMovs(){if(!data.mercadopago)data.mercadopago=[];return data.mercadopago;}
-function getSaldoMp(){return getMpMovs().reduce((s,m)=>s+(m.tipo==='ingreso'?m.monto:-m.monto),0);}
+function getSaldoMp(){
+  // Ingresos/egresos registrados manualmente en data.mercadopago
+  const movsSaldo=getMpMovs().reduce((s,m)=>s+(m.tipo==='ingreso'?m.monto:-m.monto),0);
+  // IDs de ventas que ya tienen movimiento registrado en data.mercadopago
+  const ventasConMov=new Set(getMpMovs().filter(m=>m.tipo==='ingreso'&&m.descripcion&&m.descripcion.startsWith('Venta #')).map(m=>{const match=m.descripcion.match(/Venta #(\d+)/);return match?parseInt(match[1]):null;}).filter(Boolean));
+  // Ventas MP que NO tienen movimiento registrado (las migradas de transferencia)
+  const ventasSinMov=data.ventas.filter(v=>(v.medioPago==='mercadopago'||v.medioPago==='transferencia')&&v.cobrado>0&&v.estado!=='cancelado'&&!ventasConMov.has(v.id)).reduce((s,v)=>s+v.cobrado,0);
+  return movsSaldo+ventasSinMov;
+}
 function getMpVentas(){return data.ventas.filter(v=>(v.medioPago==='mercadopago'||v.medioPago==='transferencia')&&v.estado!=='cancelado');}
 
 function renderMercadoPago(){
