@@ -835,17 +835,6 @@ window.buscarClienteVenta=function(val){
     </div>`).join('');
   lista.style.display='block';
 };
-  lista.innerHTML=clientes.slice(0,8).map(c=>`
-    <div onclick="elegirClienteVenta('${c.nombre.replace(/'/g,"\\'")}','${c.tel}','${c.dni}')"
-      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px"
-      onmouseover="this.style.background='rgba(255,255,255,0.06)'"
-      onmouseout="this.style.background=''"
-    >
-      <div style="font-weight:500;color:#e2e8f0">${c.nombre}</div>
-      <div style="color:#64748b;font-size:11px">${c.tel}${c.dni?' · DNI '+c.dni:''}</div>
-    </div>`).join('');
-  lista.style.display='block';
-};
 window.elegirClienteVenta=function(nombre,tel,dni){
   const inp=document.getElementById('m-cliente');
   const telInp=document.getElementById('m-clientetel');
