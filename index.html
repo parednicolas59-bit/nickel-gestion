@@ -113,26 +113,8 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .psb-cambiar{font-size:11px;color:var(--blue3);cursor:pointer;text-decoration:underline;white-space:nowrap;margin-left:8px}
 </style>
 
-</head><body><div id="app"><div id="root"><div style="position:relative;min-height:600px">
-    <div class="topbar">
-      <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
-      <div class="nav-tabs"><button class="nav-tab" data-tab="dashboard">Dashboard</button><button class="nav-tab" data-tab="ventas">Ventas</button><button class="nav-tab" data-tab="egresos">Egresos</button><button class="nav-tab" data-tab="productos">Productos</button><button class="nav-tab" data-tab="contactos">Contactos</button><button class="nav-tab" data-tab="vendedores">Vendedores</button><button class="nav-tab" data-tab="categorias">Categorías</button><button class="nav-tab active" data-tab="caja">Caja</button><button class="nav-tab" data-tab="informes">Informes</button><button class="nav-tab" data-tab="financiera">Financiera</button><button class="nav-tab" data-tab="usuarios">Usuarios</button></div>
-      <div class="ub"><span style="color:#fff">Nico</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">admin</span><button class="logout" id="logout-btn">Salir</button></div>
-    </div>
-    <div class="content"><div>
-    <div class="section-header"><span style="font-size:17px;font-weight:500">Caja</span></div>
-    <div class="metrics">
-      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📈</div><div class="metric-label">Ingresos</div><div class="metric-value" style="color:#4ade80">$0</div></div>
-      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">📉</div><div class="metric-label">Egresos</div><div class="metric-value" style="color:#f87171">$0</div></div>
-      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">💵</div><div class="metric-label">Saldo</div><div class="metric-value" style="color:#4ade80">$0</div></div>
-      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">A cobrar</div><div class="metric-value" style="color:#fbbf24">$0</div></div>
-    </div>
-    <div class="card"><div class="card-title">Movimientos</div>
-    <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Monto</th></tr></thead>
-    <tbody></tbody></table></div>
-  </div></div>
-    
-  </div></div></div>
+</head><body>
+<div id="root"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
