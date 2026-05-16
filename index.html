@@ -205,10 +205,11 @@ const def={
   nbch:[],
   brubank:[],
   galicia:[],
-  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1}
+  turnosCaja:[],
+  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1,turno:1}
 };
 function load(){
-  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;if(!d.supervielle)d.supervielle=[];if(!d.nextId.supervielle)d.nextId.supervielle=1;if(!d.cobranzaCredivip)d.cobranzaCredivip=[];if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;if(!d.cobranzaPagares)d.cobranzaPagares=[];if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;if(!d.supervielle)d.supervielle=[];if(!d.nextId.supervielle)d.nextId.supervielle=1;if(!d.cobranzaCredivip)d.cobranzaCredivip=[];if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;if(!d.cobranzaPagares)d.cobranzaPagares=[];if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;if(!d.turnosCaja)d.turnosCaja=[];if(!d.nextId.turno)d.nextId.turno=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
   return JSON.parse(JSON.stringify(def));
 }
 async function loadFromFirebase(){
@@ -331,7 +332,7 @@ function bindLogin(){
 function renderApp(){
   const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
   const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
-  const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
+  const tabs=currentUser.role==='admin'?allTabs:['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera','caja'];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
       <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
@@ -440,6 +441,18 @@ function renderDash(){
   const chequesProximos=chequesPendientes.filter(c=>c.fechaPago<=en2dStr);
   const totalChequesPendientes=chequesPendientes.reduce((s,c)=>s+c.monto,0);
   return`<div>
+  ${(()=>{const notifsCaja=(data.turnosCaja||[]).filter(t=>t.cierre&&!t.vistoPorAdmin);if(notifsCaja.length===0)return'';return`<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px;cursor:pointer" onclick="tab='caja';render()">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">🔔</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#fbbf24">${notifsCaja.length} cierre${notifsCaja.length>1?'s':''} de caja sin revisar</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px">${notifsCaja.map(t=>`${t.usuarioNombre} — ${t.cierre.hora}`).join(' · ')}</div>
+        </div>
+      </div>
+      <span style="font-size:11px;color:#fbbf24;padding:4px 10px;border:1px solid rgba(245,158,11,0.3);border-radius:8px">Ver →</span>
+    </div>
+  </div>`;})()} 
   ${(nbchVencidas.length>0||brubankVencidas.length>0||galiciaVencidas.length>0||chequesProximos.length>0)?`<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
     <div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:8px">🔴 Liquidaciones vencidas — revisá si ya depositaron</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -1674,20 +1687,218 @@ function renderCategorias(){
   </div>`;
 }
 
+// ===== CIERRE DE CAJA =====
+function getTurnoActivo(){
+  if(!data.turnosCaja)return null;
+  return data.turnosCaja.find(t=>t.usuarioId===currentUser.id&&t.estado==='abierto')||null;
+}
+function getHoraActual(){
+  return new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+function getFechaHoyISO(){return new Date().toISOString().split('T')[0];}
+
+function calcTotalesTurno(turno){
+  const desde=turno.apertura.ts;
+  const hasta=turno.cierre?turno.cierre.ts:Date.now();
+  // Ventas del turno
+  const ventasTurno=data.ventas.filter(v=>{
+    const vts=new Date(v.fecha+'T12:00:00').getTime();
+    return v.cobrado>0&&vts>=desde&&vts<=hasta;
+  });
+  // Egresos del turno
+  const egresosTurno=(data.egresos||[]).filter(e=>{
+    if(!e.pagado)return false;
+    const ets=new Date(e.fecha+'T12:00:00').getTime();
+    return ets>=desde&&ets<=hasta;
+  });
+  // Cobros financieras del turno (solo montos positivos, excluye egresos internos con monto negativo)
+  const cobranzaCredivipTurno=(data.cobranzaCredivip||[]).filter(c=>{
+    if(c.monto<=0)return false;
+    const cts=new Date(c.fecha+'T12:00:00').getTime();
+    return cts>=desde&&cts<=hasta;
+  });
+  const cobranzaRapicuotaTurno=(data.cobranzaRapicuota||[]).filter(c=>{
+    if(c.monto<=0)return false;
+    const cts=new Date(c.fecha+'T12:00:00').getTime();
+    return cts>=desde&&cts<=hasta;
+  });
+  const cobranzaPagaresTurno=(data.cobranzaPagares||[]).filter(c=>{
+    if(c.monto<=0)return false;
+    const cts=new Date(c.fecha+'T12:00:00').getTime();
+    return cts>=desde&&cts<=hasta;
+  });
+  const totalCobrCredivip=cobranzaCredivipTurno.reduce((s,c)=>s+c.monto,0);
+  const totalCobrRapicuota=cobranzaRapicuotaTurno.reduce((s,c)=>s+c.monto,0);
+  const totalCobrPagares=cobranzaPagaresTurno.reduce((s,c)=>s+c.monto,0);
+  // Desglose ventas por medio de pago
+  const medios={efectivo:0,mercadopago:0,tarjeta:0,credivip:0,rapicuota:0,'nickcel-pagares':0,otros:0};
+  ventasTurno.forEach(v=>{
+    const mp=v.medioPago||'efectivo';
+    if(mp==='efectivo')medios.efectivo+=v.cobrado;
+    else if(mp==='mercadopago')medios.mercadopago+=v.cobrado;
+    else if(mp==='tarjeta'||mp==='tarjeta-nbch'||mp==='tarjeta-santander'||mp==='tarjeta-galicia')medios.tarjeta+=v.cobrado;
+    else if(mp==='credivip')medios.credivip+=v.cobrado;
+    else if(mp==='rapicuota')medios.rapicuota+=v.cobrado;
+    else if(mp==='nickcel-pagares')medios['nickcel-pagares']+=v.cobrado;
+    else medios.otros+=v.cobrado;
+  });
+  const totalVentas=Object.values(medios).reduce((s,v)=>s+v,0);
+  const totalEgresos=egresosTurno.reduce((s,e)=>s+e.monto,0);
+  const totalFinancieras=totalCobrCredivip+totalCobrRapicuota+totalCobrPagares;
+  // Efectivo en caja = apertura + ventas efectivo + cobros financieras en efectivo - egresos efectivo
+  const cobrFinancierasEfectivo=[...cobranzaCredivipTurno,...cobranzaRapicuotaTurno,...cobranzaPagaresTurno].filter(c=>c.formaPago==='efectivo'||!c.formaPago).reduce((s,c)=>s+c.monto,0);
+  const egresosEfectivo=egresosTurno.filter(e=>!e.fuente||e.fuente==='Caja efectivo').reduce((s,e)=>s+e.monto,0);
+  const saldoEfectivo=(turno.saldoApertura||0)+medios.efectivo+cobrFinancierasEfectivo-egresosEfectivo;
+  return{ventasTurno,egresosTurno,medios,totalVentas,totalEgresos,totalFinancieras,cobranzaCredivipTurno,cobranzaRapicuotaTurno,cobranzaPagaresTurno,totalCobrCredivip,totalCobrRapicuota,totalCobrPagares,saldoEfectivo};
+}
+
 function renderCaja(){
-  const ing=data.ventas.reduce((s,v)=>s+v.cobrado,0),eg=data.egresos.filter(e=>e.pagado).reduce((s,e)=>s+e.monto,0);
-  const movs=[...data.ventas.filter(v=>v.cobrado>0).map(v=>({fecha:v.fecha,concepto:'Venta — '+v.cliente,tipo:'ingreso',monto:v.cobrado})),...data.egresos.filter(e=>e.pagado).map(e=>({fecha:e.fecha,concepto:e.concepto,tipo:'egreso',monto:e.monto}))].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  if(!data.turnosCaja)data.turnosCaja=[];
+  const turnoActivo=getTurnoActivo();
+  const hoy=getFechaHoyISO();
+  const turnosHoy=data.turnosCaja.filter(t=>t.fecha===hoy&&t.usuarioId===currentUser.id).sort((a,b)=>a.apertura.ts-b.apertura.ts);
+  const todos=data.turnosCaja.filter(t=>t.usuarioId===currentUser.id).sort((a,b)=>b.apertura.ts-a.apertura.ts).slice(0,20);
+  const isAdmin=currentUser.role==='admin';
+
+  // Vista admin: ver todos los turnos de todos los usuarios + campanita
+  if(isAdmin){
+    const notifs=(data.turnosCaja||[]).filter(t=>t.cierre&&!t.vistoPorAdmin).sort((a,b)=>b.cierre.ts-a.cierre.ts);
+    const todosTurnos=(data.turnosCaja||[]).slice().sort((a,b)=>b.apertura.ts-a.apertura.ts).slice(0,40);
+    return`<div>
+      <div class="section-header"><span style="font-size:17px;font-weight:500">🏪 Cierres de Caja</span></div>
+      ${notifs.length>0?`<div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:14px;font-weight:600;color:#fbbf24">🔔 ${notifs.length} cierre${notifs.length>1?'s':''} sin revisar</span>
+          <button class="btn" id="marcar-vistos-btn" style="font-size:11px;padding:4px 10px;color:#fbbf24;border-color:rgba(245,158,11,0.3)">✓ Marcar todos como vistos</button>
+        </div>
+        ${notifs.map(t=>{
+          const tot=calcTotalesTurno(t);
+          const user=data.users.find(u=>u.id===t.usuarioId);
+          return`<div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid #fbbf24">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:13px;font-weight:600;color:#e2e8f0">👤 ${user?user.name:'?'} — Cierre ${t.apertura.hora.split(',')[0]}</span>
+              <span style="font-size:11px;color:#94a3b8">${t.cierre.hora}</span>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">⏰ Apertura: ${t.apertura.hora} &nbsp;|&nbsp; Cierre: ${t.cierre.hora} &nbsp;|&nbsp; Saldo apertura: ${fmt(t.saldoApertura||0)}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-bottom:6px">
+              ${tot.medios.efectivo>0?`<div style="background:rgba(74,222,128,0.1);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#94a3b8">💵 Efectivo</div><div style="font-weight:600;color:#4ade80">${fmt(tot.medios.efectivo)}</div></div>`:''}
+              ${tot.medios.mercadopago>0?`<div style="background:rgba(0,174,243,0.1);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#94a3b8">💙 Mercado Pago</div><div style="font-weight:600;color:#00aef3">${fmt(tot.medios.mercadopago)}</div></div>`:''}
+              ${tot.medios.tarjeta>0?`<div style="background:rgba(167,122,255,0.1);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#94a3b8">💳 Tarjetas</div><div style="font-weight:600;color:#a78bfa">${fmt(tot.medios.tarjeta)}</div></div>`:''}
+              ${tot.medios.credivip>0?`<div style="background:rgba(245,158,11,0.1);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#94a3b8">🟠 CrediVIP</div><div style="font-weight:600;color:#fbbf24">${fmt(tot.medios.credivip)}</div></div>`:''}
+              ${tot.medios.rapicuota>0?`<div style="background:rgba(139,92,246,0.1);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#94a3b8">🟣 Rapicuota</div><div style="font-weight:600;color:#c4b5fd">${fmt(tot.medios.rapicuota)}</div></div>`:''}
+            </div>
+            <div style="display:flex;gap:12px;font-size:12px">
+              <span>🛒 ${tot.ventasTurno.length} ventas — <strong style="color:#4ade80">${fmt(tot.totalVentas)}</strong></span>
+              ${tot.totalEgresos>0?`<span>📤 Egresos: <strong style="color:#f87171">${fmt(tot.totalEgresos)}</strong></span>`:''}
+              ${tot.totalFinancieras>0?`<span>💼 Financieras: <strong style="color:#fbbf24">${fmt(tot.totalFinancieras)}</strong></span>`:''}
+              <span>💵 Efectivo final: <strong style="color:#4ade80">${fmt(tot.saldoEfectivo)}</strong></span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`:''}
+      <div class="card">
+        <div class="card-title">Historial de turnos</div>
+        ${todosTurnos.length===0?`<div class="empty">Sin turnos registrados aún</div>`:
+        todosTurnos.map(t=>{
+          const tot=calcTotalesTurno(t);
+          const user=data.users.find(u=>u.id===t.usuarioId);
+          const abierto=t.estado==='abierto';
+          return`<div style="background:rgba(255,255,255,0.03);border:1px solid ${abierto?'rgba(74,222,128,0.2)':'var(--border)'};border-radius:8px;padding:10px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:13px;font-weight:500">👤 ${user?user.name:'?'} — ${t.apertura.hora.split(',')[0]}</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${abierto?'rgba(74,222,128,0.15)':'rgba(148,163,184,0.15)'};color:${abierto?'#4ade80':'#94a3b8'}">${abierto?'🟢 Abierto':'✓ Cerrado'}</span>
+            </div>
+            <div style="font-size:11px;color:#64748b">⏰ Abierto: ${t.apertura.hora}${t.cierre?` &nbsp;|&nbsp; Cerrado: ${t.cierre.hora}`:' &nbsp;|&nbsp; <span style="color:#4ade80">En curso</span>'} &nbsp;|&nbsp; Apertura con: ${fmt(t.saldoApertura||0)}</div>
+            <div style="font-size:12px;margin-top:6px;color:#94a3b8">🛒 ${tot.ventasTurno.length} ventas · ${fmt(tot.totalVentas)} · Efectivo en caja: <strong style="color:#4ade80">${fmt(tot.saldoEfectivo)}</strong>${tot.totalEgresos>0?` · Egresos: <strong style="color:#f87171">${fmt(tot.totalEgresos)}</strong>`:''}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Vista vendedor
+  const tot=turnoActivo?calcTotalesTurno(turnoActivo):null;
   return`<div>
-    <div class="section-header"><span style="font-size:17px;font-weight:500">Caja</span></div>
-    <div class="metrics">
-      <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">📈</div><div class="metric-label">Ingresos</div><div class="metric-value" style="color:#4ade80">${fmt(ing)}</div></div>
-      <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">📉</div><div class="metric-label">Egresos</div><div class="metric-value" style="color:#f87171">${fmt(eg)}</div></div>
-      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">💵</div><div class="metric-label">Saldo</div><div class="metric-value" style="color:${ing-eg>=0?'#4ade80':'#f87171'}">${fmt(ing-eg)}</div></div>
-      <div class="metric m4"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">A cobrar</div><div class="metric-value" style="color:#fbbf24">${fmt(data.ventas.reduce((s,v)=>s+(v.total-v.cobrado),0))}</div></div>
-    </div>
-    <div class="card"><div class="card-title">Movimientos</div>
-    <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Monto</th></tr></thead>
-    <tbody>${movs.map(m=>`<tr><td>${fd(m.fecha)}</td><td>${m.concepto}</td><td><span class="badge ${m.tipo==='ingreso'?'cobrado':'cancelado'}">${m.tipo}</span></td><td style="color:${m.tipo==='ingreso'?'#4ade80':'#f87171'};font-weight:500">${m.tipo==='ingreso'?'+':'-'}${fmt(m.monto)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="section-header"><span style="font-size:17px;font-weight:500">🏪 Mi Caja</span></div>
+
+    ${turnoActivo?`
+    <!-- TURNO ABIERTO -->
+    <div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-size:15px;font-weight:600;color:#4ade80">🟢 Turno abierto</div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px">Apertura: ${turnoActivo.apertura.hora} &nbsp;|&nbsp; Saldo inicial: ${fmt(turnoActivo.saldoApertura||0)}</div>
+        </div>
+        <button class="btn danger" id="btn-cerrar-turno" style="padding:8px 16px;font-size:13px">🔒 Cerrar turno</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:12px">
+        <div style="background:rgba(74,222,128,0.1);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">💵 Efectivo</div>
+          <div style="font-size:16px;font-weight:700;color:#4ade80">${fmt(tot.medios.efectivo)}</div>
+        </div>
+        ${tot.medios.mercadopago>0?`<div style="background:rgba(0,174,243,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">💙 Mercado Pago</div><div style="font-size:16px;font-weight:700;color:#00aef3">${fmt(tot.medios.mercadopago)}</div></div>`:''}
+        ${tot.medios.tarjeta>0?`<div style="background:rgba(167,122,255,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">💳 Tarjetas</div><div style="font-size:16px;font-weight:700;color:#a78bfa">${fmt(tot.medios.tarjeta)}</div></div>`:''}
+        ${tot.medios.credivip>0?`<div style="background:rgba(245,158,11,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🟠 CrediVIP</div><div style="font-size:16px;font-weight:700;color:#fbbf24">${fmt(tot.medios.credivip)}</div></div>`:''}
+        ${tot.medios.rapicuota>0?`<div style="background:rgba(139,92,246,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🟣 Rapicuota</div><div style="font-size:16px;font-weight:700;color:#c4b5fd">${fmt(tot.medios.rapicuota)}</div></div>`:''}
+        ${tot.medios['nickcel-pagares']>0?`<div style="background:rgba(56,189,248,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📄 Pagarés</div><div style="font-size:16px;font-weight:700;color:#38bdf8">${fmt(tot.medios['nickcel-pagares'])}</div></div>`:''}
+      </div>
+      <div style="display:flex;gap:16px;font-size:13px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.07)">
+        <span>🛒 <strong>${tot.ventasTurno.length}</strong> ventas</span>
+        <span>📥 Total cobrado: <strong style="color:#4ade80">${fmt(tot.totalVentas)}</strong></span>
+        ${tot.totalEgresos>0?`<span>📤 Egresos: <strong style="color:#f87171">${fmt(tot.totalEgresos)}</strong></span>`:''}
+        <span>💵 Efectivo en caja: <strong style="color:#4ade80">${fmt(tot.saldoEfectivo)}</strong></span>
+      </div>
+      ${(tot.totalCobrCredivip>0||tot.totalCobrRapicuota>0||tot.totalCobrPagares>0)?`
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.07)">
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Cobros financieras del turno</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">
+          ${tot.totalCobrCredivip>0?`<div style="background:rgba(245,158,11,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🟠 CrediVIP (${tot.cobranzaCredivipTurno.length} cobros)</div><div style="font-size:15px;font-weight:700;color:#fbbf24">${fmt(tot.totalCobrCredivip)}</div></div>`:''}
+          ${tot.totalCobrRapicuota>0?`<div style="background:rgba(139,92,246,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🟣 Rapicuota (${tot.cobranzaRapicuotaTurno.length} cobros)</div><div style="font-size:15px;font-weight:700;color:#c4b5fd">${fmt(tot.totalCobrRapicuota)}</div></div>`:''}
+          ${tot.totalCobrPagares>0?`<div style="background:rgba(56,189,248,0.1);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📄 Pagarés (${tot.cobranzaPagaresTurno.length} cobros)</div><div style="font-size:15px;font-weight:700;color:#38bdf8">${fmt(tot.totalCobrPagares)}</div></div>`:''}
+        </div>
+        <div style="font-size:12px;margin-top:8px;color:#94a3b8">Total financieras: <strong style="color:#e2e8f0">${fmt(tot.totalFinancieras)}</strong></div>
+      </div>`:''}
+      ${tot.ventasTurno.length>0?`
+      <div style="margin-top:12px">
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Ventas del turno</div>
+        <table><thead><tr><th>Venta</th><th>Cliente</th><th>Medio</th><th>Cobrado</th></tr></thead>
+        <tbody>${tot.ventasTurno.map(v=>`<tr><td style="color:#64748b">#${v.id}</td><td>${v.cliente}</td><td>${v.medioPago||'efectivo'}</td><td style="color:#4ade80;font-weight:500">${fmt(v.cobrado)}</td></tr>`).join('')}
+        </tbody></table>
+      </div>`:''}
+      ${tot.egresosTurno.length>0?`
+      <div style="margin-top:10px">
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Egresos del turno</div>
+        <table><thead><tr><th>Concepto</th><th>Monto</th></tr></thead>
+        <tbody>${tot.egresosTurno.map(e=>`<tr><td>${e.concepto}</td><td style="color:#f87171;font-weight:500">${fmt(e.monto)}</td></tr>`).join('')}
+        </tbody></table>
+      </div>`:''}
+    </div>`:`
+    <!-- SIN TURNO: APERTURA -->
+    <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:20px;margin-bottom:14px;text-align:center">
+      <div style="font-size:32px;margin-bottom:8px">🏪</div>
+      <div style="font-size:15px;font-weight:600;color:#e2e8f0;margin-bottom:4px">Sin turno abierto</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:16px">Ingresá el saldo inicial de efectivo en caja para abrir el turno</div>
+      <div style="display:flex;justify-content:center;align-items:center;gap:10px">
+        <input type="number" id="inp-saldo-apertura" placeholder="Saldo inicial efectivo" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:14px;width:200px;text-align:center">
+        <button class="btn success" id="btn-abrir-turno" style="padding:8px 18px;font-size:13px">🟢 Abrir turno</button>
+      </div>
+    </div>`}
+
+    ${turnosHoy.filter(t=>t.estado==='cerrado').length>0?`
+    <div class="card">
+      <div class="card-title">📋 Turnos de hoy</div>
+      ${turnosHoy.filter(t=>t.estado==='cerrado').map((t,i)=>{
+        const tot2=calcTotalesTurno(t);
+        return`<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:500">Turno ${i+1}</span>
+            <span style="font-size:11px;color:#94a3b8">✓ Cerrado ${t.cierre.hora.split(',')[1]||''}</span>
+          </div>
+          <div style="font-size:11px;color:#64748b">⏰ ${t.apertura.hora.split(',')[1]||''} → ${t.cierre?t.cierre.hora.split(',')[1]||'':''}</div>
+          <div style="font-size:12px;margin-top:4px">💵 Ef: ${fmt(tot2.medios.efectivo)} · 💙 MP: ${fmt(tot2.medios.mercadopago)} · Total: <strong style="color:#4ade80">${fmt(tot2.totalVentas)}</strong>${tot2.totalEgresos>0?` · Egresos: <strong style="color:#f87171">${fmt(tot2.totalEgresos)}</strong>`:''}</div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
   </div>`;
 }
 
@@ -2575,6 +2786,71 @@ function bindApp(){
   const ncatb=q('nueva-cat-btn');if(ncatb)ncatb.onclick=()=>{modal={type:'nueva-cat'};render();};
   const nub=q('nuevo-user-btn');if(nub)nub.onclick=()=>{modal={type:'nuevo-user'};render();};
   const cmb=q('cerrar-mes-btn');if(cmb)cmb.onclick=()=>{const mes=mesActual();modal={type:'cerrar-mes',mes,detalle:data.vendedores.map(v=>{const vv=data.ventas.filter(vt=>vt.vendedorId===v.id&&vt.mes===mes);const com=vv.reduce((s,vt)=>s+calcCom(vt),0);return{id:v.id,nombre:v.nombre,sueldo:v.sueldo,comision:com,ventas:vv.length,total:v.sueldo+com};})};render();};
+
+  // CIERRE DE CAJA — abrir turno
+  const btnAbrir=q('btn-abrir-turno');
+  if(btnAbrir)btnAbrir.onclick=()=>{
+    const saldoInp=parseFloat(q('inp-saldo-apertura')?.value)||0;
+    if(!data.turnosCaja)data.turnosCaja=[];
+    if(!data.nextId.turno)data.nextId.turno=1;
+    const ahora=Date.now();
+    const turno={id:data.nextId.turno++,usuarioId:currentUser.id,usuarioNombre:currentUser.name,fecha:getFechaHoyISO(),estado:'abierto',saldoApertura:saldoInp,apertura:{hora:getHoraActual(),ts:ahora},cierre:null,vistoPorAdmin:false};
+    data.turnosCaja.push(turno);
+    save(data);render();
+  };
+
+  // CIERRE DE CAJA — cerrar turno
+  const btnCerrar=q('btn-cerrar-turno');
+  if(btnCerrar)btnCerrar.onclick=()=>{
+    const turno=getTurnoActivo();
+    if(!turno)return;
+    const tot=calcTotalesTurno(turno);
+    const ahora=Date.now();
+    turno.cierre={hora:getHoraActual(),ts:ahora};
+    turno.estado='cerrado';
+    turno.vistoPorAdmin=false;
+    turno.resumen=tot;
+    save(data);
+    // Generar comprobante y abrir WhatsApp para admin
+    const user=data.users.find(u=>u.role==='admin');
+    const lineas=[
+      `🏪 *CIERRE DE CAJA — ${turno.usuarioNombre}*`,
+      `📅 Fecha: ${turno.fecha}`,
+      `⏰ Apertura: ${turno.apertura.hora}`,
+      `⏰ Cierre: ${turno.cierre.hora}`,
+      `💰 Saldo apertura: $${(turno.saldoApertura||0).toLocaleString('es-AR')}`,
+      ``,
+      `📊 *VENTAS DEL TURNO (${tot.ventasTurno.length})*`,
+      tot.medios.efectivo>0?`💵 Efectivo: $${tot.medios.efectivo.toLocaleString('es-AR')}`:'',
+      tot.medios.mercadopago>0?`💙 Mercado Pago: $${tot.medios.mercadopago.toLocaleString('es-AR')}`:'',
+      tot.medios.tarjeta>0?`💳 Tarjetas: $${tot.medios.tarjeta.toLocaleString('es-AR')}`:'',
+      tot.medios.credivip>0?`🟠 CrediVIP: $${tot.medios.credivip.toLocaleString('es-AR')}`:'',
+      tot.medios.rapicuota>0?`🟣 Rapicuota: $${tot.medios.rapicuota.toLocaleString('es-AR')}`:'',
+      tot.medios['nickcel-pagares']>0?`📄 Pagarés: $${tot.medios['nickcel-pagares'].toLocaleString('es-AR')}`:'',
+      `📥 *Total ventas: $${tot.totalVentas.toLocaleString('es-AR')}*`,
+      ``,
+      ...(tot.totalFinancieras>0?[
+        `💼 *COBROS FINANCIERAS*`,
+        tot.totalCobrCredivip>0?`🟠 CrediVIP (${tot.cobranzaCredivipTurno.length} cobros): $${tot.totalCobrCredivip.toLocaleString('es-AR')}`:'',
+        tot.totalCobrRapicuota>0?`🟣 Rapicuota (${tot.cobranzaRapicuotaTurno.length} cobros): $${tot.totalCobrRapicuota.toLocaleString('es-AR')}`:'',
+        tot.totalCobrPagares>0?`📄 Pagarés (${tot.cobranzaPagaresTurno.length} cobros): $${tot.totalCobrPagares.toLocaleString('es-AR')}`:'',
+        `💼 *Total financieras: $${tot.totalFinancieras.toLocaleString('es-AR')}*`,
+        ``,
+      ]:[]),
+      tot.totalEgresos>0?`📤 *Egresos: $${tot.totalEgresos.toLocaleString('es-AR')}*`:'',
+      `💵 *Efectivo en caja: $${tot.saldoEfectivo.toLocaleString('es-AR')}*`,
+    ].filter(l=>l!=='').join('\n');
+    const adminTel='5493644570637'; // número de Nico
+    window.open('https://wa.me/'+adminTel+'?text='+encodeURIComponent(lineas),'_blank');
+    render();
+  };
+
+  // CIERRE DE CAJA — marcar notificaciones como vistas (admin)
+  const btnVisto=q('marcar-vistos-btn');
+  if(btnVisto)btnVisto.onclick=()=>{
+    (data.turnosCaja||[]).forEach(t=>{if(t.cierre&&!t.vistoPorAdmin)t.vistoPorAdmin=true;});
+    save(data);render();
+  };
 
   document.querySelectorAll('[data-edit-user]').forEach(b=>{b.onclick=()=>{const u=data.users.find(x=>x.id==b.dataset.editUser);modal={type:'edit-user',user:u};render();};});
   document.querySelectorAll('[data-pass-user]').forEach(b=>{b.onclick=()=>{const u=data.users.find(x=>x.id==b.dataset.passUser);modal={type:'cambiar-pass',user:u};render();};});
