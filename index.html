@@ -324,7 +324,7 @@ function renderApp(){
   const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   // Caja solo para admin y Yamila (userId 2)
   const tieneCaja=currentUser.role==='admin'||currentUser.id===2;
-  const tabsVendedor=['ventas','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
+  const tabsVendedor=['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
   if(tieneCaja&&currentUser.role!=='admin')tabsVendedor.push('caja');
   const tabs=currentUser.role==='admin'?allTabs:tabsVendedor;
   return`<div style="position:relative;min-height:600px">
@@ -922,7 +922,7 @@ function renderProductos(){
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">Productos${catActual?` — <span style="color:${catActual.color}">${catActual.nombre}</span>`:''}</span>
       ${catActual?`<button class="btn" id="quitar-filtro-cat" style="font-size:11px">✕ Ver todos</button>`:''}
-      <button class="btn primary" id="nuevo-prod-btn">+ Nuevo producto</button>
+      ${currentUser.role==='admin'?`<button class="btn primary" id="nuevo-prod-btn">+ Nuevo producto</button>`:''}
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
       <div style="position:relative;flex:1;max-width:340px">
@@ -961,8 +961,8 @@ function renderProductos(){
           ${currentUser.role==='admin'?`<td style="color:#f87171;font-size:12px">${p.costo?fmt(p.costo):'<span style="color:#475569">—</span>'}</td><td style="color:${ganU>0?'#4ade80':'#f87171'};font-weight:500;font-size:12px">${p.costo?fmt(ganU):'—'}</td>`:''}
           <td><span style="font-weight:500;color:${p.stock<=2?'#f87171':p.stock<=5?'#fbbf24':'#4ade80'}">${p.stock}</span></td>
           <td><div class="actions-cell">
-            <button class="btn" data-edit-prod="${p.id}" style="font-size:11px;padding:3px 7px">Editar</button>
-            <button class="btn danger" data-del-prod="${p.id}" style="font-size:11px;padding:3px 6px">✕</button>
+            ${currentUser.role==='admin'?`<button class="btn" data-edit-prod="${p.id}" style="font-size:11px;padding:3px 7px">Editar</button>`:''}
+            ${currentUser.role==='admin'?`<button class="btn danger" data-del-prod="${p.id}" style="font-size:11px;padding:3px 6px">✕</button>`:''}
           </div></td></tr>`;}).join('')}
       </tbody>
     </table></div>
