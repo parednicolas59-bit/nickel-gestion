@@ -1810,8 +1810,9 @@ function getFechaHoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d
 
 function calcTotalesTurno(turno){
   const fechaTurno=turno.fecha;
-  // Filtrar ventas por fecha Y por vendedor si el turno tiene vendedorId asignado
   const vendedorId=turno.usuarioVendedorId?parseInt(turno.usuarioVendedorId):null;
+  console.log('[CAJA] fechaTurno:',fechaTurno,'vendedorId:',vendedorId,'totalVentas:',data.ventas.length);
+  data.ventas.slice(0,5).forEach(v=>console.log('[CAJA] v#'+v.id,'f:',v.fecha,'vId:',v.vendedorId,'t:'+typeof v.vendedorId,'tot:',v.total,'est:',v.estado));
   const ventasTurno=data.ventas.filter(v=>{
     if(v.estado==='cancelado')return false;
     if(v.fecha!==fechaTurno)return false;
