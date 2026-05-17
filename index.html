@@ -1811,12 +1811,16 @@ function getFechaHoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d
 function calcTotalesTurno(turno){
   const fechaTurno=turno.fecha;
   const vendedorId=turno.usuarioVendedorId?parseInt(turno.usuarioVendedorId):null;
-  console.log('[CAJA] fechaTurno:',fechaTurno,'vendedorId:',vendedorId,'totalVentas:',data.ventas.length);
-  data.ventas.slice(0,5).forEach(v=>console.log('[CAJA] v#'+v.id,'f:',v.fecha,'vId:',v.vendedorId,'t:'+typeof v.vendedorId,'tot:',v.total,'est:',v.estado));
+  const tsDesde=turno.apertura.ts;
+  const tsHasta=turno.cierre?turno.cierre.ts:Date.now()+86400000;
   const ventasTurno=data.ventas.filter(v=>{
     if(v.estado==='cancelado')return false;
-    if(v.fecha!==fechaTurno)return false;
-    // Si el turno tiene vendedor asignado, filtrar por ese vendedor
+    // Filtrar por timestamp si la venta lo tiene, sino por fecha
+    if(v.ts){
+      if(v.ts<tsDesde||v.ts>tsHasta)return false;
+    } else {
+      if(v.fecha!==fechaTurno)return false;
+    }
     if(vendedorId&&v.vendedorId&&parseInt(v.vendedorId)!==vendedorId)return false;
     return true;
   });
@@ -3181,7 +3185,7 @@ function bindApp(){
     if(carrito.length===0){alert('Agregá al menos un producto al carrito.');return;}
     if(!clienteNombre||!clienteTel){alert('Completá el nombre y teléfono del cliente.');return;}
     if(factura==='factura-x'&&!clienteDni){alert('La Factura X requiere el DNI del cliente.');return;}
-    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,ts:Date.now(),cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombre,monto:total});}
     save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
   }catch(err){alert('Error al guardar: '+err.message);console.error(err);}};
@@ -3204,7 +3208,7 @@ function bindApp(){
     const total=carritoManual.reduce((s,i)=>s+i.precio*i.qty,0);
     const cobrado=estado==='cobrado'?total:0;
     const items=carritoManual.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio}));
-    data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),cliente:clienteNombreM,clienteTel:clienteTelM,clienteDni:clienteDniM,vendedorId:vendId,items,total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),ts:Date.now(),cliente:clienteNombreM,clienteTel:clienteTelM,clienteDni:clienteDniM,vendedorId:vendId,items,total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});
     // Descontar stock
     carritoManual.forEach(item=>{const prod=getProdById(item.productoId);if(prod)prod.stock=Math.max(0,prod.stock-item.qty);});
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombreM,monto:total});}
