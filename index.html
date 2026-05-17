@@ -1811,16 +1811,13 @@ function getFechaHoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d
 function calcTotalesTurno(turno){
   const fechaTurno=turno.fecha;
   const vendedorId=turno.usuarioVendedorId?parseInt(turno.usuarioVendedorId):null;
-  const tsDesde=turno.apertura.ts;
-  const tsHasta=turno.cierre?turno.cierre.ts:Date.now()+86400000;
   const ventasTurno=data.ventas.filter(v=>{
     if(v.estado==='cancelado')return false;
-    // Filtrar por timestamp si la venta lo tiene, sino por fecha
-    if(v.ts){
-      if(v.ts<tsDesde||v.ts>tsHasta)return false;
-    } else {
-      if(v.fecha!==fechaTurno)return false;
-    }
+    // Comparar fecha ignorando diferencias de formato (YYYY-MM-DD)
+    const vFecha=(v.fecha||'').substring(0,10);
+    const tFecha=(fechaTurno||'').substring(0,10);
+    if(vFecha!==tFecha)return false;
+    // Solo filtrar por vendedor si la venta TIENE vendedor asignado Y no coincide
     if(vendedorId&&v.vendedorId&&parseInt(v.vendedorId)!==vendedorId)return false;
     return true;
   });
@@ -1834,7 +1831,7 @@ function calcTotalesTurno(turno){
   const medios={efectivo:0,mercadopago:0,tarjeta:0,credivip:0,rapicuota:0,'nickcel-pagares':0,otros:0};
   ventasTurno.forEach(v=>{
     const mp=v.medioPago||'efectivo';
-    const monto=v.total||0; // usar total, no cobrado
+    const monto=v.total||0;
     if(mp==='efectivo')medios.efectivo+=monto;
     else if(mp==='mercadopago')medios.mercadopago+=monto;
     else if(mp==='tarjeta'||mp==='tarjeta-nbch'||mp==='tarjeta-santander'||mp==='tarjeta-galicia')medios.tarjeta+=monto;
@@ -1847,12 +1844,11 @@ function calcTotalesTurno(turno){
   const totalEgresos=egresosTurno.reduce((s,e)=>s+e.monto,0);
   const totalFinancieras=totalCobrCredivip+totalCobrRapicuota+totalCobrPagares;
   const cobrFinancierasEfectivo=[...cobranzaCredivipTurno,...cobranzaRapicuotaTurno,...cobranzaPagaresTurno].filter(c=>c.formaPago==='efectivo'||!c.formaPago).reduce((s,c)=>s+c.monto,0);
-  // Efectivo en caja: apertura + ventas efectivo (sin descontar egresos — solo admin los ve)
   const saldoEfectivo=(turno.saldoApertura||0)+medios.efectivo;
-  // Efectivo financieras (para mostrar separado)
   const saldoEfectivoFinancieras=cobrFinancierasEfectivo;
   return{ventasTurno,egresosTurno,medios,totalVentas,totalEgresos,totalFinancieras,cobranzaCredivipTurno,cobranzaRapicuotaTurno,cobranzaPagaresTurno,totalCobrCredivip,totalCobrRapicuota,totalCobrPagares,saldoEfectivo,saldoEfectivoFinancieras};
 }
+
 
 function renderCaja(){
   // Solo admin y Yamila (userId 2)
@@ -2989,15 +2985,6 @@ function bindApp(){
   if(btnCerrar)btnCerrar.onclick=()=>{
     const turno=getTurnoActivo();
     if(!turno)return;
-    // DIAGNÓSTICO
-    const hoy=getFechaHoyISO();
-    const tsA=turno.apertura.ts;
-    console.log('=== DIAGNÓSTICO CAJA ===');
-    console.log('Turno fecha:',turno.fecha,'| vendedorId:',turno.usuarioVendedorId,'| tsApertura:',tsA);
-    console.log('Fecha hoy:',hoy);
-    console.log('Total ventas en sistema:',data.ventas.length);
-    data.ventas.slice(0,5).forEach(v=>console.log('  Venta#'+v.id,'fecha:',v.fecha,'ts:',v.ts,'vendedorId:',v.vendedorId,'total:',v.total,'estado:',v.estado));
-    alert('DIAGNÓSTICO (ver también F12 consola):\n\nTurno fecha: '+turno.fecha+'\nTurno vendedorId: '+turno.usuarioVendedorId+'\nTotal ventas sistema: '+data.ventas.length+'\n\nÚltimas 3 ventas:\n'+data.ventas.slice(0,3).map(v=>'#'+v.id+' fecha:'+v.fecha+' ts:'+(v.ts||'SIN TS')+' vId:'+v.vendedorId+' $'+v.total).join('\n'));
     const tot=calcTotalesTurno(turno);
     const ahora=Date.now();
     turno.cierre={hora:getHoraActual(),ts:ahora};
