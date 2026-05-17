@@ -405,7 +405,7 @@ function renderDash(){
   const cobradoMP=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0);
   const pendCredivip=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0);
   const pendRapicuota=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0);
-  const hoyDash=new Date().toISOString().split('T')[0];
+  const hoyDash=getFechaHoyISO();
   const rapiSemanasDB=getRapicuotaSemanasAgrupadas().filter(s=>s.ventas.some(v=>!v.rapicuotaLiquidado)).sort((a,b)=>a.cobro.localeCompare(b.cobro));
   const pendNickcel=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+v.total,0);
   const ventasMes=data.ventas.filter(v=>v.mes===mes&&v.estado!=='cancelado');
@@ -428,7 +428,7 @@ function renderDash(){
   const saldoCobranzaRapicuota=getSaldoCobranza('rapicuota');
   const saldoCobranzaPagares=getSaldoCobranzaPagares();
   // Cheques próximos a vencer (2 días)
-  const hoyDashStr=new Date().toISOString().split('T')[0];
+  const hoyDashStr=getFechaHoyISO();
   const en2d=new Date();en2d.setDate(en2d.getDate()+2);
   const en2dStr=en2d.toISOString().split('T')[0];
   const chequesPendientes=(data.cheques||[]).filter(c=>!c.pagado);
@@ -1528,7 +1528,7 @@ function renderMercadoPago(){
   const ventas=getMpVentas();
   const totalIngresado=ventas.reduce((s,v)=>s+v.total,0);
   const movs=getMpMovs();
-  const hoy=new Date().toISOString().split('T')[0];
+  const hoy=getFechaHoyISO();
   return`<div>
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">💙 Cuenta Mercado Pago</span>
@@ -2150,7 +2150,7 @@ function renderModal(){
       <div class="form-row"><label class="form-label">DNI cliente <span style="font-size:10px;color:#64748b">(opcional — requerido para Factura X)</span></label><input id="m-clientedni" placeholder="Ej: 30123456" style="${INP}" type="text" maxlength="10"></div>
       <div class="form-row"><label class="form-label">Vendedor</label><select id="m-vendedor" style="${INP}"><option value="">Sin asignar</option>${data.vendedores.map(v=>`<option value="${v.id}"${currentUser.vendedorId&&currentUser.vendedorId==v.id?' selected':''}>${v.nombre}</option>`).join('')}</select></div>
     </div>
-    <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="m-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+    <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="m-fecha" value="${getFechaHoyISO()}" style="${INP}"></div>
     <div style="margin:10px 0;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px">
       ${carrito.map(i=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span>${i.nombre} x${i.qty}</span><span>${fmt(i.precio*i.qty)}</span></div>`).join('')}
       <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:500;border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Total</span><span style="color:#38bdf8">${fmt(carrito.reduce((s,i)=>s+i.precio*i.qty,0))}</span></div>
@@ -2184,7 +2184,7 @@ function renderModal(){
       <div class="form-row"><label class="form-label">DNI cliente <span style="font-size:10px;color:#64748b">(opcional)</span></label><input id="m-clientedni" placeholder="Ej: 30123456" style="${INP}" type="text" maxlength="10" value="${modal.clienteDni||''}"></div>
       <div class="form-row"><label class="form-label">Vendedor</label><select id="m-vendedor" style="${INP}"><option value="">Sin asignar</option>${data.vendedores.map(v=>`<option value="${v.id}"${modal.vendedorId==v.id?' selected':''}>${v.nombre}</option>`).join('')}</select></div>
     </div>
-    <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="m-fecha" value="${modal.fecha||new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+    <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="m-fecha" value="${modal.fecha||getFechaHoyISO()}" style="${INP}"></div>
 
     <!-- BUSCADOR PRODUCTOS -->
     <div style="background:rgba(30,143,207,0.07);border:1px solid rgba(30,143,207,0.2);border-radius:10px;padding:12px;margin-bottom:10px">
@@ -2272,7 +2272,7 @@ function renderModal(){
   if(m.type==='nuevo-egreso') return`<div class="modal-bg"><div class="modal">
     <div class="modal-title">Nuevo egreso</div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="m-fecha-eg" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+      <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="m-fecha-eg" value="${getFechaHoyISO()}" style="${INP}"></div>
       <div class="form-row"><label class="form-label">Estado</label><select id="m-pagado" style="${INP}"><option value="false">Pendiente</option><option value="true">Pagado</option></select></div>
     </div>
     <div class="form-row"><label class="form-label">Concepto <span style="color:#f87171">*</span></label><input type="text" id="m-concepto" placeholder="Ej: Compra mercadería, alquiler, luz..." style="${INP}"></div>
@@ -2430,7 +2430,7 @@ function renderModal(){
         <input type="number" id="nbch-monto-dep" value="${v.total}" style="${INP}" step="0.01">
       </div>
       <div class="form-row"><label class="form-label">Fecha del depósito</label>
-        <input type="date" id="nbch-fecha-dep" value="${new Date().toISOString().split('T')[0]}" style="${INP}">
+        <input type="date" id="nbch-fecha-dep" value="${getFechaHoyISO()}" style="${INP}">
       </div>
       <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
         <input type="text" id="nbch-notas-dep" placeholder="Ej: Depósito con descuento 2%" style="${INP}">
@@ -2446,7 +2446,7 @@ function renderModal(){
     return`<div class="modal-bg"><div class="modal" style="max-width:520px">
       <div class="modal-title">💳 Movimiento NBCH</div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="nbch-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="nbch-fecha" value="${getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
           <select id="nbch-tipo" style="${INP}" onchange="toggleNbchVentasSelector(this)">
             <option value="ingreso">↑ Ingreso</option>
@@ -2493,7 +2493,7 @@ function renderModal(){
         <input type="number" id="brubank-monto-dep" value="${v.total}" style="${INP}" step="0.01">
       </div>
       <div class="form-row"><label class="form-label">Fecha del depósito</label>
-        <input type="date" id="brubank-fecha-dep" value="${new Date().toISOString().split('T')[0]}" style="${INP}">
+        <input type="date" id="brubank-fecha-dep" value="${getFechaHoyISO()}" style="${INP}">
       </div>
       <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
         <input type="text" id="brubank-notas-dep" placeholder="Ej: Depósito con descuento 3%" style="${INP}">
@@ -2509,7 +2509,7 @@ function renderModal(){
     return`<div class="modal-bg"><div class="modal" style="max-width:520px">
       <div class="modal-title">🏦 Movimiento Brubank / Santander</div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="brubank-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="brubank-fecha" value="${getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
           <select id="brubank-tipo" style="${INP}" onchange="toggleBrubankVentasSelector(this)">
             <option value="ingreso">↑ Ingreso</option>
@@ -2556,7 +2556,7 @@ function renderModal(){
         <input type="number" id="galicia-monto-dep" value="${v.total}" style="${INP}" step="0.01">
       </div>
       <div class="form-row"><label class="form-label">Fecha del depósito</label>
-        <input type="date" id="galicia-fecha-dep" value="${new Date().toISOString().split('T')[0]}" style="${INP}">
+        <input type="date" id="galicia-fecha-dep" value="${getFechaHoyISO()}" style="${INP}">
       </div>
       <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
         <input type="text" id="galicia-notas-dep" placeholder="Ej: Depósito con descuento 3%" style="${INP}">
@@ -2572,7 +2572,7 @@ function renderModal(){
     return`<div class="modal-bg"><div class="modal" style="max-width:520px">
       <div class="modal-title">🏦 Movimiento Galicia</div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="galicia-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="galicia-fecha" value="${getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
           <select id="galicia-tipo" style="${INP}" onchange="toggleGaliciaVentasSelector(this)">
             <option value="ingreso">↑ Ingreso</option>
@@ -2621,7 +2621,7 @@ function renderModal(){
         <input type="number" id="rapicuota-monto-cobro" value="${v.total}" style="${INP}" step="0.01">
       </div>
       <div class="form-row"><label class="form-label">Fecha de cobro</label>
-        <input type="date" id="rapicuota-fecha-cobro" value="${new Date().toISOString().split('T')[0]}" style="${INP}">
+        <input type="date" id="rapicuota-fecha-cobro" value="${getFechaHoyISO()}" style="${INP}">
       </div>
       <div class="form-row"><label class="form-label">Notas <span style="color:#64748b;font-size:10px">(opcional)</span></label>
         <input type="text" id="rapicuota-notas" placeholder="Ej: Cobrado con diferencia, descuento..." style="${INP}">
@@ -2636,7 +2636,7 @@ function renderModal(){
     return`<div class="modal-bg"><div class="modal">
       <div class="modal-title">🏦 Movimiento Supervielle</div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="sv-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="sv-fecha" value="${getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
           <select id="sv-tipo" style="${INP}">
             <option value="ingreso">↑ Ingreso</option>
@@ -2662,7 +2662,7 @@ function renderModal(){
     return`<div class="modal-bg"><div class="modal" style="max-width:520px">
       <div class="modal-title">💙 Movimiento Mercado Pago</div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="mp-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha</label><input type="date" id="mp-fecha" value="${getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Tipo</label>
           <select id="mp-tipo" style="${INP}" onchange="toggleMpVentasSelector(this)">
             <option value="ingreso">↑ Ingreso</option>
@@ -2703,7 +2703,7 @@ function renderModal(){
         💵 <strong style="color:#4ade80">Efectivo</strong> → acredita en Caja &nbsp;|&nbsp; 🏦 <strong style="color:#00cfaa">Transferencia</strong> → acredita en Supervielle
       </div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha *</label><input type="date" id="cp-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha *</label><input type="date" id="cp-fecha" value="${getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">N° Cuota *</label><input type="number" id="cp-nro" min="1" placeholder="1" style="${INP}"></div>
       </div>
       <div class="two-col">
@@ -2738,7 +2738,7 @@ function renderModal(){
     return`<div class="modal-bg"><div class="modal">
       <div class="modal-title">${titulo}</div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha *</label><input type="date" id="cobr-fecha" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha *</label><input type="date" id="cobr-fecha" value="${getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">N° Cuota *</label><input type="number" id="cobr-nro" min="1" placeholder="1" style="${INP}"></div>
       </div>
       <div class="two-col">
@@ -2771,7 +2771,7 @@ function renderModal(){
         <div class="form-row"><label class="form-label">Monto *</label><input type="number" id="ch-monto" value="${m.cheque?.monto||''}" placeholder="0" style="${INP}" step="0.01"></div>
       </div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha de emisión *</label><input type="date" id="ch-emision" value="${m.cheque?.emision||new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha de emisión *</label><input type="date" id="ch-emision" value="${m.cheque?.emision||getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Fecha de pago *</label><input type="date" id="ch-fechapago" value="${m.cheque?.fechaPago||''}" style="${INP}"></div>
       </div>
       <div class="form-row"><label class="form-label">Proveedor / Beneficiario *</label>
@@ -2801,7 +2801,7 @@ function renderModal(){
         Esta venta se agregará al historial con fecha indicada y acreditará al saldo de la cuenta.
       </div>
       <div class="two-col">
-        <div class="form-row"><label class="form-label">Fecha de la venta *</label><input type="date" id="vh-fecha" value="${v?.fecha||new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+        <div class="form-row"><label class="form-label">Fecha de la venta *</label><input type="date" id="vh-fecha" value="${v?.fecha||getFechaHoyISO()}" style="${INP}"></div>
         <div class="form-row"><label class="form-label">Monto total *</label><input type="number" id="vh-monto" value="${v?.total||''}" placeholder="0" style="${INP}" step="0.01"></div>
       </div>
       <div class="two-col">
@@ -3135,7 +3135,7 @@ function bindApp(){
       };
     });
   }
-  document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagarCuota);const cuota=c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=true;cuota.fechaPago=new Date().toISOString().split('T')[0];if(c.cuotas.every(x=>x.pagada))c.estado='cancelado';save(data);modal={type:'comp-cuota',credito:c,cuota:cuota};render();}};});
+  document.querySelectorAll('[data-pagar-cuota]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagarCuota);const cuota=c.cuotas.find(x=>x.nro==b.dataset.nro);if(cuota){cuota.pagada=true;cuota.fechaPago=getFechaHoyISO();if(c.cuotas.every(x=>x.pagada))c.estado='cancelado';save(data);modal={type:'comp-cuota',credito:c,cuota:cuota};render();}};});
   document.querySelectorAll('[data-del-credito]').forEach(b=>{b.onclick=()=>{if(!confirm('¿Eliminar este crédito?'))return;data.creditos=data.creditos.filter(c=>c.id!=b.dataset.delCredito);save(data);modal=null;render();};});
   document.querySelectorAll('[data-anular-cuota]').forEach(b=>{b.onclick=()=>{if(!confirm('¿Anular este pago?'))return;const c=data.creditos.find(x=>x.id==b.dataset.anularCuota);const q=c&&c.cuotas.find(x=>x.nro==b.dataset.nro);if(q){q.pagada=false;q.fechaPago=null;if(c.estado==='cancelado')c.estado='activo';save(data);modal={type:'ver-credito',credito:c};render();}};});
 
@@ -3281,7 +3281,7 @@ function bindApp(){
   const mscom=q('modal-save-comisiones');if(mscom)mscom.onclick=()=>{const v=data.vendedores.find(x=>x.id===modal.vend.id);if(!v.comisiones)v.comisiones={};data.categorias.forEach(cat=>{v.comisiones[cat.id]=parseFloat(q('com-cat-'+cat.id)?.value)||0;});save(data);modal=null;render();};
   const mscat=q('modal-save-cat');if(mscat)mscat.onclick=()=>{data.categorias.push({id:data.nextId.categoria++,nombre:q('m-catnombre').value,color:q('m-catcolor').value});save(data);modal=null;render();};
   const msd=q('modal-save-dev');if(msd)msd.onclick=()=>{const vid=parseInt(q('m-dev-venta').value),v=data.ventas.find(x=>x.id===vid);if(v){v.estado='cancelado';v.cobrado=0;v.notas='DEV: '+(q('m-dev-motivo').value||'');v.items.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock+=i.qty;});}save(data);modal=null;render();};
-  const mcc=q('modal-confirm-cierre');if(mcc)mcc.onclick=()=>{data.cierres.push({id:data.nextId.cierre++,mes:modal.mes,fecha:new Date().toISOString().split('T')[0],detalle:modal.detalle});save(data);modal=null;render();};
+  const mcc=q('modal-confirm-cierre');if(mcc)mcc.onclick=()=>{data.cierres.push({id:data.nextId.cierre++,mes:modal.mes,fecha:getFechaHoyISO(),detalle:modal.detalle});save(data);modal=null;render();};
   // ===== GALICIA =====
   window._irGalicia=()=>{tab='galicia';render();};
   // ===== RAPICUOTA =====
@@ -3295,7 +3295,7 @@ function bindApp(){
   document.querySelectorAll('[data-cobrar-semana-rapicuota]').forEach(b=>{
     b.onclick=()=>{
       const inicioSem=b.dataset.cobrarSemanaRapicuota;
-      const hoy=new Date().toISOString().split('T')[0];
+      const hoy=getFechaHoyISO();
       if(!confirm('¿Confirmar cobro de todas las ventas pendientes de esta semana?'))return;
       data.ventas.forEach(v=>{
         if(v.medioPago==='rapicuota'&&!v.rapicuotaLiquidado&&v.estado!=='cancelado'){
@@ -3315,7 +3315,7 @@ function bindApp(){
   if(msrc)msrc.onclick=()=>{
     const ventaId=parseInt(msrc.dataset.ventaId);
     const monto=parseFloat(q('rapicuota-monto-cobro').value)||0;
-    const fecha=q('rapicuota-fecha-cobro').value||new Date().toISOString().split('T')[0];
+    const fecha=q('rapicuota-fecha-cobro').value||getFechaHoyISO();
     if(!monto){alert('Ingresá el monto cobrado.');return;}
     const venta=data.ventas.find(x=>x.id===ventaId);
     if(venta){
@@ -3385,7 +3385,7 @@ function bindApp(){
     b.onclick=()=>{
       if(!confirm('¿Confirmar que este cheque fue pagado?'))return;
       const ch=data.cheques.find(x=>x.id==b.dataset.pagarCheque);
-      if(ch){ch.pagado=true;ch.fechaPagado=new Date().toISOString().split('T')[0];}
+      if(ch){ch.pagado=true;ch.fechaPagado=getFechaHoyISO();}
       save(data);render();
     };
   });
@@ -3570,7 +3570,7 @@ function bindApp(){
   if(msgaliciad)msgaliciad.onclick=()=>{
     const ventaId=parseInt(msgaliciad.dataset.ventaId);
     const monto=parseFloat(q('galicia-monto-dep').value)||0;
-    const fecha=q('galicia-fecha-dep').value||new Date().toISOString().split('T')[0];
+    const fecha=q('galicia-fecha-dep').value||getFechaHoyISO();
     const notas=q('galicia-notas-dep').value.trim();
     if(!monto){alert('Ingresá el monto depositado.');return;}
     const venta=data.ventas.find(x=>x.id===ventaId);
@@ -3648,7 +3648,7 @@ function bindApp(){
   if(msnbchd)msnbchd.onclick=()=>{
     const ventaId=parseInt(msnbchd.dataset.ventaId);
     const monto=parseFloat(q('nbch-monto-dep').value)||0;
-    const fecha=q('nbch-fecha-dep').value||new Date().toISOString().split('T')[0];
+    const fecha=q('nbch-fecha-dep').value||getFechaHoyISO();
     const notas=q('nbch-notas-dep').value.trim();
     if(!monto){alert('Ingresá el monto depositado.');return;}
     const venta=data.ventas.find(x=>x.id===ventaId);
@@ -3725,7 +3725,7 @@ function bindApp(){
   if(msbrubankd)msbrubankd.onclick=()=>{
     const ventaId=parseInt(msbrubankd.dataset.ventaId);
     const monto=parseFloat(q('brubank-monto-dep').value)||0;
-    const fecha=q('brubank-fecha-dep').value||new Date().toISOString().split('T')[0];
+    const fecha=q('brubank-fecha-dep').value||getFechaHoyISO();
     const notas=q('brubank-notas-dep').value.trim();
     if(!monto){alert('Ingresá el monto depositado.');return;}
     const venta=data.ventas.find(x=>x.id===ventaId);
@@ -3910,7 +3910,7 @@ function renderFinanciera(){
 }
 
 function renderModalNuevoCredito(){
-  const hoy=new Date().toISOString().split('T')[0];
+  const hoy=getFechaHoyISO();
   return`<div class="modal-title">Nuevo Crédito Nickel</div>
     <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;background:rgba(30,143,207,0.08);padding:8px 10px;border-radius:7px;">Completá los datos del cliente y el producto</div>
     <div style="font-size:12px;font-weight:500;color:#38bdf8;margin-bottom:8px;">Datos del cliente</div>
@@ -4045,7 +4045,7 @@ function renderModalCobrarCredito(credito){
         ${pendientes.map(q=>`<option value="${q.nro}">Cuota ${q.nro} — ${fd(q.fecha)} — ${fmt(q.monto)}${new Date(q.fecha)<hoy?' ⚠️ VENCIDA':''}</option>`).join('')}
       </select>
     </div>
-    <div class="form-row"><label class="form-label">Fecha de cobro</label><input id="cc-fecha" type="date" value="${new Date().toISOString().split('T')[0]}" style="${INP}"></div>
+    <div class="form-row"><label class="form-label">Fecha de cobro</label><input id="cc-fecha" type="date" value="${getFechaHoyISO()}" style="${INP}"></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-confirmar-cuota" data-credito-id="${credito.id}">Confirmar cobro</button></div>`;
 }
 
