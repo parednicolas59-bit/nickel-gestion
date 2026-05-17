@@ -1811,12 +1811,12 @@ function getFechaHoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d
 function calcTotalesTurno(turno){
   const fechaTurno=turno.fecha;
   // Filtrar ventas por fecha Y por vendedor si el turno tiene vendedorId asignado
-  const vendedorId=turno.usuarioVendedorId||null;
+  const vendedorId=turno.usuarioVendedorId?parseInt(turno.usuarioVendedorId):null;
   const ventasTurno=data.ventas.filter(v=>{
-    if(!v.cobrado||v.cobrado<=0)return false;
+    if(v.estado==='cancelado')return false;
     if(v.fecha!==fechaTurno)return false;
     // Si el turno tiene vendedor asignado, filtrar por ese vendedor
-    if(vendedorId&&v.vendedorId&&v.vendedorId!==vendedorId)return false;
+    if(vendedorId&&v.vendedorId&&parseInt(v.vendedorId)!==vendedorId)return false;
     return true;
   });
   const egresosTurno=(data.egresos||[]).filter(e=>e.pagado&&e.fecha===fechaTurno);
@@ -1829,13 +1829,14 @@ function calcTotalesTurno(turno){
   const medios={efectivo:0,mercadopago:0,tarjeta:0,credivip:0,rapicuota:0,'nickcel-pagares':0,otros:0};
   ventasTurno.forEach(v=>{
     const mp=v.medioPago||'efectivo';
-    if(mp==='efectivo')medios.efectivo+=v.cobrado;
-    else if(mp==='mercadopago')medios.mercadopago+=v.cobrado;
-    else if(mp==='tarjeta'||mp==='tarjeta-nbch'||mp==='tarjeta-santander'||mp==='tarjeta-galicia')medios.tarjeta+=v.cobrado;
-    else if(mp==='credivip')medios.credivip+=v.cobrado;
-    else if(mp==='rapicuota')medios.rapicuota+=v.cobrado;
-    else if(mp==='nickcel-pagares')medios['nickcel-pagares']+=v.cobrado;
-    else medios.otros+=v.cobrado;
+    const monto=v.total||0; // usar total, no cobrado
+    if(mp==='efectivo')medios.efectivo+=monto;
+    else if(mp==='mercadopago')medios.mercadopago+=monto;
+    else if(mp==='tarjeta'||mp==='tarjeta-nbch'||mp==='tarjeta-santander'||mp==='tarjeta-galicia')medios.tarjeta+=monto;
+    else if(mp==='credivip')medios.credivip+=monto;
+    else if(mp==='rapicuota')medios.rapicuota+=monto;
+    else if(mp==='nickcel-pagares')medios['nickcel-pagares']+=monto;
+    else medios.otros+=monto;
   });
   const totalVentas=Object.values(medios).reduce((s,v)=>s+v,0);
   const totalEgresos=egresosTurno.reduce((s,e)=>s+e.monto,0);
