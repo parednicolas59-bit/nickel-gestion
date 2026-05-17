@@ -324,7 +324,7 @@ function renderApp(){
   const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   // Caja solo para admin y Yamila (userId 2)
   const tieneCaja=currentUser.role==='admin'||currentUser.id===2;
-  const tabsVendedor=['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
+  const tabsVendedor=['ventas','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
   if(tieneCaja&&currentUser.role!=='admin')tabsVendedor.push('caja');
   const tabs=currentUser.role==='admin'?allTabs:tabsVendedor;
   return`<div style="position:relative;min-height:600px">
