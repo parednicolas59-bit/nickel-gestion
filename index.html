@@ -2989,6 +2989,15 @@ function bindApp(){
   if(btnCerrar)btnCerrar.onclick=()=>{
     const turno=getTurnoActivo();
     if(!turno)return;
+    // DIAGNÓSTICO
+    const hoy=getFechaHoyISO();
+    const tsA=turno.apertura.ts;
+    console.log('=== DIAGNÓSTICO CAJA ===');
+    console.log('Turno fecha:',turno.fecha,'| vendedorId:',turno.usuarioVendedorId,'| tsApertura:',tsA);
+    console.log('Fecha hoy:',hoy);
+    console.log('Total ventas en sistema:',data.ventas.length);
+    data.ventas.slice(0,5).forEach(v=>console.log('  Venta#'+v.id,'fecha:',v.fecha,'ts:',v.ts,'vendedorId:',v.vendedorId,'total:',v.total,'estado:',v.estado));
+    alert('DIAGNÓSTICO (ver también F12 consola):\n\nTurno fecha: '+turno.fecha+'\nTurno vendedorId: '+turno.usuarioVendedorId+'\nTotal ventas sistema: '+data.ventas.length+'\n\nÚltimas 3 ventas:\n'+data.ventas.slice(0,3).map(v=>'#'+v.id+' fecha:'+v.fecha+' ts:'+(v.ts||'SIN TS')+' vId:'+v.vendedorId+' $'+v.total).join('\n'));
     const tot=calcTotalesTurno(turno);
     const ahora=Date.now();
     turno.cierre={hora:getHoraActual(),ts:ahora};
