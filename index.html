@@ -159,7 +159,6 @@ const def={
     {id:2,name:'Yamila Blanco',email:'yamila@local',password:'1234',role:'vendedor',vendedorId:1},
     {id:3,name:'Lionel Molina',email:'lionel@local',password:'1234',role:'vendedor',vendedorId:2},
     {id:4,name:'Cristian Bertoya',email:'cristian@local',password:'1234',role:'vendedor',vendedorId:3},
-    {id:5,name:'Nicolas vendedor',email:'nicolas@local',password:'1234',role:'vendedor',vendedorId:null},
   ],
   categorias:[{id:1,nombre:'Electrodomésticos',color:'#1e8fcf'},{id:2,nombre:'Electrónica',color:'#8b5cf6'},{id:3,nombre:'Muebles',color:'#f59e0b'},{id:4,nombre:'Celulares',color:'#22c55e'},{id:5,nombre:'Motos y Bicis',color:'#ef4444'},{id:6,nombre:'Herramientas',color:'#f97316'}],
   vendedores:[
@@ -191,7 +190,7 @@ const def={
   brubank:[],
   galicia:[],
   turnosCaja:[],
-  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:6,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1,turno:1}
+  nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1,turno:1}
 };
 function load(){
   try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;if(!d.supervielle)d.supervielle=[];if(!d.nextId.supervielle)d.nextId.supervielle=1;if(!d.cobranzaCredivip)d.cobranzaCredivip=[];if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;if(!d.cobranzaPagares)d.cobranzaPagares=[];if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;if(!d.turnosCaja)d.turnosCaja=[];if(!d.nextId.turno)d.nextId.turno=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
@@ -234,6 +233,7 @@ async function loadFromFirebase(){
   return load();
 }
 function save(d){
+  d._lastSaved = Date.now();
   try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
   if(window._firebaseReady&&window._fbSave)window._fbSave(d);
 }
@@ -258,6 +258,14 @@ async function initApp(){
   if(window._fbListen){
     _fbUnsubscribe=window._fbListen((newData)=>{
       if(_fbInitialized&&currentUser){
+        // PROTECCIÓN: solo actualizar si Firebase tiene datos más nuevos
+        // Esto evita que un dispositivo con datos viejos pise datos recién guardados
+        const tsLocal = data._lastSaved || 0;
+        const tsFirebase = newData._lastSaved || 0;
+        if(tsFirebase < tsLocal){
+          console.log('onSnapshot ignorado: Firebase tiene datos más viejos que los locales');
+          return;
+        }
         data=newData;
         if(!data.creditos)data.creditos=[];
         if(!data.nextId.credito)data.nextId.credito=1;
@@ -321,8 +329,8 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const allTabs=['dashboard','ventas','egresos','productos','pedidos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',pedidos:'📦 Pedidos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   // Caja solo para admin y Yamila (userId 2)
   const tieneCaja=currentUser.role==='admin'||currentUser.id===2;
   const tabsVendedor=['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
@@ -344,6 +352,7 @@ function renderTab(){
   if(tab==='ventas')return renderVentas();
   if(tab==='egresos')return renderEgresos();
   if(tab==='productos')return renderProductos();
+  if(tab==='pedidos')return renderPedidos();
   if(tab==='proveedores')return renderProveedores();
   if(tab==='contactos')return renderContactos();
   if(tab==='vendedores')return renderVendedores();
@@ -364,6 +373,116 @@ function renderTab(){
   if(tab==='financiera')return renderFinanciera();
   return '';
 }
+
+function renderPedidos(){
+  const sinStock = data.productos.filter(p => p.stock <= 0);
+  const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">📦 Lista de pedidos</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:var(--text2)">${fecha}</span>
+        ${sinStock.length>0?`<button class="btn" onclick="copiarPedido()" style="font-size:11px;padding:5px 12px">📋 Copiar lista</button>`:''}
+        ${sinStock.length>0?`<button class="btn" onclick="imprimirPedido()" style="font-size:11px;padding:5px 12px">🖨 Imprimir</button>`:''}
+      </div>
+    </div>
+
+    ${sinStock.length===0?`
+      <div style="text-align:center;padding:60px 20px;color:var(--text2)">
+        <div style="font-size:40px;margin-bottom:12px">✅</div>
+        <div style="font-size:15px;font-weight:500;margin-bottom:6px">Todo en stock</div>
+        <div style="font-size:12px;color:var(--text3)">No hay productos con stock 0 en este momento</div>
+      </div>
+    `:`
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">⚠️</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#f87171">${sinStock.length} producto${sinStock.length>1?'s':''} sin stock</div>
+          <div style="font-size:11px;color:var(--text3)">Estos productos necesitan reposición</div>
+        </div>
+      </div>
+
+      <div class="card" style="overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border)">
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">#</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Producto</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Categoría</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Código</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Precio venta</th>
+              <th style="padding:10px 14px;text-align:center;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Stock</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Cantidad a pedir</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sinStock.map((p,i)=>{
+              const cat=getCat(p.categoriaId);
+              return`<tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:10px 14px;color:var(--text3);font-size:12px">${i+1}</td>
+                <td style="padding:10px 14px;font-weight:500">${p.nombre}</td>
+                <td style="padding:10px 14px;color:var(--text2)">${cat?cat.nombre:'—'}</td>
+                <td style="padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text3)">${p.codigo||'—'}</td>
+                <td style="padding:10px 14px;color:var(--text2)">${fmt(p.precio)}</td>
+                <td style="padding:10px 14px;text-align:center">
+                  <span style="background:rgba(239,68,68,0.15);color:#f87171;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">SIN STOCK</span>
+                </td>
+                <td style="padding:10px 14px">
+                  <input type="number" min="1" value="1" id="qty-pedido-${p.id}"
+                    style="width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;text-align:center">
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" onclick="copiarPedido()" style="font-size:12px;padding:7px 16px">📋 Copiar lista para WhatsApp</button>
+        <button class="btn primary" onclick="imprimirPedido()" style="font-size:12px;padding:7px 16px">🖨 Imprimir lista de pedido</button>
+      </div>
+    `}
+  </div>`;
+}
+
+window.copiarPedido = function(){
+  const sinStock = data.productos.filter(p => p.stock <= 0);
+  if(!sinStock.length){ mostrarToast('No hay productos sin stock'); return; }
+  const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  let txt = `📦 *LISTA DE PEDIDO — Nickcel*\n📅 ${fecha}\n\n`;
+  sinStock.forEach((p,i)=>{
+    const qty = document.getElementById(`qty-pedido-${p.id}`)?.value || 1;
+    txt += `${i+1}. ${p.nombre}${p.codigo?' ('+p.codigo+')':''} — Cant: ${qty}\n`;
+  });
+  txt += `\nTotal: ${sinStock.length} producto${sinStock.length>1?'s':''} a reponer`;
+  navigator.clipboard.writeText(txt).then(()=>mostrarToast('✅ Lista copiada al portapapeles')).catch(()=>mostrarToast('No se pudo copiar'));
+};
+
+window.imprimirPedido = function(){
+  const sinStock = data.productos.filter(p => p.stock <= 0);
+  if(!sinStock.length) return;
+  const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const filas = sinStock.map((p,i)=>{
+    const cat = getCat(p.categoriaId);
+    const qty = document.getElementById(`qty-pedido-${p.id}`)?.value || 1;
+    return`<tr><td>${i+1}</td><td>${p.nombre}</td><td>${cat?cat.nombre:'—'}</td><td>${p.codigo||'—'}</td><td style="text-align:center;font-weight:700">${qty}</td></tr>`;
+  }).join('');
+  const w = window.open('','_blank');
+  w.document.write(`<html><head><title>Pedido — Nickcel</title>
+  <style>body{font-family:sans-serif;padding:24px;color:#1a2236}h2{color:#0f172a;margin-bottom:4px}.sub{font-size:12px;color:#666;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f4f8;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#4a5568}
+  td{padding:9px 12px;border-bottom:1px solid #eee}tr:last-child td{border-bottom:none}.total{margin-top:16px;font-size:13px;color:#666}
+  .footer{margin-top:24px;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px}</style></head>
+  <body><h2>📦 Lista de pedido — Nickcel Tecno & Hogar</h2>
+  <div class="sub">Fecha: ${fecha} · Productos sin stock: ${sinStock.length}</div>
+  <table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad a pedir</th></tr></thead>
+  <tbody>${filas}</tbody></table>
+  <div class="total">Total de productos a reponer: <strong>${sinStock.length}</strong></div>
+  <div class="footer">Generado por NickGestión · ${fecha}</div>
+  </body></html>`);
+  w.document.close(); w.print();
+};
 
 function renderUsuarios(){
   const roleColors={admin:'#38bdf8',vendedor:'#a78bfa'};
@@ -446,6 +565,18 @@ function renderDash(){
         </div>
       </div>
       <span style="font-size:11px;color:#fbbf24;padding:4px 10px;border:1px solid rgba(245,158,11,0.3);border-radius:8px">Ver →</span>
+    </div>
+  </div>`;})()}
+  ${(()=>{const sinStock=data.productos.filter(p=>p.stock<=0);if(sinStock.length===0)return'';return`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px 16px;margin-bottom:14px;cursor:pointer" onclick="tab='pedidos';render()">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">📦</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#f87171">${sinStock.length} producto${sinStock.length>1?'s':''} sin stock — necesitan reposición</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px">${sinStock.slice(0,3).map(p=>p.nombre).join(' · ')}${sinStock.length>3?` · +${sinStock.length-3} más`:''}</div>
+        </div>
+      </div>
+      <span style="font-size:11px;color:#f87171;padding:4px 10px;border:1px solid rgba(239,68,68,0.3);border-radius:8px">Ver pedido →</span>
     </div>
   </div>`;})()} 
   ${(nbchVencidas.length>0||brubankVencidas.length>0||galiciaVencidas.length>0||(currentUser.role==='admin'&&chequesProximos.length>0))?`<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
@@ -923,7 +1054,7 @@ function renderProductos(){
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">Productos${catActual?` — <span style="color:${catActual.color}">${catActual.nombre}</span>`:''}</span>
       ${catActual?`<button class="btn" id="quitar-filtro-cat" style="font-size:11px">✕ Ver todos</button>`:''}
-      ${currentUser.role==='admin'?`<button class="btn primary" id="nuevo-prod-btn">+ Nuevo producto</button>`:`<button class="btn success" id="ingreso-mercaderia-btn">📦 Ingresar mercadería</button>`}
+      ${currentUser.role==='admin'?`<button class="btn primary" id="nuevo-prod-btn">+ Nuevo producto</button>`:''}
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
       <div style="position:relative;flex:1;max-width:340px">
@@ -2336,31 +2467,6 @@ function renderModal(){
     </div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-prod">Guardar</button></div>
   </div></div>`;
-  if(m.type==='ingreso-mercaderia') return`<div class="modal-bg"><div class="modal">
-    <div class="modal-title">📦 Ingreso de mercadería</div>
-    <div style="font-size:11px;color:#64748b;margin-bottom:12px">Escaneá o ingresá el código. Si el producto ya existe, se suma al stock. Si es nuevo, se crea.</div>
-    <div class="form-row"><label class="form-label">Código de barras</label>
-      <div style="display:flex;gap:6px">
-        <input type="text" id="im-codigo" placeholder="Escaneá o escribí el código" style="${INP};flex:1" autocomplete="off">
-        <button class="btn" id="im-buscar-btn" style="white-space:nowrap;font-size:11px;padding:4px 10px">Buscar</button>
-      </div>
-    </div>
-    <div id="im-prod-encontrado" style="display:none;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px">
-      <span style="color:#4ade80;font-weight:500">✓ Producto encontrado: </span><span id="im-prod-nombre"></span>
-      <span style="color:#94a3b8;margin-left:6px">Stock actual: </span><span id="im-prod-stock" style="font-weight:500"></span>
-    </div>
-    <div id="im-prod-nuevo" style="display:none">
-      <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#fbbf24">⚠️ Código no encontrado — completá los datos para crear el producto nuevo</div>
-      <div class="form-row"><label class="form-label">Nombre del producto</label><input type="text" id="im-nombre" style="${INP}" placeholder="Ej: Smart TV 55 pulgadas"></div>
-      <div class="two-col">
-        <div class="form-row"><label class="form-label">Categoría</label><select id="im-cat" style="${INP}">${data.categorias.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}</select></div>
-        <div class="form-row"><label class="form-label">Precio de venta</label><input type="number" id="im-precio" style="${INP}" placeholder="0"></div>
-      </div>
-    </div>
-    <div class="form-row" style="margin-top:4px"><label class="form-label">Cantidad que ingresa</label><input type="number" id="im-qty" value="1" min="1" style="${INP};width:100px"></div>
-    <div id="im-feedback" style="display:none;border-radius:7px;padding:7px 12px;font-size:12px;margin-bottom:8px"></div>
-    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn success" id="modal-save-ingreso">Confirmar ingreso</button></div>
-  </div></div>`;
   if(m.type==='nuevo-proveedor') return`<div class="modal-bg"><div class="modal">
     <div class="modal-title">Nuevo proveedor</div>
     <div class="form-row"><label class="form-label">Nombre</label><input type="text" id="m-provnombre" placeholder="Ej: Samsung Distribuidora" style="${INP}"></div>
@@ -2974,48 +3080,6 @@ function bindApp(){
   const devb=q('devolucion-btn');if(devb)devb.onclick=()=>{modal={type:'devolucion'};render();};
   const neb=q('nuevo-egreso-btn');if(neb)neb.onclick=()=>{modal={type:'nuevo-egreso'};render();};
   const npb=q('nuevo-prod-btn');if(npb)npb.onclick=()=>{modal={type:'nuevo-prod'};render();};
-  const imb=q('ingreso-mercaderia-btn');if(imb)imb.onclick=()=>{modal={type:'ingreso-mercaderia'};render();};
-  // Modal ingreso mercadería — lógica
-  const imBuscarBtn=q('im-buscar-btn');
-  const imCodigoInput=q('im-codigo');
-  const buscarProdIngreso=()=>{
-    const cod=(imCodigoInput?.value||'').trim();
-    const encontrado=document.getElementById('im-prod-encontrado');
-    const nuevo=document.getElementById('im-prod-nuevo');
-    if(!cod)return;
-    const prod=getProd(cod);
-    if(prod){
-      if(encontrado){encontrado.style.display='block';document.getElementById('im-prod-nombre').textContent=prod.nombre;document.getElementById('im-prod-stock').textContent=prod.stock;}
-      if(nuevo)nuevo.style.display='none';
-    }else{
-      if(encontrado)encontrado.style.display='none';
-      if(nuevo)nuevo.style.display='block';
-    }
-  };
-  if(imBuscarBtn)imBuscarBtn.onclick=buscarProdIngreso;
-  if(imCodigoInput)imCodigoInput.onkeydown=e=>{if(e.key==='Enter')buscarProdIngreso();};
-  const msi=q('modal-save-ingreso');if(msi)msi.onclick=()=>{
-    const cod=(q('im-codigo')?.value||'').trim();
-    const qty=parseInt(q('im-qty')?.value)||1;
-    const fbk=document.getElementById('im-feedback');
-    if(!cod){if(fbk){fbk.textContent='Ingresá el código del producto.';fbk.style.cssText='display:block;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:7px;padding:7px 12px;font-size:12px;margin-bottom:8px';}return;}
-    const prod=getProd(cod);
-    if(prod){
-      prod.stock+=qty;
-      save(data);
-      mostrarToast(`✓ ${prod.nombre}: +${qty} unidades → stock: ${prod.stock}`,'#22c55e');
-      modal=null;render();
-    }else{
-      const nombre=(q('im-nombre')?.value||'').trim();
-      const precio=parseFloat(q('im-precio')?.value)||0;
-      const catId=parseInt(q('im-cat')?.value)||null;
-      if(!nombre){if(fbk){fbk.textContent='El producto no existe. Ingresá el nombre para crearlo.';fbk.style.cssText='display:block;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:7px;padding:7px 12px;font-size:12px;margin-bottom:8px';}return;}
-      data.productos.push({id:data.nextId.producto++,nombre,codigo:cod,categoriaId:catId,precio,costo:0,stock:qty,proveedorId:null,descEfectivo:0});
-      save(data);
-      mostrarToast(`✓ Producto creado: ${nombre} — stock: ${qty}`,'#22c55e');
-      modal=null;render();
-    }
-  };
   const qfc=q('quitar-filtro-cat');if(qfc)qfc.onclick=()=>{filtroCategoria=null;render();};
   const ncb=q('nuevo-contacto-btn');if(ncb)ncb.onclick=()=>{modal={type:'nuevo-contacto'};render();};
   const nprovb=q('nuevo-prov-btn');if(nprovb)nprovb.onclick=()=>{modal={type:'nuevo-proveedor'};render();};
