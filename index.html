@@ -199,36 +199,43 @@ window._fbDeleteVenta = async function(id) {
 // Cargar todo desde Firebase
 window._fbLoad = async function() {
   try {
-    // 1. Cargar config
+    // 1. Intentar cargar de colecciones nuevas
     const configSnap = await getDoc(CONFIG_REF);
-    if (!configSnap.exists()) {
-      // Intentar migrar desde legacy
-      const legacySnap = await getDoc(LEGACY_REF);
-      if (legacySnap.exists()) {
-        const legacy = JSON.parse(legacySnap.data().payload);
-        // Migrar a nueva estructura
-        await window._fbMigrar(legacy);
-        return legacy;
+    if (configSnap.exists()) {
+      const config = configSnap.data();
+
+      // Cargar productos
+      const prodSnap = await getDocs(collection(db, "nickel_productos"));
+      const productos = [];
+      prodSnap.forEach(d => productos.push(d.data()));
+      productos.sort((a,b) => a.id - b.id);
+
+      // Cargar ventas
+      const ventaSnap = await getDocs(collection(db, "nickel_ventas"));
+      const ventas = [];
+      ventaSnap.forEach(d => ventas.push(d.data()));
+      ventas.sort((a,b) => b.id - a.id);
+
+      // Solo retornar si hay productos (nueva estructura completa)
+      if (productos.length > 0) {
+        return { ...config, productos, ventas };
       }
-      return null;
     }
-    const config = configSnap.data();
 
-    // 2. Cargar productos
-    const prodSnap = await getDocs(collection(db, "nickel_productos"));
-    const productos = [];
-    prodSnap.forEach(d => productos.push(d.data()));
-    productos.sort((a,b) => a.id - b.id);
+    // 2. Fallback al documento legacy
+    const legacySnap = await getDoc(LEGACY_REF);
+    if (legacySnap.exists()) {
+      return JSON.parse(legacySnap.data().payload);
+    }
 
-    // 3. Cargar ventas
-    const ventaSnap = await getDocs(collection(db, "nickel_ventas"));
-    const ventas = [];
-    ventaSnap.forEach(d => ventas.push(d.data()));
-    ventas.sort((a,b) => b.id - a.id);
-
-    return { ...config, productos, ventas };
+    return null;
   } catch(e) {
     console.error("fbLoad error:", e);
+    // Último fallback: legacy
+    try {
+      const legacySnap = await getDoc(LEGACY_REF);
+      if (legacySnap.exists()) return JSON.parse(legacySnap.data().payload);
+    } catch(e2) {}
     return null;
   }
 };
@@ -487,27 +494,26 @@ let _fbInitialized = false;
 async function initApp() {
   document.getElementById('root').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando...</div></div></div>';
 
-  // 1. Cargar desde Firebase al abrir
+  // 1. Cargar desde Firebase — primero intenta colecciones nuevas, si no hay datos cae al legacy
   try {
     const fbData = await Promise.race([
       window._fbLoad(),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
     ]);
-    if (fbData) {
+    if (fbData && fbData.productos && fbData.productos.length > 0) {
       data = migrate(fbData);
       try { localStorage.setItem(SK, JSON.stringify(data)); } catch(e) {}
+    } else {
+      // No hay datos en nueva estructura — usar localStorage
+      data = migrate(load());
+      // Migrar a nueva estructura en background
+      if (data && data.productos && data.productos.length > 0 && window._fbMigrar) {
+        window._fbMigrar(data); // no esperamos, lo hace en background
+      }
     }
   } catch(e) {
     console.log("Firebase timeout — usando localStorage");
     data = migrate(load());
-  }
-
-  // Si no hay productos en nueva colección, migrar
-  if (data && data.productos && data.productos.length > 0 && window._fbMigrar) {
-    const configSnap = await window._fbLoad();
-    if (!configSnap || !configSnap.productos || configSnap.productos.length === 0) {
-      // Solo migrar si viene del legacy
-    }
   }
 
   _fbInitialized = true;
@@ -521,8 +527,7 @@ async function initApp() {
         if (!_fbInitialized) return;
         const tsNuevo = configData._lastSaved || 0;
         const tsActual = data._lastSaved || 0;
-        if (tsNuevo <= tsActual) return; // ignorar si es más viejo
-        // Preservar productos y ventas locales, actualizar el resto
+        if (tsNuevo <= tsActual) return;
         const prodActuales = data.productos;
         const ventasActuales = data.ventas;
         data = migrate({ ...configData, productos: prodActuales, ventas: ventasActuales });
@@ -537,16 +542,14 @@ async function initApp() {
           data.productos = data.productos.filter(p => p.id !== producto.id);
         } else {
           const idx = data.productos.findIndex(p => p.id === producto.id);
-          // Solo actualizar si el cambio es más nuevo que lo local
           const local = idx >= 0 ? data.productos[idx] : null;
           const tsLocal = local ? (local._lastSaved || 0) : 0;
-          if (ts <= tsLocal) return; // ignorar si es más viejo
+          if (ts <= tsLocal) return;
           if (idx >= 0) data.productos[idx] = producto;
           else data.productos.push(producto);
         }
         try { localStorage.setItem(SK, JSON.stringify(data)); } catch(e) {}
-        if (currentUser && tab === 'productos') render();
-        else if (currentUser && tab === 'dashboard') render();
+        if (currentUser && (tab === 'productos' || tab === 'dashboard')) render();
       },
       // onVenta: actualiza SOLO esa venta
       (tipo, venta) => {
