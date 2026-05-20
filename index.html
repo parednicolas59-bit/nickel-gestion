@@ -232,57 +232,107 @@ async function loadFromFirebase(){
   }
   return load();
 }
+// ── SAVE: siempre estampa timestamp antes de guardar ──────────────
 function save(d){
   d._lastSaved = Date.now();
   try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
   if(window._firebaseReady&&window._fbSave)window._fbSave(d);
 }
 
+// ── MIGRATE: aplica migraciones de campos faltantes ───────────────
+function migrate(d){
+  if(!d) return d;
+  if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));
+  if(!d.creditos)d.creditos=[];
+  if(!d.nextId.credito)d.nextId.credito=1;
+  if(!d.proveedores)d.proveedores=[];
+  if(!d.nextId.proveedor)d.nextId.proveedor=1;
+  if(!d.nbch)d.nbch=[];
+  if(!d.nextId.nbch)d.nextId.nbch=1;
+  if(!d.brubank)d.brubank=[];
+  if(!d.nextId.brubank)d.nextId.brubank=1;
+  if(!d.galicia)d.galicia=[];
+  if(!d.nextId.galicia)d.nextId.galicia=1;
+  if(!d.mercadopago)d.mercadopago=[];
+  if(!d.nextId.mercadopago)d.nextId.mercadopago=1;
+  if(!d.supervielle)d.supervielle=[];
+  if(!d.nextId.supervielle)d.nextId.supervielle=1;
+  if(!d.cheques)d.cheques=[];
+  if(!d.nextId.cheque)d.nextId.cheque=1;
+  if(!d.cobranzaCredivip)d.cobranzaCredivip=[];
+  if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;
+  if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];
+  if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;
+  if(!d.cobranzaPagares)d.cobranzaPagares=[];
+  if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;
+  if(!d.turnosCaja)d.turnosCaja=[];
+  if(!d.nextId.turno)d.nextId.turno=1;
+  d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});
+  d.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
+  return d;
+}
+
 let data=load(),currentUser=null,tab='dashboard',modal=null,carrito=[],filtroCategoria=null;
 let modalProdSeleccionado=null;
 let scanFeedbackTimer=null;
-let _fbUnsubscribe=null;
 let _fbInitialized=false;
+let _guardandoAhora=false; // flag: estamos en medio de un save, ignorar onSnapshot
 
 async function initApp(){
   document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando...</div></div></div>';
+
+  // 1. Cargar SIEMPRE desde Firebase al abrir — nunca confiar en localStorage como fuente primaria
   try{
     const fbData=await Promise.race([
       loadFromFirebase(),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000))
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),6000))
     ]);
-    if(fbData)data=fbData;
-  }catch(e){console.log("Usando datos locales");}
+    if(fbData){
+      data=migrate(fbData);
+      try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
+    }
+  }catch(e){
+    console.log("Firebase timeout — usando localStorage");
+    data=migrate(load());
+  }
+
   _fbInitialized=true;
   render();
+
+  // 2. onSnapshot: SOLO acepta datos de Firebase si son MÁS NUEVOS que los locales
+  //    Y solo si no estamos en medio de un guardado propio
   if(window._fbListen){
-    _fbUnsubscribe=window._fbListen((newData)=>{
-      if(_fbInitialized&&currentUser){
-        // PROTECCIÓN: solo actualizar si Firebase tiene datos más nuevos
-        // Esto evita que un dispositivo con datos viejos pise datos recién guardados
-        const tsLocal = data._lastSaved || 0;
-        const tsFirebase = newData._lastSaved || 0;
-        if(tsFirebase < tsLocal){
-          console.log('onSnapshot ignorado: Firebase tiene datos más viejos que los locales');
-          return;
-        }
-        data=newData;
-        if(!data.creditos)data.creditos=[];
-        if(!data.nextId.credito)data.nextId.credito=1;
-        if(!data.proveedores)data.proveedores=[];
-        if(!data.nextId.proveedor)data.nextId.proveedor=1;
-        if(!data.nbch)data.nbch=[];
-        if(!data.nextId.nbch)data.nextId.nbch=1;
-        if(!data.brubank)data.brubank=[];
-        if(!data.nextId.brubank)data.nextId.brubank=1;
-        if(!data.galicia)data.galicia=[];
-        if(!data.nextId.galicia)data.nextId.galicia=1;
-        data.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
-        try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
-        render();
-      }
+    window._fbListen((newData)=>{
+      if(!_fbInitialized||!newData) return;
+
+      // Ignorar si estamos guardando (evita el echo del propio save)
+      if(_guardandoAhora) return;
+
+      const tsNuevo = newData._lastSaved || 0;
+      const tsActual = data._lastSaved || 0;
+
+      // Solo actualizar si Firebase tiene datos MÁS NUEVOS
+      if(tsNuevo <= tsActual) return;
+
+      // Firebase tiene algo más nuevo — actualizar
+      data = migrate(newData);
+      try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
+
+      // Solo re-renderizar si hay usuario logueado (no interrumpir login)
+      if(currentUser) render();
     });
   }
+}
+
+// Parchear _fbSave para activar el flag mientras guarda
+const _fbSaveOriginal = window._fbSave;
+if(_fbSaveOriginal){
+  window._fbSave = async function(d){
+    _guardandoAhora = true;
+    await _fbSaveOriginal(d);
+    // Apagar el flag después de 2 segundos (tiempo para que llegue el echo del onSnapshot)
+    setTimeout(()=>{ _guardandoAhora = false; }, 2000);
+  };
 }
 
 if(window._firebaseReady){initApp();}
@@ -340,7 +390,7 @@ function renderApp(){
     <div class="topbar">
       <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
       <div class="nav-tabs">${tabs.map(t=>`<button class="nav-tab${t===tab?' active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}</div>
-      <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span>${(currentUser.role==='admin'||currentUser.id===2)?`<button onclick="exportarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.12);color:#4ade80;cursor:pointer;font-family:inherit" title="Descargar backup de todos los datos">💾 Backup</button>`:''}${currentUser.role==='admin'?`<button onclick="restaurarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);color:#fbbf24;cursor:pointer;font-family:inherit" title="Restaurar desde archivo backup">📂 Restaurar</button>`:''}${currentUser.role==='admin'?`<input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmarRestaurar(this)">`:''}    <button class="logout" id="logout-btn">Salir</button></div>
+      <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span>${(currentUser.role==='admin'||currentUser.id===2)?`<button onclick="exportarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.12);color:#4ade80;cursor:pointer;font-family:inherit" title="Descargar backup">💾 Backup</button>`:''} ${currentUser.role==='admin'?`<button onclick="restaurarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);color:#fbbf24;cursor:pointer;font-family:inherit" title="Restaurar backup">📂 Restaurar</button><input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmarRestaurar(this)">`:''}<button class="logout" id="logout-btn">Salir</button></div>
     </div>
     <div class="content">${renderTab()}</div>
     ${modal?renderModal():''}
@@ -375,152 +425,104 @@ function renderTab(){
 }
 
 function renderPedidos(){
-  const sinStock = data.productos.filter(p => p.stock <= 0);
-  const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-
+  const sinStock=data.productos.filter(p=>p.stock<=0);
+  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
   return`<div>
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">📦 Lista de pedidos</span>
       <div style="display:flex;gap:8px;align-items:center">
         <span style="font-size:11px;color:var(--text2)">${fecha}</span>
-        ${sinStock.length>0?`<button class="btn" onclick="copiarPedido()" style="font-size:11px;padding:5px 12px">📋 Copiar lista</button>`:''}
+        ${sinStock.length>0?`<button class="btn" onclick="copiarPedido()" style="font-size:11px;padding:5px 12px">📋 Copiar para WhatsApp</button>`:''}
         ${sinStock.length>0?`<button class="btn" onclick="imprimirPedido()" style="font-size:11px;padding:5px 12px">🖨 Imprimir</button>`:''}
       </div>
     </div>
-
     ${sinStock.length===0?`
       <div style="text-align:center;padding:60px 20px;color:var(--text2)">
         <div style="font-size:40px;margin-bottom:12px">✅</div>
         <div style="font-size:15px;font-weight:500;margin-bottom:6px">Todo en stock</div>
-        <div style="font-size:12px;color:var(--text3)">No hay productos con stock 0 en este momento</div>
+        <div style="font-size:12px;color:var(--text2)">No hay productos con stock 0</div>
       </div>
     `:`
       <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
         <span style="font-size:18px">⚠️</span>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:#f87171">${sinStock.length} producto${sinStock.length>1?'s':''} sin stock</div>
-          <div style="font-size:11px;color:var(--text3)">Estos productos necesitan reposición</div>
-        </div>
+        <div><div style="font-size:13px;font-weight:600;color:#f87171">${sinStock.length} producto${sinStock.length>1?'s':''} sin stock</div><div style="font-size:11px;color:var(--text2)">Necesitan reposición</div></div>
       </div>
-
       <div class="card" style="overflow:hidden">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="border-bottom:1px solid var(--border)">
-              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">#</th>
-              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Producto</th>
-              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Categoría</th>
-              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Código</th>
-              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Precio venta</th>
-              <th style="padding:10px 14px;text-align:center;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Stock</th>
-              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Cantidad a pedir</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sinStock.map((p,i)=>{
-              const cat=getCat(p.categoriaId);
-              return`<tr style="border-bottom:1px solid var(--border)">
-                <td style="padding:10px 14px;color:var(--text3);font-size:12px">${i+1}</td>
-                <td style="padding:10px 14px;font-weight:500">${p.nombre}</td>
-                <td style="padding:10px 14px;color:var(--text2)">${cat?cat.nombre:'—'}</td>
-                <td style="padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text3)">${p.codigo||'—'}</td>
-                <td style="padding:10px 14px;color:var(--text2)">${fmt(p.precio)}</td>
-                <td style="padding:10px 14px;text-align:center">
-                  <span style="background:rgba(239,68,68,0.15);color:#f87171;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">SIN STOCK</span>
-                </td>
-                <td style="padding:10px 14px">
-                  <input type="number" min="1" value="1" id="qty-pedido-${p.id}"
-                    style="width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;text-align:center">
-                </td>
-              </tr>`;
-            }).join('')}
+        <table>
+          <thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Precio venta</th><th style="text-align:center">Stock</th><th>Cant. a pedir</th></tr></thead>
+          <tbody>${sinStock.map((p,i)=>{const cat=getCat(p.categoriaId);return`<tr>
+            <td style="color:var(--text2);font-size:12px">${i+1}</td>
+            <td style="font-weight:500">${p.nombre}</td>
+            <td style="color:var(--text2)">${cat?cat.nombre:'—'}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2)">${p.codigo||'—'}</td>
+            <td>${fmt(p.precio)}</td>
+            <td style="text-align:center"><span style="background:rgba(239,68,68,0.15);color:#f87171;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">SIN STOCK</span></td>
+            <td><input type="number" min="1" value="1" id="qty-pedido-${p.id}" style="width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--dark2);color:var(--text);font-size:12px;text-align:center"></td>
+          </tr>`;}).join('')}
           </tbody>
         </table>
       </div>
-
-      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn" onclick="copiarPedido()" style="font-size:12px;padding:7px 16px">📋 Copiar lista para WhatsApp</button>
-        <button class="btn primary" onclick="imprimirPedido()" style="font-size:12px;padding:7px 16px">🖨 Imprimir lista de pedido</button>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn" onclick="copiarPedido()" style="font-size:12px;padding:7px 16px">📋 Copiar para WhatsApp</button>
+        <button class="btn primary" onclick="imprimirPedido()" style="font-size:12px;padding:7px 16px">🖨 Imprimir lista</button>
       </div>
     `}
   </div>`;
 }
 
-window.exportarBackup = function(){
-  const fecha = new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
-  const nombre = `nickgestion_backup_${fecha}.json`;
-  const contenido = JSON.stringify(data, null, 2);
-  const blob = new Blob([contenido], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = nombre; a.click();
+window.copiarPedido=function(){
+  const sinStock=data.productos.filter(p=>p.stock<=0);
+  if(!sinStock.length){mostrarToast('No hay productos sin stock');return;}
+  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  let txt=`📦 *LISTA DE PEDIDO — Nickcel*\n📅 ${fecha}\n\n`;
+  sinStock.forEach((p,i)=>{const qty=document.getElementById(`qty-pedido-${p.id}`)?.value||1;txt+=`${i+1}. ${p.nombre}${p.codigo?' ('+p.codigo+')':''} — Cant: ${qty}\n`;});
+  txt+=`\nTotal: ${sinStock.length} producto${sinStock.length>1?'s':''} a reponer`;
+  navigator.clipboard.writeText(txt).then(()=>mostrarToast('✅ Lista copiada')).catch(()=>mostrarToast('No se pudo copiar'));
+};
+
+window.imprimirPedido=function(){
+  const sinStock=data.productos.filter(p=>p.stock<=0);
+  if(!sinStock.length)return;
+  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const filas=sinStock.map((p,i)=>{const cat=getCat(p.categoriaId);const qty=document.getElementById(`qty-pedido-${p.id}`)?.value||1;return`<tr><td>${i+1}</td><td>${p.nombre}</td><td>${cat?cat.nombre:'—'}</td><td>${p.codigo||'—'}</td><td style="text-align:center;font-weight:700">${qty}</td></tr>`;}).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<html><head><title>Pedido — Nickcel</title><style>body{font-family:sans-serif;padding:24px;color:#1a2236}h2{color:#0f172a;margin-bottom:4px}.sub{font-size:12px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f4f8;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#4a5568}td{padding:9px 12px;border-bottom:1px solid #eee}.footer{margin-top:24px;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px}</style></head><body><h2>📦 Lista de pedido — Nickcel Tecno & Hogar</h2><div class="sub">Fecha: ${fecha} · Productos sin stock: ${sinStock.length}</div><table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad a pedir</th></tr></thead><tbody>${filas}</tbody></table><div class="footer">Generado por NickGestión · ${fecha}</div></body></html>`);
+  w.document.close();w.print();
+};
+
+window.exportarBackup=function(){
+  const fecha=new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
+  const nombre=`nickgestion_backup_${fecha}.json`;
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=nombre;a.click();
   URL.revokeObjectURL(url);
   mostrarToast(`✅ Backup guardado: ${nombre}`);
 };
 
-window.restaurarBackup = function(){
-  const input = document.getElementById('restore-file-input');
-  if(input) input.click();
+window.restaurarBackup=function(){
+  const input=document.getElementById('restore-file-input');
+  if(input)input.click();
 };
 
-window.confirmarRestaurar = function(input){
-  const file = input.files[0];
-  if(!file) return;
-  if(!confirm(`⚠️ ¿Restaurar datos desde "${file.name}"?\n\nEsto reemplazará TODOS los datos actuales. Esta acción no se puede deshacer.`)) return;
-  const reader = new FileReader();
-  reader.onload = function(e){
+window.confirmarRestaurar=function(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(!confirm(`⚠️ ¿Restaurar datos desde "${file.name}"?\n\nEsto reemplazará TODOS los datos actuales. Esta acción no se puede deshacer.`))return;
+  const reader=new FileReader();
+  reader.onload=function(e){
     try{
-      const restored = JSON.parse(e.target.result);
-      if(!restored.ventas || !restored.productos){ alert('Archivo inválido — no parece un backup de NickGestión'); return; }
-      restored._lastSaved = Date.now();
-      data = restored;
-      save(data);
-      render();
+      const restored=JSON.parse(e.target.result);
+      if(!restored.ventas||!restored.productos){alert('Archivo inválido — no parece un backup de NickGestión');return;}
+      restored._lastSaved=Date.now();
+      data=restored;
+      save(data);render();
       mostrarToast('✅ Datos restaurados correctamente');
-    } catch(err){
-      alert('Error al leer el archivo: ' + err.message);
-    }
+    }catch(err){alert('Error al leer el archivo: '+err.message);}
   };
   reader.readAsText(file);
-  input.value = '';
-};
-
-window.copiarPedido = function(){
-  const sinStock = data.productos.filter(p => p.stock <= 0);
-  if(!sinStock.length){ mostrarToast('No hay productos sin stock'); return; }
-  const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  let txt = `📦 *LISTA DE PEDIDO — Nickcel*\n📅 ${fecha}\n\n`;
-  sinStock.forEach((p,i)=>{
-    const qty = document.getElementById(`qty-pedido-${p.id}`)?.value || 1;
-    txt += `${i+1}. ${p.nombre}${p.codigo?' ('+p.codigo+')':''} — Cant: ${qty}\n`;
-  });
-  txt += `\nTotal: ${sinStock.length} producto${sinStock.length>1?'s':''} a reponer`;
-  navigator.clipboard.writeText(txt).then(()=>mostrarToast('✅ Lista copiada al portapapeles')).catch(()=>mostrarToast('No se pudo copiar'));
-};
-
-window.imprimirPedido = function(){
-  const sinStock = data.productos.filter(p => p.stock <= 0);
-  if(!sinStock.length) return;
-  const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const filas = sinStock.map((p,i)=>{
-    const cat = getCat(p.categoriaId);
-    const qty = document.getElementById(`qty-pedido-${p.id}`)?.value || 1;
-    return`<tr><td>${i+1}</td><td>${p.nombre}</td><td>${cat?cat.nombre:'—'}</td><td>${p.codigo||'—'}</td><td style="text-align:center;font-weight:700">${qty}</td></tr>`;
-  }).join('');
-  const w = window.open('','_blank');
-  w.document.write(`<html><head><title>Pedido — Nickcel</title>
-  <style>body{font-family:sans-serif;padding:24px;color:#1a2236}h2{color:#0f172a;margin-bottom:4px}.sub{font-size:12px;color:#666;margin-bottom:20px}
-  table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f4f8;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#4a5568}
-  td{padding:9px 12px;border-bottom:1px solid #eee}tr:last-child td{border-bottom:none}.total{margin-top:16px;font-size:13px;color:#666}
-  .footer{margin-top:24px;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px}</style></head>
-  <body><h2>📦 Lista de pedido — Nickcel Tecno & Hogar</h2>
-  <div class="sub">Fecha: ${fecha} · Productos sin stock: ${sinStock.length}</div>
-  <table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad a pedir</th></tr></thead>
-  <tbody>${filas}</tbody></table>
-  <div class="total">Total de productos a reponer: <strong>${sinStock.length}</strong></div>
-  <div class="footer">Generado por NickGestión · ${fecha}</div>
-  </body></html>`);
-  w.document.close(); w.print();
+  input.value='';
 };
 
 function renderUsuarios(){
@@ -557,8 +559,13 @@ function renderUsuarios(){
 }
 
 function renderDash(){
+  const mesSel=window._dashMes||mesActual();
+  const esHoy=mesSel===mesActual();
+  const mesesDisp=[...new Set(data.ventas.map(v=>v.mes).filter(Boolean))].sort().reverse();
+  if(!mesesDisp.includes(mesActual()))mesesDisp.unshift(mesActual());
+
   const totalV=data.ventas.reduce((s,v)=>s+v.total,0),cobrado=data.ventas.reduce((s,v)=>s+v.cobrado,0);
-  const mes=mesActual(),comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
+  const mes=mesSel,comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
   const prodBajo=data.productos.filter(p=>p.stock<=3);
   const cobradoEfectivo=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0);
   const cobradoMP=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0);
@@ -594,6 +601,12 @@ function renderDash(){
   const chequesProximos=chequesPendientes.filter(c=>c.fechaPago<=en2dStr);
   const totalChequesPendientes=chequesPendientes.reduce((s,c)=>s+c.monto,0);
   return`<div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <select onchange="window._dashMes=this.value;render()" style="padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:var(--dark2);color:var(--text);font-size:12px;cursor:pointer">
+      ${mesesDisp.map(m=>{const [y,mo]=m.split('-');const label=new Date(+y,+mo-1,1).toLocaleString('es-AR',{month:'long',year:'numeric'});const cap=label.charAt(0).toUpperCase()+label.slice(1);return`<option value="${m}" ${m===mesSel?'selected':''}>${cap}${m===mesActual()?' (actual)':''}</option>`;}).join('')}
+    </select>
+    ${!esHoy?`<span style="background:rgba(245,158,11,0.15);color:#fbbf24;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">📅 Viendo mes anterior</span>`:''}
+  </div>
   ${(()=>{const notifsCaja=(data.turnosCaja||[]).filter(t=>t.cierre&&!t.vistoPorAdmin);if(notifsCaja.length===0)return'';return`<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px;cursor:pointer" onclick="tab='caja';render()">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px">
@@ -3104,7 +3117,34 @@ function bindApp(){
   document.querySelectorAll('.nav-tab').forEach(b=>{b.onclick=()=>{tab=b.dataset.tab;render();};});
 
   const svi=q('scan-venta-input');
-  if(svi){svi.focus();svi.onkeydown=e=>{if(e.key==='Enter'){const cod=svi.value.trim();if(!cod)return;const prod=getProd(cod);if(!prod){showFeedback('scan-venta-feedback','Código no encontrado: '+cod,'err');svi.value='';return;}if(prod.stock<=0){showFeedback('scan-venta-feedback',prod.nombre+' — sin stock','err');svi.value='';return;}const ex=carrito.find(i=>i.productoId===prod.id);if(ex)ex.qty++;else carrito.push({productoId:prod.id,nombre:prod.nombre,codigo:prod.codigo,categoriaId:prod.categoriaId,precio:prod.precio,qty:1});showFeedback('scan-venta-feedback','✓ '+prod.nombre+' agregado','ok');svi.value='';render();}};}
+  if(svi){
+    svi.focus();
+    if(!window._scanAutoFocusVenta){
+      window._scanAutoFocusVenta=true;
+      document.addEventListener("click",function(e){
+        const el=document.getElementById("scan-venta-input");
+        if(!el)return;
+        const tag=e.target.tagName;
+        if(tag==="INPUT"||tag==="SELECT"||tag==="TEXTAREA"||tag==="BUTTON")return;
+        el.focus();
+      });
+    }
+    svi.onkeydown=function(e){
+      if(e.key!=="Enter")return;
+      const cod=svi.value.trim();
+      if(!cod)return;
+      const prod=getProd(cod);
+      if(!prod){showFeedback("scan-venta-feedback","Código no encontrado: "+cod,"err");svi.value="";return;}
+      if(prod.stock<=0){showFeedback("scan-venta-feedback",prod.nombre+" — sin stock","err");svi.value="";return;}
+      const ex=carrito.find(i=>i.productoId===prod.id);
+      if(ex)ex.qty++;
+      else carrito.push({productoId:prod.id,nombre:prod.nombre,codigo:prod.codigo,categoriaId:prod.categoriaId,precio:prod.precio,qty:1});
+      showFeedback("scan-venta-feedback","✓ "+prod.nombre+" agregado al carrito","ok");
+      svi.value="";
+      render();
+      setTimeout(()=>{const el=document.getElementById("scan-venta-input");if(el)el.focus();},80);
+    };
+  }
 
   document.querySelectorAll('.carrito-plus').forEach(b=>{b.onclick=()=>{if(carrito[b.dataset.idx])carrito[b.dataset.idx].qty++;render();};});
   document.querySelectorAll('.carrito-minus').forEach(b=>{b.onclick=()=>{const idx=parseInt(b.dataset.idx);if(carrito[idx]){carrito[idx].qty--;if(carrito[idx].qty<=0)carrito.splice(idx,1);}render();};});
