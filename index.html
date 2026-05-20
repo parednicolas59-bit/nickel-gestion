@@ -247,6 +247,13 @@ let _guardando=false;
 
 async function initApp(){
   document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando...</div></div></div>';
+
+  // Parchear _fbSave para activar flag mientras guarda
+  if(window._fbSave){
+    const _orig=window._fbSave;
+    window._fbSave=async function(d){_guardando=true;await _orig(d);setTimeout(()=>{_guardando=false;},2500);};
+  }
+
   try{
     const fbData=await Promise.race([
       loadFromFirebase(),
@@ -279,10 +286,6 @@ async function initApp(){
     });
   }
 }
-
-const _origFbSave=window._fbSave;
-if(_origFbSave){window._fbSave=async function(d){_guardando=true;await _origFbSave(d);setTimeout(()=>{_guardando=false;},2500);};}
-
 
 if(window._firebaseReady){initApp();}
 else{document.addEventListener('firebase-ready',initApp);setTimeout(()=>{if(!_fbInitialized)initApp();},2000);}
