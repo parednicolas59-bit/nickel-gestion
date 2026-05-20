@@ -120,7 +120,7 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, getDocs, writeBatch, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBtc6hpLaOc7LdxSw7R_uK7b3GcKF3N7As",
@@ -133,208 +133,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const DOC_REF = doc(db, "nickel", "data");
 
-// ── NUEVA ARQUITECTURA: colecciones separadas ──────────────────────
-// nickel/config  → usuarios, categorias, vendedores, nextId, proveedores, etc.
-// nickel/productos/{id} → cada producto su propio documento
-// nickel/ventas/{id}    → cada venta su propio documento
-// nickel/egresos/{id}, nickel/cobros/{id}, etc.
-// ──────────────────────────────────────────────────────────────────
-
-const CONFIG_REF = doc(db, "nickel", "config");
-const LEGACY_REF = doc(db, "nickel", "data"); // para migración
-
-// Guardar config (no-array: users, categorias, vendedores, nextId, proveedores)
-window._fbSaveConfig = async function(d) {
-  try {
-    const config = {
-      users: d.users,
-      categorias: d.categorias,
-      vendedores: d.vendedores,
-      proveedores: d.proveedores || [],
-      nextId: d.nextId,
-      nbch: d.nbch || [],
-      brubank: d.brubank || [],
-      galicia: d.galicia || [],
-      mercadopago: d.mercadopago || [],
-      supervielle: d.supervielle || [],
-      cobranzaCredivip: d.cobranzaCredivip || [],
-      cobranzaRapicuota: d.cobranzaRapicuota || [],
-      cobranzaPagares: d.cobranzaPagares || [],
-      cheques: d.cheques || [],
-      cierres: d.cierres || [],
-      creditos: d.creditos || [],
-      turnosCaja: d.turnosCaja || [],
-      caja: d.caja || [],
-      contactos: d.contactos || [],
-      _lastSaved: Date.now()
-    };
-    await setDoc(CONFIG_REF, config);
-  } catch(e) { console.error("fbSaveConfig error:", e); }
-};
-
-// Guardar un producto individual
-window._fbSaveProducto = async function(producto) {
-  try {
-    const ref = doc(db, "nickel_productos", String(producto.id));
-    await setDoc(ref, { ...producto, _lastSaved: Date.now() });
-  } catch(e) { console.error("fbSaveProducto error:", e); }
-};
-
-// Guardar una venta individual
-window._fbSaveVenta = async function(venta) {
-  try {
-    const ref = doc(db, "nickel_ventas", String(venta.id));
-    await setDoc(ref, { ...venta, _lastSaved: Date.now() });
-  } catch(e) { console.error("fbSaveVenta error:", e); }
-};
-
-// Eliminar una venta
-window._fbDeleteVenta = async function(id) {
-  try {
-    await deleteDoc(doc(db, "nickel_ventas", String(id)));
-  } catch(e) { console.error("fbDeleteVenta error:", e); }
-};
-
-// Cargar todo desde Firebase
-window._fbLoad = async function() {
-  try {
-    // 1. Intentar cargar de colecciones nuevas
-    const configSnap = await getDoc(CONFIG_REF);
-    if (configSnap.exists()) {
-      const config = configSnap.data();
-
-      // Cargar productos
-      const prodSnap = await getDocs(collection(db, "nickel_productos"));
-      const productos = [];
-      prodSnap.forEach(d => productos.push(d.data()));
-      productos.sort((a,b) => a.id - b.id);
-
-      // Cargar ventas
-      const ventaSnap = await getDocs(collection(db, "nickel_ventas"));
-      const ventas = [];
-      ventaSnap.forEach(d => ventas.push(d.data()));
-      ventas.sort((a,b) => b.id - a.id);
-
-      // Solo retornar si hay productos (nueva estructura completa)
-      if (productos.length > 0) {
-        return { ...config, productos, ventas };
-      }
-    }
-
-    // 2. Fallback al documento legacy
-    const legacySnap = await getDoc(LEGACY_REF);
-    if (legacySnap.exists()) {
-      return JSON.parse(legacySnap.data().payload);
-    }
-
-    return null;
-  } catch(e) {
-    console.error("fbLoad error:", e);
-    // Último fallback: legacy
-    try {
-      const legacySnap = await getDoc(LEGACY_REF);
-      if (legacySnap.exists()) return JSON.parse(legacySnap.data().payload);
-    } catch(e2) {}
-    return null;
-  }
-};
-
-// Migrar de documento único a colecciones
-window._fbMigrar = async function(d) {
-  try {
-    console.log("Migrando a nueva estructura Firebase...");
-    const batch = writeBatch(db);
-
-    // Guardar config
-    const config = {
-      users: d.users || [],
-      categorias: d.categorias || [],
-      vendedores: d.vendedores || [],
-      proveedores: d.proveedores || [],
-      nextId: d.nextId || {},
-      nbch: d.nbch || [],
-      brubank: d.brubank || [],
-      galicia: d.galicia || [],
-      mercadopago: d.mercadopago || [],
-      supervielle: d.supervielle || [],
-      cobranzaCredivip: d.cobranzaCredivip || [],
-      cobranzaRapicuota: d.cobranzaRapicuota || [],
-      cobranzaPagares: d.cobranzaPagares || [],
-      cheques: d.cheques || [],
-      cierres: d.cierres || [],
-      creditos: d.creditos || [],
-      turnosCaja: d.turnosCaja || [],
-      caja: d.caja || [],
-      contactos: d.contactos || [],
-      _lastSaved: Date.now()
-    };
-    batch.set(CONFIG_REF, config);
-    await batch.commit();
-
-    // Productos (en lotes de 20 para no exceder límite de batch)
-    const prods = d.productos || [];
-    for (let i = 0; i < prods.length; i += 20) {
-      const b2 = writeBatch(db);
-      prods.slice(i, i+20).forEach(p => {
-        b2.set(doc(db, "nickel_productos", String(p.id)), { ...p, _lastSaved: Date.now() });
-      });
-      await b2.commit();
-    }
-
-    // Ventas
-    const ventas = d.ventas || [];
-    for (let i = 0; i < ventas.length; i += 20) {
-      const b3 = writeBatch(db);
-      ventas.slice(i, i+20).forEach(v => {
-        b3.set(doc(db, "nickel_ventas", String(v.id)), { ...v, _lastSaved: Date.now() });
-      });
-      await b3.commit();
-    }
-
-    console.log("Migración completada ✅");
-  } catch(e) { console.error("Migración error:", e); }
-};
-
-// ── LISTENERS en tiempo real POR COLECCIÓN ─────────────────────────
-// Cada listener solo actualiza su parte — nunca pisa todo el objeto
-window._fbListen = function(onConfig, onProducto, onVenta) {
-  const unsubs = [];
-
-  // Config
-  unsubs.push(onSnapshot(CONFIG_REF, snap => {
-    if (snap.exists()) onConfig(snap.data());
-  }));
-
-  // Productos — solo llega el producto que cambió
-  unsubs.push(onSnapshot(collection(db, "nickel_productos"), snap => {
-    snap.docChanges().forEach(change => {
-      onProducto(change.type, change.doc.data());
-    });
-  }));
-
-  // Ventas — solo llega la venta que cambió
-  unsubs.push(onSnapshot(collection(db, "nickel_ventas"), snap => {
-    snap.docChanges().forEach(change => {
-      onVenta(change.type, change.doc.data());
-    });
-  }));
-
-  return () => unsubs.forEach(u => u());
-};
-
-// Compatibilidad: save completo (para backup/restaurar)
 window._fbSave = async function(d) {
-  await window._fbSaveConfig(d);
-  // Guardar productos y ventas modificados
-  for (const p of (d.productos || [])) {
-    await window._fbSaveProducto(p);
-  }
-  for (const v of (d.ventas || [])) {
-    await window._fbSaveVenta(v);
-  }
+  try { await setDoc(DOC_REF, { payload: JSON.stringify(d) }); } catch(e) { console.error("Firebase save error:", e); }
 };
-
+window._fbLoad = async function() {
+  try { const snap = await getDoc(DOC_REF); if(snap.exists()) return JSON.parse(snap.data().payload); } catch(e) { console.error("Firebase load error:", e); }
+  return null;
+};
+window._fbListen = function(callback) {
+  return onSnapshot(DOC_REF, (snap) => {
+    if(snap.exists()) { try { const d = JSON.parse(snap.data().payload); callback(d); } catch(e) {} }
+  });
+};
 window._firebaseReady = true;
 document.dispatchEvent(new Event('firebase-ready'));
 </script>
@@ -420,160 +232,66 @@ async function loadFromFirebase(){
   }
   return load();
 }
-// ── SAVE: granular según qué cambió ───────────────────────────────
-function save(d, opts = {}) {
-  d._lastSaved = Date.now();
-  try { localStorage.setItem(SK, JSON.stringify(d)); } catch(e) {}
-
-  if (!window._firebaseReady) return;
-
-  if (opts.producto) {
-    // Solo guardar el producto que cambió
-    window._fbSaveProducto(opts.producto);
-    window._fbSaveConfig(d); // nextId y config
-  } else if (opts.venta) {
-    window._fbSaveVenta(opts.venta);
-    window._fbSaveConfig(d);
-    // Si la venta descuenta stock, guardar esos productos también
-    if (opts.productosAfectados) {
-      opts.productosAfectados.forEach(p => window._fbSaveProducto(p));
-    }
-  } else if (opts.deleteVenta) {
-    window._fbDeleteVenta(opts.deleteVenta);
-    window._fbSaveConfig(d);
-    if (opts.productosAfectados) {
-      opts.productosAfectados.forEach(p => window._fbSaveProducto(p));
-    }
-  } else {
-    // Guardado completo (backup, config general)
-    window._fbSaveConfig(d);
-    if (opts.todosProductos) {
-      d.productos.forEach(p => window._fbSaveProducto(p));
-    }
-  }
+function save(d){
+  d._lastSaved=Date.now();
+  try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
+  if(window._firebaseReady&&window._fbSave)window._fbSave(d);
 }
 
-// ── MIGRATE ────────────────────────────────────────────────────────
-function migrate(d) {
-  if (!d) return d;
-  if (!d.users || d.users.length === 0) d.users = JSON.parse(JSON.stringify(def.users));
-  if (!d.creditos) d.creditos = [];
-  if (!d.nextId.credito) d.nextId.credito = 1;
-  if (!d.proveedores) d.proveedores = [];
-  if (!d.nextId.proveedor) d.nextId.proveedor = 1;
-  if (!d.nbch) d.nbch = [];
-  if (!d.nextId.nbch) d.nextId.nbch = 1;
-  if (!d.brubank) d.brubank = [];
-  if (!d.nextId.brubank) d.nextId.brubank = 1;
-  if (!d.galicia) d.galicia = [];
-  if (!d.nextId.galicia) d.nextId.galicia = 1;
-  if (!d.mercadopago) d.mercadopago = [];
-  if (!d.nextId.mercadopago) d.nextId.mercadopago = 1;
-  if (!d.supervielle) d.supervielle = [];
-  if (!d.nextId.supervielle) d.nextId.supervielle = 1;
-  if (!d.cheques) d.cheques = [];
-  if (!d.nextId.cheque) d.nextId.cheque = 1;
-  if (!d.cobranzaCredivip) d.cobranzaCredivip = [];
-  if (!d.nextId.cobranzaCredivip) d.nextId.cobranzaCredivip = 1;
-  if (!d.cobranzaRapicuota) d.cobranzaRapicuota = [];
-  if (!d.nextId.cobranzaRapicuota) d.nextId.cobranzaRapicuota = 1;
-  if (!d.cobranzaPagares) d.cobranzaPagares = [];
-  if (!d.nextId.cobranzaPagares) d.nextId.cobranzaPagares = 1;
-  if (!d.turnosCaja) d.turnosCaja = [];
-  if (!d.nextId.turno) d.nextId.turno = 1;
-  d.ventas.forEach(v => { if (v.medioPago === 'transferencia') { v.medioPago = 'mercadopago'; if (!v.mpSubtipo) v.mpSubtipo = 'transferencia'; } });
-  d.productos.forEach(p => { if (p.costo === undefined) p.costo = 0; if (p.proveedorId === undefined) p.proveedorId = null; });
-  return d;
-}
+let data=load(),currentUser=null,tab='dashboard',modal=null,carrito=[],filtroCategoria=null;
+let modalProdSeleccionado=null;
+let scanFeedbackTimer=null;
+let _fbUnsubscribe=null;
+let _fbInitialized=false;
+let _guardando=false;
 
-let data = load(), currentUser = null, tab = 'dashboard', modal = null, carrito = [], filtroCategoria = null;
-let modalProdSeleccionado = null;
-let scanFeedbackTimer = null;
-let _fbInitialized = false;
-
-async function initApp() {
-  document.getElementById('root').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando...</div></div></div>';
-
-  // 1. Cargar desde Firebase — primero intenta colecciones nuevas, si no hay datos cae al legacy
-  try {
-    const fbData = await Promise.race([
-      window._fbLoad(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+async function initApp(){
+  document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando...</div></div></div>';
+  try{
+    const fbData=await Promise.race([
+      loadFromFirebase(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000))
     ]);
-    if (fbData && fbData.productos && fbData.productos.length > 0) {
-      data = migrate(fbData);
-      try { localStorage.setItem(SK, JSON.stringify(data)); } catch(e) {}
-    } else {
-      // No hay datos en nueva estructura — usar localStorage
-      data = migrate(load());
-      // Migrar a nueva estructura en background
-      if (data && data.productos && data.productos.length > 0 && window._fbMigrar) {
-        window._fbMigrar(data); // no esperamos, lo hace en background
-      }
-    }
-  } catch(e) {
-    console.log("Firebase timeout — usando localStorage");
-    data = migrate(load());
-  }
-
-  _fbInitialized = true;
+    if(fbData)data=fbData;
+  }catch(e){console.log("Usando datos locales");}
+  _fbInitialized=true;
   render();
-
-  // 2. Listeners GRANULARES — cada uno actualiza solo su parte
-  if (window._fbListen) {
-    window._fbListen(
-      // onConfig: actualiza todo excepto productos y ventas
-      (configData) => {
-        if (!_fbInitialized) return;
-        const tsNuevo = configData._lastSaved || 0;
-        const tsActual = data._lastSaved || 0;
-        if (tsNuevo <= tsActual) return;
-        const prodActuales = data.productos;
-        const ventasActuales = data.ventas;
-        data = migrate({ ...configData, productos: prodActuales, ventas: ventasActuales });
-        try { localStorage.setItem(SK, JSON.stringify(data)); } catch(e) {}
-        if (currentUser) render();
-      },
-      // onProducto: actualiza SOLO ese producto
-      (tipo, producto) => {
-        if (!_fbInitialized || !currentUser) return;
-        const ts = producto._lastSaved || 0;
-        if (tipo === 'removed') {
-          data.productos = data.productos.filter(p => p.id !== producto.id);
-        } else {
-          const idx = data.productos.findIndex(p => p.id === producto.id);
-          const local = idx >= 0 ? data.productos[idx] : null;
-          const tsLocal = local ? (local._lastSaved || 0) : 0;
-          if (ts <= tsLocal) return;
-          if (idx >= 0) data.productos[idx] = producto;
-          else data.productos.push(producto);
-        }
-        try { localStorage.setItem(SK, JSON.stringify(data)); } catch(e) {}
-        if (currentUser && (tab === 'productos' || tab === 'dashboard')) render();
-      },
-      // onVenta: actualiza SOLO esa venta
-      (tipo, venta) => {
-        if (!_fbInitialized || !currentUser) return;
-        const ts = venta._lastSaved || 0;
-        if (tipo === 'removed') {
-          data.ventas = data.ventas.filter(v => v.id !== venta.id);
-        } else {
-          const idx = data.ventas.findIndex(v => v.id === venta.id);
-          const local = idx >= 0 ? data.ventas[idx] : null;
-          const tsLocal = local ? (local._lastSaved || 0) : 0;
-          if (ts <= tsLocal) return;
-          if (idx >= 0) data.ventas[idx] = venta;
-          else data.ventas.unshift(venta);
-        }
-        try { localStorage.setItem(SK, JSON.stringify(data)); } catch(e) {}
-        if (currentUser && (tab === 'ventas' || tab === 'dashboard')) render();
-      }
-    );
+  if(window._fbListen){
+    _fbUnsubscribe=window._fbListen((newData)=>{
+      if(!_fbInitialized||!currentUser||_guardando)return;
+      const tsNuevo=newData._lastSaved||0;
+      const tsActual=data._lastSaved||0;
+      if(tsNuevo<=tsActual)return;
+      data=newData;
+      if(!data.creditos)data.creditos=[];
+      if(!data.nextId.credito)data.nextId.credito=1;
+      if(!data.proveedores)data.proveedores=[];
+      if(!data.nextId.proveedor)data.nextId.proveedor=1;
+      if(!data.nbch)data.nbch=[];
+      if(!data.nextId.nbch)data.nextId.nbch=1;
+      if(!data.brubank)data.brubank=[];
+      if(!data.nextId.brubank)data.nextId.brubank=1;
+      if(!data.galicia)data.galicia=[];
+      if(!data.nextId.galicia)data.nextId.galicia=1;
+      data.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
+      try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
+      render();
+    });
   }
 }
 
-if (window._firebaseReady) { initApp(); }
-else { document.addEventListener('firebase-ready', initApp); setTimeout(() => { if (!_fbInitialized) initApp(); }, 2000); }
+// Parchear _fbSave para activar flag mientras guarda
+const _origFbSave=window._fbSave;
+if(_origFbSave){
+  window._fbSave=async function(d){
+    _guardando=true;
+    await _origFbSave(d);
+    setTimeout(()=>{_guardando=false;},2500);
+  };
+}
+
+if(window._firebaseReady){initApp();}
+else{document.addEventListener('firebase-ready',initApp);setTimeout(()=>{if(!_fbInitialized)initApp();},2000);}
 
 const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
 const fd=d=>d?d.split('-').reverse().join('/'):'';
@@ -616,8 +334,8 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','pedidos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',pedidos:'📦 Pedidos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   // Caja solo para admin y Yamila (userId 2)
   const tieneCaja=currentUser.role==='admin'||currentUser.id===2;
   const tabsVendedor=['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
@@ -627,7 +345,7 @@ function renderApp(){
     <div class="topbar">
       <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
       <div class="nav-tabs">${tabs.map(t=>`<button class="nav-tab${t===tab?' active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}</div>
-      <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span>${(currentUser.role==='admin'||currentUser.id===2)?`<button onclick="exportarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.12);color:#4ade80;cursor:pointer;font-family:inherit" title="Descargar backup">💾 Backup</button>`:''} ${currentUser.role==='admin'?`<button onclick="restaurarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);color:#fbbf24;cursor:pointer;font-family:inherit" title="Restaurar backup">📂 Restaurar</button><input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmarRestaurar(this)">`:''}<button class="logout" id="logout-btn">Salir</button></div>
+      <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span><button class="logout" id="logout-btn">Salir</button></div>
     </div>
     <div class="content">${renderTab()}</div>
     ${modal?renderModal():''}
@@ -639,7 +357,6 @@ function renderTab(){
   if(tab==='ventas')return renderVentas();
   if(tab==='egresos')return renderEgresos();
   if(tab==='productos')return renderProductos();
-  if(tab==='pedidos')return renderPedidos();
   if(tab==='proveedores')return renderProveedores();
   if(tab==='contactos')return renderContactos();
   if(tab==='vendedores')return renderVendedores();
@@ -660,113 +377,6 @@ function renderTab(){
   if(tab==='financiera')return renderFinanciera();
   return '';
 }
-
-function renderPedidos(){
-  const sinStock=data.productos.filter(p=>p.stock<=0);
-  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  return`<div>
-    <div class="section-header">
-      <span style="font-size:17px;font-weight:500">📦 Lista de pedidos</span>
-      <div style="display:flex;gap:8px;align-items:center">
-        <span style="font-size:11px;color:var(--text2)">${fecha}</span>
-        ${sinStock.length>0?`<button class="btn" onclick="copiarPedido()" style="font-size:11px;padding:5px 12px">📋 Copiar para WhatsApp</button>`:''}
-        ${sinStock.length>0?`<button class="btn" onclick="imprimirPedido()" style="font-size:11px;padding:5px 12px">🖨 Imprimir</button>`:''}
-      </div>
-    </div>
-    ${sinStock.length===0?`
-      <div style="text-align:center;padding:60px 20px;color:var(--text2)">
-        <div style="font-size:40px;margin-bottom:12px">✅</div>
-        <div style="font-size:15px;font-weight:500;margin-bottom:6px">Todo en stock</div>
-        <div style="font-size:12px;color:var(--text2)">No hay productos con stock 0</div>
-      </div>
-    `:`
-      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
-        <span style="font-size:18px">⚠️</span>
-        <div><div style="font-size:13px;font-weight:600;color:#f87171">${sinStock.length} producto${sinStock.length>1?'s':''} sin stock</div><div style="font-size:11px;color:var(--text2)">Necesitan reposición</div></div>
-      </div>
-      <div class="card" style="overflow:hidden">
-        <table>
-          <thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Precio venta</th><th style="text-align:center">Stock</th><th>Cant. a pedir</th></tr></thead>
-          <tbody>${sinStock.map((p,i)=>{const cat=getCat(p.categoriaId);return`<tr>
-            <td style="color:var(--text2);font-size:12px">${i+1}</td>
-            <td style="font-weight:500">${p.nombre}</td>
-            <td style="color:var(--text2)">${cat?cat.nombre:'—'}</td>
-            <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2)">${p.codigo||'—'}</td>
-            <td>${fmt(p.precio)}</td>
-            <td style="text-align:center"><span style="background:rgba(239,68,68,0.15);color:#f87171;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">SIN STOCK</span></td>
-            <td><input type="number" min="1" value="1" id="qty-pedido-${p.id}" style="width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--dark2);color:var(--text);font-size:12px;text-align:center"></td>
-          </tr>`;}).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-        <button class="btn" onclick="copiarPedido()" style="font-size:12px;padding:7px 16px">📋 Copiar para WhatsApp</button>
-        <button class="btn primary" onclick="imprimirPedido()" style="font-size:12px;padding:7px 16px">🖨 Imprimir lista</button>
-      </div>
-    `}
-  </div>`;
-}
-
-window.copiarPedido=function(){
-  const sinStock=data.productos.filter(p=>p.stock<=0);
-  if(!sinStock.length){mostrarToast('No hay productos sin stock');return;}
-  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  let txt=`📦 *LISTA DE PEDIDO — Nickcel*\n📅 ${fecha}\n\n`;
-  sinStock.forEach((p,i)=>{const qty=document.getElementById(`qty-pedido-${p.id}`)?.value||1;txt+=`${i+1}. ${p.nombre}${p.codigo?' ('+p.codigo+')':''} — Cant: ${qty}\n`;});
-  txt+=`\nTotal: ${sinStock.length} producto${sinStock.length>1?'s':''} a reponer`;
-  navigator.clipboard.writeText(txt).then(()=>mostrarToast('✅ Lista copiada')).catch(()=>mostrarToast('No se pudo copiar'));
-};
-
-window.imprimirPedido=function(){
-  const sinStock=data.productos.filter(p=>p.stock<=0);
-  if(!sinStock.length)return;
-  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const filas=sinStock.map((p,i)=>{const cat=getCat(p.categoriaId);const qty=document.getElementById(`qty-pedido-${p.id}`)?.value||1;return`<tr><td>${i+1}</td><td>${p.nombre}</td><td>${cat?cat.nombre:'—'}</td><td>${p.codigo||'—'}</td><td style="text-align:center;font-weight:700">${qty}</td></tr>`;}).join('');
-  const w=window.open('','_blank');
-  w.document.write(`<html><head><title>Pedido — Nickcel</title><style>body{font-family:sans-serif;padding:24px;color:#1a2236}h2{color:#0f172a;margin-bottom:4px}.sub{font-size:12px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f4f8;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#4a5568}td{padding:9px 12px;border-bottom:1px solid #eee}.footer{margin-top:24px;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px}</style></head><body><h2>📦 Lista de pedido — Nickcel Tecno & Hogar</h2><div class="sub">Fecha: ${fecha} · Productos sin stock: ${sinStock.length}</div><table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad a pedir</th></tr></thead><tbody>${filas}</tbody></table><div class="footer">Generado por NickGestión · ${fecha}</div></body></html>`);
-  w.document.close();w.print();
-};
-
-window.exportarBackup=function(){
-  const fecha=new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
-  const nombre=`nickgestion_backup_${fecha}.json`;
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=nombre;a.click();
-  URL.revokeObjectURL(url);
-  mostrarToast(`✅ Backup guardado: ${nombre}`);
-};
-
-window.restaurarBackup=function(){
-  const input=document.getElementById('restore-file-input');
-  if(input)input.click();
-};
-
-window.confirmarRestaurar=function(input){
-  const file=input.files[0];
-  if(!file)return;
-  if(!confirm(`⚠️ ¿Restaurar datos desde "${file.name}"?\n\nEsto reemplazará TODOS los datos actuales. Esta acción no se puede deshacer.`))return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      const restored=JSON.parse(e.target.result);
-      if(!restored.ventas||!restored.productos){alert('Archivo inválido — no parece un backup de NickGestión');return;}
-      restored._lastSaved=Date.now();
-      data=restored;
-      // Migrar a nueva estructura Firebase
-      if(window._fbMigrar){
-        mostrarToast('⏳ Migrando datos a Firebase...');
-        window._fbMigrar(restored).then(()=>mostrarToast('✅ Datos restaurados y migrados'));
-      }
-      try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
-      render();
-      mostrarToast('✅ Datos restaurados correctamente');
-    }catch(err){alert('Error al leer el archivo: '+err.message);}
-  };
-  reader.readAsText(file);
-  input.value='';
-};
 
 function renderUsuarios(){
   const roleColors={admin:'#38bdf8',vendedor:'#a78bfa'};
@@ -802,13 +412,8 @@ function renderUsuarios(){
 }
 
 function renderDash(){
-  const mesSel=window._dashMes||mesActual();
-  const esHoy=mesSel===mesActual();
-  const mesesDisp=[...new Set(data.ventas.map(v=>v.mes).filter(Boolean))].sort().reverse();
-  if(!mesesDisp.includes(mesActual()))mesesDisp.unshift(mesActual());
-
   const totalV=data.ventas.reduce((s,v)=>s+v.total,0),cobrado=data.ventas.reduce((s,v)=>s+v.cobrado,0);
-  const mes=mesSel,comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
+  const mes=mesActual(),comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
   const prodBajo=data.productos.filter(p=>p.stock<=3);
   const cobradoEfectivo=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0);
   const cobradoMP=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0);
@@ -844,12 +449,6 @@ function renderDash(){
   const chequesProximos=chequesPendientes.filter(c=>c.fechaPago<=en2dStr);
   const totalChequesPendientes=chequesPendientes.reduce((s,c)=>s+c.monto,0);
   return`<div>
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-    <select onchange="window._dashMes=this.value;render()" style="padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:var(--dark2);color:var(--text);font-size:12px;cursor:pointer">
-      ${mesesDisp.map(m=>{const [y,mo]=m.split('-');const label=new Date(+y,+mo-1,1).toLocaleString('es-AR',{month:'long',year:'numeric'});const cap=label.charAt(0).toUpperCase()+label.slice(1);return`<option value="${m}" ${m===mesSel?'selected':''}>${cap}${m===mesActual()?' (actual)':''}</option>`;}).join('')}
-    </select>
-    ${!esHoy?`<span style="background:rgba(245,158,11,0.15);color:#fbbf24;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">📅 Viendo mes anterior</span>`:''}
-  </div>
   ${(()=>{const notifsCaja=(data.turnosCaja||[]).filter(t=>t.cierre&&!t.vistoPorAdmin);if(notifsCaja.length===0)return'';return`<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px;cursor:pointer" onclick="tab='caja';render()">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px">
@@ -860,18 +459,6 @@ function renderDash(){
         </div>
       </div>
       <span style="font-size:11px;color:#fbbf24;padding:4px 10px;border:1px solid rgba(245,158,11,0.3);border-radius:8px">Ver →</span>
-    </div>
-  </div>`;})()}
-  ${(()=>{const sinStock=data.productos.filter(p=>p.stock<=0);if(sinStock.length===0)return'';return`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px 16px;margin-bottom:14px;cursor:pointer" onclick="tab='pedidos';render()">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:22px">📦</span>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:#f87171">${sinStock.length} producto${sinStock.length>1?'s':''} sin stock — necesitan reposición</div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:2px">${sinStock.slice(0,3).map(p=>p.nombre).join(' · ')}${sinStock.length>3?` · +${sinStock.length-3} más`:''}</div>
-        </div>
-      </div>
-      <span style="font-size:11px;color:#f87171;padding:4px 10px;border:1px solid rgba(239,68,68,0.3);border-radius:8px">Ver pedido →</span>
     </div>
   </div>`;})()} 
   ${(nbchVencidas.length>0||brubankVencidas.length>0||galiciaVencidas.length>0||(currentUser.role==='admin'&&chequesProximos.length>0))?`<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px">
@@ -1250,17 +837,18 @@ window.buscarClienteVenta=function(val){
     }
   });
   if(!clientes.length){lista.style.display='none';return;}
-  lista.innerHTML='';
-  clientes.slice(0,10).forEach(c=>{
-    const div=document.createElement('div');
-    div.style.cssText='padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px';
-    div.addEventListener('mouseenter',function(){this.style.background='rgba(255,255,255,0.06)';});
-    div.addEventListener('mouseleave',function(){this.style.background='';});
-    const nom=c.nombre.replace(/'/g,'&#39;');
-    div.onclick=function(){elegirClienteVenta(c.nombre,c.tel,c.dni);};
-    div.innerHTML='<div style="display:flex;align-items:center;gap:6px"><span style="font-weight:500;color:#e2e8f0">'+c.nombre+'</span>'+(c.fuente==='contacto'?'<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:rgba(34,197,94,0.15);color:#4ade80">contacto</span>':'')+'</div><div style="color:#64748b;font-size:11px">'+(c.tel?'📞 '+c.tel:'Sin teléfono')+(c.dni?' · DNI '+c.dni:'')+'</div>';
-    lista.appendChild(div);
-  });
+  lista.innerHTML=clientes.slice(0,10).map(c=>`
+    <div onclick="elegirClienteVenta('${c.nombre.replace(/'/g,"\\'")}','${c.tel}','${c.dni}')"
+      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px"
+      onmouseover="this.style.background='rgba(255,255,255,0.06)'"
+      onmouseout="this.style.background=''"
+    >
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-weight:500;color:#e2e8f0">${c.nombre}</span>
+        ${c.fuente==='contacto'?`<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:rgba(34,197,94,0.15);color:#4ade80">contacto</span>`:''}
+      </div>
+      <div style="color:#64748b;font-size:11px">${c.tel?'📞 '+c.tel:'Sin teléfono'}${c.dni?' · DNI '+c.dni:''}</div>
+    </div>`).join('');
   lista.style.display='block';
 };
 window.elegirClienteVenta=function(nombre,tel,dni){
@@ -2216,7 +1804,7 @@ function renderCategorias(){
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Categorías</span><button class="btn primary" id="nueva-cat-btn">+ Nueva categoría</button></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
-      ${data.categorias.map(c=>`<div onclick="irACategoria(${c.id})" style="background:var(--dark2);border:1px solid var(--border);border-left:3px solid ${c.color};border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .15s" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+      ${data.categorias.map(c=>`<div onclick="irACategoria(${c.id})" style="background:var(--dark2);border:1px solid var(--border);border-left:3px solid ${c.color};border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='var(--dark2)'">
         <div><div style="font-size:14px;font-weight:500">${c.nombre}</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">${data.productos.filter(p=>p.categoriaId===c.id).length} productos</div></div>
         <button class="btn danger" data-del-cat="${c.id}" style="font-size:11px;padding:3px 7px" onclick="event.stopPropagation()">✕</button>
       </div>`).join('')}
@@ -2434,7 +2022,7 @@ function renderCaja(){
           <div style="font-size:12px;color:#94a3b8">¿Con cuánto efectivo abrís la caja hoy?</div>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:18px;color:#4ade80;font-weight:700">$</span>
-            <input type="number" id="inp-saldo-apertura" placeholder="0" min="0" step="100" style="background:rgba(255,255,255,0.1);border:2px solid rgba(74,222,128,0.4);border-radius:8px;padding:10px 14px;color:#e2e8f0;font-size:18px;width:180px;text-align:center;outline:none" onfocus="this.style.outline='none'" onblur="this.style.outline='none'">
+            <input type="number" id="inp-saldo-apertura" placeholder="0" min="0" step="100" style="background:rgba(255,255,255,0.1);border:2px solid rgba(74,222,128,0.4);border-radius:8px;padding:10px 14px;color:#e2e8f0;font-size:18px;width:180px;text-align:center;outline:none" onfocus="this.style.borderColor='rgba(74,222,128,0.8)'" onblur="this.style.borderColor='rgba(74,222,128,0.4)'">
           </div>
           <div style="font-size:11px;color:#64748b">Podés dejar en 0 si no tenés cambio al inicio</div>
           <button class="btn success" id="btn-abrir-turno" style="padding:10px 24px;font-size:14px;margin-top:4px">🟢 Abrir turno</button>
@@ -3359,34 +2947,7 @@ function bindApp(){
   document.querySelectorAll('.nav-tab').forEach(b=>{b.onclick=()=>{tab=b.dataset.tab;render();};});
 
   const svi=q('scan-venta-input');
-  if(svi){
-    svi.focus();
-    if(!window._scanAutoFocusVenta){
-      window._scanAutoFocusVenta=true;
-      document.addEventListener("click",function(e){
-        const el=document.getElementById("scan-venta-input");
-        if(!el)return;
-        const tag=e.target.tagName;
-        if(tag==="INPUT"||tag==="SELECT"||tag==="TEXTAREA"||tag==="BUTTON")return;
-        el.focus();
-      });
-    }
-    svi.onkeydown=function(e){
-      if(e.key!=="Enter")return;
-      const cod=svi.value.trim();
-      if(!cod)return;
-      const prod=getProd(cod);
-      if(!prod){showFeedback("scan-venta-feedback","Código no encontrado: "+cod,"err");svi.value="";return;}
-      if(prod.stock<=0){showFeedback("scan-venta-feedback",prod.nombre+" — sin stock","err");svi.value="";return;}
-      const ex=carrito.find(i=>i.productoId===prod.id);
-      if(ex)ex.qty++;
-      else carrito.push({productoId:prod.id,nombre:prod.nombre,codigo:prod.codigo,categoriaId:prod.categoriaId,precio:prod.precio,qty:1});
-      showFeedback("scan-venta-feedback","✓ "+prod.nombre+" agregado al carrito","ok");
-      svi.value="";
-      render();
-      setTimeout(()=>{const el=document.getElementById("scan-venta-input");if(el)el.focus();},80);
-    };
-  }
+  if(svi){svi.focus();svi.onkeydown=e=>{if(e.key==='Enter'){const cod=svi.value.trim();if(!cod)return;const prod=getProd(cod);if(!prod){showFeedback('scan-venta-feedback','Código no encontrado: '+cod,'err');svi.value='';return;}if(prod.stock<=0){showFeedback('scan-venta-feedback',prod.nombre+' — sin stock','err');svi.value='';return;}const ex=carrito.find(i=>i.productoId===prod.id);if(ex)ex.qty++;else carrito.push({productoId:prod.id,nombre:prod.nombre,codigo:prod.codigo,categoriaId:prod.categoriaId,precio:prod.precio,qty:1});showFeedback('scan-venta-feedback','✓ '+prod.nombre+' agregado','ok');svi.value='';render();}};}
 
   document.querySelectorAll('.carrito-plus').forEach(b=>{b.onclick=()=>{if(carrito[b.dataset.idx])carrito[b.dataset.idx].qty++;render();};});
   document.querySelectorAll('.carrito-minus').forEach(b=>{b.onclick=()=>{const idx=parseInt(b.dataset.idx);if(carrito[idx]){carrito[idx].qty--;if(carrito[idx].qty<=0)carrito.splice(idx,1);}render();};});
@@ -3395,7 +2956,7 @@ function bindApp(){
   const cvsb=q('confirmar-venta-scan-btn');if(cvsb)cvsb.onclick=()=>{if(carrito.length>0){modal={type:'confirmar-venta-scan'};render();}};
 
   const ssi=q('scan-stock-input'),ssb=q('scan-stock-btn');
-  if(ssi&&ssb){const doScan=()=>{const cod=ssi.value.trim(),qty=parseInt(q('scan-stock-qty')?.value)||1;if(!cod)return;const prod=getProd(cod);if(!prod){showFeedback('scan-stock-feedback','Código no encontrado: '+cod,'err');ssi.value='';return;}prod.stock+=qty;save(data,{producto:prod});showFeedback('scan-stock-feedback',`✓ ${prod.nombre}: +${qty} → stock: ${prod.stock}`,'ok');ssi.value='';render();};ssi.onkeydown=e=>{if(e.key==='Enter')doScan();};ssb.onclick=doScan;}
+  if(ssi&&ssb){const doScan=()=>{const cod=ssi.value.trim(),qty=parseInt(q('scan-stock-qty')?.value)||1;if(!cod)return;const prod=getProd(cod);if(!prod){showFeedback('scan-stock-feedback','Código no encontrado: '+cod,'err');ssi.value='';return;}prod.stock+=qty;save(data);showFeedback('scan-stock-feedback',`✓ ${prod.nombre}: +${qty} → stock: ${prod.stock}`,'ok');ssi.value='';render();};ssi.onkeydown=e=>{if(e.key==='Enter')doScan();};ssb.onclick=doScan;}
 
   const nvb=q('nueva-venta-btn');if(nvb)nvb.onclick=()=>{window._prodManualSel=null;modal={type:'nueva-venta',carrito:[],vendedorId:currentUser.vendedorId||''};render();};
   const devb=q('devolucion-btn');if(devb)devb.onclick=()=>{modal={type:'devolucion'};render();};
@@ -3514,11 +3075,11 @@ function bindApp(){
     v.notas=q('ev-notas').value.trim();
     v.estado=q('ev-estado').value;
     v.cobrado=v.estado==='cobrado'?v.total:0;
-    save(data,{venta:v});modal=null;mostrarToast('✅ Venta actualizada');render();
+    save(data);modal=null;mostrarToast('✅ Venta actualizada');render();
   };
   document.querySelectorAll('[data-print-venta]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.printVenta);if(v)printComprobante(v);};});
   document.querySelectorAll('[data-cobrar]').forEach(b=>{b.onclick=()=>{const v=data.ventas.find(x=>x.id==b.dataset.cobrar);modal={type:'cobrar-venta',venta:v};render();};});
-  document.querySelectorAll('[data-del-venta]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){const vid=parseInt(b.dataset.delVenta);data.ventas=data.ventas.filter(v=>v.id!=vid);save(data,{deleteVenta:vid});render();}};});
+  document.querySelectorAll('[data-del-venta]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.ventas=data.ventas.filter(v=>v.id!=b.dataset.delVenta);save(data);render();}};});
   document.querySelectorAll('[data-pagar]').forEach(b=>{b.onclick=()=>{const e=data.egresos.find(x=>x.id==b.dataset.pagar);if(e){e.pagado=true;if(e.fuente==='NBCH'){if(!data.nbch)data.nbch=[];data.nbch.push({id:data.nextId.nbch++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Brubank'){if(!data.brubank)data.brubank=[];data.brubank.push({id:data.nextId.brubank++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Galicia'){if(!data.galicia)data.galicia=[];data.galicia.push({id:data.nextId.galicia++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Mercado Pago'){if(!data.mercadopago)data.mercadopago=[];data.mercadopago.push({id:data.nextId.mercadopago++,fecha:e.fecha,descripcion:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Supervielle'){if(!data.supervielle)data.supervielle=[];data.supervielle.unshift({id:data.nextId.supervielle++,fecha:e.fecha,tipo:'egreso',descripcion:'Egreso: '+e.concepto,monto:e.monto});}else if(e.fuente==='Cobr. CrediVIP'){if(!data.cobranzaCredivip)data.cobranzaCredivip=[];data.cobranzaCredivip.push({id:data.nextId.cobranzaCredivip++,fecha:e.fecha,cliente:'Egreso',dni:'',nroCuota:0,monto:-e.monto,formaPago:'efectivo',notas:'Egreso: '+e.concepto});}else if(e.fuente==='Cobr. Rapicuota'){if(!data.cobranzaRapicuota)data.cobranzaRapicuota=[];data.cobranzaRapicuota.push({id:data.nextId.cobranzaRapicuota++,fecha:e.fecha,cliente:'Egreso',dni:'',nroCuota:0,monto:-e.monto,formaPago:'efectivo',notas:'Egreso: '+e.concepto});}save(data);render();}};});
   document.querySelectorAll('[data-del-egreso]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.egresos=data.egresos.filter(e=>e.id!=b.dataset.delEgreso);save(data);render();}};});
   document.querySelectorAll('[data-edit-prod]').forEach(b=>{b.onclick=()=>{const p=data.productos.find(x=>x.id==b.dataset.editProd);modal={type:'nuevo-prod',prod:p};render();};});
@@ -3634,10 +3195,9 @@ function bindApp(){
     if(carrito.length===0){alert('Agregá al menos un producto al carrito.');return;}
     if(!clienteNombre||!clienteTel){alert('Completá el nombre y teléfono del cliente.');return;}
     if(factura==='factura-x'&&!clienteDni){alert('La Factura X requiere el DNI del cliente.');return;}
-    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,ts:Date.now(),cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});
-    const prodsAfectados=[];carrito.forEach(i=>{const p=getProdById(i.productoId);if(p){p.stock=Math.max(0,p.stock-i.qty);prodsAfectados.push(p);}});carrito=[];
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,ts:Date.now(),cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombre,monto:total});}
-    save(data,{venta:data.ventas[0],productosAfectados:prodsAfectados});modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
+    save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
   }catch(err){alert('Error al guardar: '+err.message);console.error(err);}};
   const msv=q('modal-save-venta');
   if(msv)msv.onclick=()=>{
@@ -3659,12 +3219,13 @@ function bindApp(){
     const cobrado=estado==='cobrado'?total:0;
     const items=carritoManual.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio}));
     data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),ts:Date.now(),cliente:clienteNombreM,clienteTel:clienteTelM,clienteDni:clienteDniM,vendedorId:vendId,items,total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});
-    const prodsAfectadosM=[];carritoManual.forEach(item=>{const prod=getProdById(item.productoId);if(prod){prod.stock=Math.max(0,prod.stock-item.qty);prodsAfectadosM.push(prod);}});
+    // Descontar stock
+    carritoManual.forEach(item=>{const prod=getProdById(item.productoId);if(prod)prod.stock=Math.max(0,prod.stock-item.qty);});
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombreM,monto:total});}
-    save(data,{venta:data.ventas[0],productosAfectados:prodsAfectadosM});modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
+    save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
     }catch(err){alert('Error al guardar: '+err.message);console.error(err);}
   };
-  const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{const monto=parseFloat(q('m-monto-cobro').value)||0,venta=data.ventas.find(x=>x.id===modal.venta.id);if(venta){venta.cobrado=Math.min(venta.total,venta.cobrado+monto);venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';save(data,{venta});}else{save(data);}modal=null;render();};
+  const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{const monto=parseFloat(q('m-monto-cobro').value)||0,venta=data.ventas.find(x=>x.id===modal.venta.id);if(venta){venta.cobrado=Math.min(venta.total,venta.cobrado+monto);venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';}save(data);modal=null;render();};
   const mse=q('modal-save-egreso');if(mse)mse.onclick=()=>{
     const concepto=q('m-concepto').value.trim(),monto=parseFloat(q('m-monto').value)||0;
     if(!concepto){alert('Ingresá un concepto.');return;}
@@ -3717,9 +3278,9 @@ function bindApp(){
     const costo=parseFloat(q('m-pcosto')?.value)||0;
     const provId=parseInt(q('m-pprov')?.value)||null;
     const descEfectivo=parseFloat(q('m-pdesc-efectivo')?.value)||0;
-    if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.costo=costo;p.stock=parseInt(q('m-pstock').value)||0;p.proveedorId=provId;p.descEfectivo=descEfectivo;save(data,{producto:p});}
-    else{const np={id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,costo,stock:parseInt(q('m-pstock').value)||0,proveedorId:provId,descEfectivo};data.productos.push(np);save(data,{producto:np});}
-    modal=null;render();
+    if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.costo=costo;p.stock=parseInt(q('m-pstock').value)||0;p.proveedorId=provId;p.descEfectivo=descEfectivo;}
+    else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,costo,stock:parseInt(q('m-pstock').value)||0,proveedorId:provId,descEfectivo});}
+    save(data);modal=null;render();
   };
   const msprov=q('modal-save-prov');if(msprov)msprov.onclick=()=>{
     const nombre=q('m-provnombre')?.value.trim();
@@ -3734,7 +3295,7 @@ function bindApp(){
   const msvend=q('modal-save-vend');if(msvend)msvend.onclick=()=>{if(modal.vend){const v=data.vendedores.find(x=>x.id===modal.vend.id);v.nombre=q('m-vnombre').value;v.telefono=q('m-vtel').value;v.sueldo=parseFloat(q('m-vsueldo').value)||0;}else{data.vendedores.push({id:data.nextId.vendedor++,nombre:q('m-vnombre').value,telefono:q('m-vtel').value,sueldo:parseFloat(q('m-vsueldo').value)||0,comisiones:{}});}save(data);modal=null;render();};
   const mscom=q('modal-save-comisiones');if(mscom)mscom.onclick=()=>{const v=data.vendedores.find(x=>x.id===modal.vend.id);if(!v.comisiones)v.comisiones={};data.categorias.forEach(cat=>{v.comisiones[cat.id]=parseFloat(q('com-cat-'+cat.id)?.value)||0;});save(data);modal=null;render();};
   const mscat=q('modal-save-cat');if(mscat)mscat.onclick=()=>{data.categorias.push({id:data.nextId.categoria++,nombre:q('m-catnombre').value,color:q('m-catcolor').value});save(data);modal=null;render();};
-  const msd=q('modal-save-dev');if(msd)msd.onclick=()=>{const vid=parseInt(q('m-dev-venta').value),v=data.ventas.find(x=>x.id===vid);if(v){v.estado='cancelado';v.cobrado=0;v.notas='DEV: '+(q('m-dev-motivo').value||'');const prodsDevol=[];v.items.forEach(i=>{const p=getProdById(i.productoId);if(p){p.stock+=i.qty;prodsDevol.push(p);}});save(data,{venta:v,productosAfectados:prodsDevol});}else{save(data);}modal=null;render();};
+  const msd=q('modal-save-dev');if(msd)msd.onclick=()=>{const vid=parseInt(q('m-dev-venta').value),v=data.ventas.find(x=>x.id===vid);if(v){v.estado='cancelado';v.cobrado=0;v.notas='DEV: '+(q('m-dev-motivo').value||'');v.items.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock+=i.qty;});}save(data);modal=null;render();};
   const mcc=q('modal-confirm-cierre');if(mcc)mcc.onclick=()=>{data.cierres.push({id:data.nextId.cierre++,mes:modal.mes,fecha:getFechaHoyISO(),detalle:modal.detalle});save(data);modal=null;render();};
   // ===== GALICIA =====
   window._irGalicia=()=>{tab='galicia';render();};
@@ -3751,7 +3312,6 @@ function bindApp(){
       const inicioSem=b.dataset.cobrarSemanaRapicuota;
       const hoy=getFechaHoyISO();
       if(!confirm('¿Confirmar cobro de todas las ventas pendientes de esta semana?'))return;
-      const ventasModif=[];
       data.ventas.forEach(v=>{
         if(v.medioPago==='rapicuota'&&!v.rapicuotaLiquidado&&v.estado!=='cancelado'){
           const sem=getRapicuotaSemana(v.fecha);
@@ -3760,11 +3320,9 @@ function bindApp(){
             v.rapicuotaFechaCobro=hoy;
             v.cobrado=v.total;
             v.estado='cobrado';
-            ventasModif.push(v);
           }
         }
       });
-      ventasModif.forEach(v=>window._fbSaveVenta&&window._fbSaveVenta(v));
       save(data);render();
     };
   });
@@ -3782,7 +3340,9 @@ function bindApp(){
       venta.cobrado=monto;
       venta.estado='cobrado';
     }
-    save(data,{venta});modal=null;render();
+    save(data);modal=null;render();
+  };
+  // ===== MERCADO PAGO =====
   window._irMercadoPago=()=>{tab='mercadopago';render();};
   // ===== SUPERVIELLE =====
   window._irSupervielle=()=>{tab='supervielle';render();};
@@ -4046,7 +3606,7 @@ function bindApp(){
       monto,
       ventaId
     });
-    if(venta) save(data,{venta}); else save(data);modal=null;render();
+    save(data);modal=null;render();
   };
   const msgalicia=q('modal-save-galicia');
   if(msgalicia)msgalicia.onclick=()=>{
@@ -4124,7 +3684,7 @@ function bindApp(){
       monto,
       ventaId
     });
-    if(venta) save(data,{venta}); else save(data);modal=null;render();
+    save(data);modal=null;render();
   };
   const msnbch=q('modal-save-nbch');
   if(msnbch)msnbch.onclick=()=>{
@@ -4201,7 +3761,7 @@ function bindApp(){
       monto,
       ventaId
     });
-    if(venta) save(data,{venta}); else save(data);modal=null;render();
+    save(data);modal=null;render();
   };
   const msbrubank=q('modal-save-brubank');
   if(msbrubank)msbrubank.onclick=()=>{
