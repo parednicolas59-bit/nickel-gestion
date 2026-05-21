@@ -342,7 +342,7 @@ function renderApp(){
     <div class="topbar">
       <span class="logo">Nick<span>Gestión</span></span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
       <div class="nav-tabs">${tabs.map(t=>`<button class="nav-tab${t===tab?' active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}</div>
-      <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span><button class="logout" id="logout-btn">Salir</button></div>
+      <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span>${(currentUser.role==='admin'||currentUser.id===2)?`<button onclick="exportarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.12);color:#4ade80;cursor:pointer;font-family:inherit" title="Descargar backup">💾 Backup</button>`:''} ${currentUser.role==='admin'?`<button onclick="restaurarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);color:#fbbf24;cursor:pointer;font-family:inherit" title="Restaurar backup">📂 Restaurar</button><input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmarRestaurar(this)">`:''}<button class="logout" id="logout-btn">Salir</button></div>
     </div>
     <div class="content">${renderTab()}</div>
     ${modal?renderModal():''}
@@ -2902,6 +2902,41 @@ function actualizarComPreview(){
   prev.textContent=`Comisión: ${pct}% sobre ${cat?.nombre||'cat.'} = ${fmt(precio*qty*pct/100)}`;
 }
 
+window.exportarBackup=function(){
+  const fecha=new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
+  const nombre='nickgestion_backup_'+fecha+'.json';
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=nombre;a.click();
+  URL.revokeObjectURL(url);
+  mostrarToast('✅ Backup guardado: '+nombre);
+};
+
+window.restaurarBackup=function(){
+  const input=document.getElementById('restore-file-input');
+  if(input)input.click();
+};
+
+window.confirmarRestaurar=function(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(!confirm('⚠️ ¿Restaurar datos desde "'+file.name+'"?\n\nEsto reemplazará TODOS los datos actuales. Esta acción no se puede deshacer.'))return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const restored=JSON.parse(e.target.result);
+      if(!restored.ventas||!restored.productos){alert('Archivo inválido — no parece un backup de NickGestión');return;}
+      restored._lastSaved=Date.now();
+      data=restored;
+      save(data);render();
+      mostrarToast('✅ Datos restaurados correctamente');
+    }catch(err){alert('Error al leer el archivo: '+err.message);}
+  };
+  reader.readAsText(file);
+  input.value='';
+};
+
 function bindApp(){
   const q=id=>document.getElementById(id);
   q('logout-btn').onclick=()=>{currentUser=null;carrito=[];clearTimeout(window._adminTimer);window._adminTimerActivo=false;render();};
@@ -3222,7 +3257,43 @@ function bindApp(){
     save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
     }catch(err){alert('Error al guardar: '+err.message);console.error(err);}
   };
-  const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{const monto=parseFloat(q('m-monto-cobro').value)||0,venta=data.ventas.find(x=>x.id===modal.venta.id);if(venta){venta.cobrado=Math.min(venta.total,venta.cobrado+monto);venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';}save(data);modal=null;render();};
+  const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{
+    const monto=parseFloat(q('m-monto-cobro').value)||0;
+    const venta=data.ventas.find(x=>x.id===modal.venta.id);
+    if(venta){
+      venta.cobrado=Math.min(venta.total,venta.cobrado+monto);
+      venta.estado=venta.cobrado>=venta.total?'cobrado':'pendiente';
+      // Si es Nickcel Pagarés → registrar en cobranzaPagares y acreditar en caja efectivo
+      if(venta.medioPago==='nickcel-pagares'){
+        if(!data.cobranzaPagares)data.cobranzaPagares=[];
+        if(!data.nextId.cobranzaPagares)data.nextId.cobranzaPagares=1;
+        const fecha=getFechaHoyISO();
+        data.cobranzaPagares.unshift({
+          id:data.nextId.cobranzaPagares++,
+          fecha,
+          cliente:venta.cliente,
+          dni:venta.clienteDni||'',
+          nroCuota:1,
+          nroPagare:'Venta #'+venta.id,
+          monto,
+          formaPago:'efectivo',
+          notas:'Cobro desde venta #'+venta.id
+        });
+        // Acreditar en caja efectivo
+        if(!data.caja)data.caja=[];
+        if(!data.nextId.caja)data.nextId.caja=1;
+        data.caja.unshift({
+          id:data.nextId.caja++,
+          fecha,
+          concepto:'Cobro Nickcel Pagarés — '+venta.cliente+' (Venta #'+venta.id+')',
+          tipo:'ingreso',
+          monto
+        });
+        mostrarToast('✅ Cobro registrado — acreditado en Efectivo');
+      }
+    }
+    save(data);modal=null;render();
+  };
   const mse=q('modal-save-egreso');if(mse)mse.onclick=()=>{
     const concepto=q('m-concepto').value.trim(),monto=parseFloat(q('m-monto').value)||0;
     if(!concepto){alert('Ingresá un concepto.');return;}
