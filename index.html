@@ -254,15 +254,26 @@ async function initApp(){
     window._fbSave=async function(d){_guardando=true;await _orig(d);setTimeout(()=>{_guardando=false;},2500);};
   }
 
+  // SIEMPRE cargar desde Firebase — nunca confiar en localStorage como fuente principal
   try{
     const fbData=await Promise.race([
       loadFromFirebase(),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000))
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),6000))
     ]);
-    if(fbData)data=fbData;
-  }catch(e){console.log("Usando datos locales");}
+    if(fbData){
+      data=fbData;
+      try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
+    } else {
+      data=load(); // fallback solo si Firebase no responde
+    }
+  }catch(e){
+    console.log("Firebase timeout — usando localStorage");
+    data=load();
+  }
+
   _fbInitialized=true;
   render();
+
   if(window._fbListen){
     _fbUnsubscribe=window._fbListen((newData)=>{
       if(!_fbInitialized||!currentUser||_guardando)return;
