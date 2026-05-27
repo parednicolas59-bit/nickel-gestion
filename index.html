@@ -136,7 +136,28 @@ const db = getFirestore(app);
 const DOC_REF = doc(db, "nickel", "data");
 
 window._fbSave = async function(d) {
-  try { await setDoc(DOC_REF, { payload: JSON.stringify(d) }); } catch(e) { console.error("Firebase save error:", e); }
+  const intentar = async (intentos) => {
+    try {
+      await setDoc(DOC_REF, { payload: JSON.stringify(d) });
+      // Mostrar indicador guardado OK
+      const ind = document.getElementById('sync-indicator');
+      if(ind){ ind.textContent='● Guardado'; ind.style.background='rgba(34,197,94,0.15)'; ind.style.color='#4ade80'; }
+      return true;
+    } catch(e) {
+      console.error("Firebase save error:", e);
+      if(intentos > 0) {
+        await new Promise(r => setTimeout(r, 2000));
+        return intentar(intentos - 1);
+      }
+      // Mostrar aviso de error visible
+      const ind = document.getElementById('sync-indicator');
+      if(ind){ ind.textContent='⚠️ Sin conexión'; ind.style.background='rgba(239,68,68,0.15)'; ind.style.color='#f87171'; }
+      // Guardar en cola para reintento
+      window._pendingSave = d;
+      return false;
+    }
+  };
+  return intentar(3);
 };
 window._fbLoad = async function() {
   try { const snap = await getDoc(DOC_REF); if(snap.exists()) return JSON.parse(snap.data().payload); } catch(e) { console.error("Firebase load error:", e); }
@@ -149,6 +170,15 @@ window._fbListen = function(callback) {
 };
 window._firebaseReady = true;
 document.dispatchEvent(new Event('firebase-ready'));
+
+// Reintento automático cuando vuelve la conexión
+window.addEventListener('online', async () => {
+  if(window._pendingSave && window._fbSave) {
+    console.log('Conexión restaurada — reintentando guardado pendiente...');
+    const ok = await window._fbSave(window._pendingSave);
+    if(ok) window._pendingSave = null;
+  }
+});
 </script>
 <script>
 const SK='nick_v5';
@@ -342,8 +372,8 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const allTabs=['dashboard','ventas','egresos','productos','pedidos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',pedidos:'📦 Pedidos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   // Caja solo para admin y Yamila (userId 2)
   const tieneCaja=currentUser.role==='admin'||currentUser.id===2;
   const tabsVendedor=['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
@@ -365,6 +395,7 @@ function renderTab(){
   if(tab==='ventas')return renderVentas();
   if(tab==='egresos')return renderEgresos();
   if(tab==='productos')return renderProductos();
+  if(tab==='pedidos')return renderPedidos();
   if(tab==='proveedores')return renderProveedores();
   if(tab==='contactos')return renderContactos();
   if(tab==='vendedores')return renderVendedores();
@@ -385,6 +416,72 @@ function renderTab(){
   if(tab==='financiera')return renderFinanciera();
   return '';
 }
+
+function renderPedidos(){
+  const sinStock=data.productos.filter(p=>p.stock<=0);
+  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  return`<div>
+    <div class="section-header">
+      <span style="font-size:17px;font-weight:500">📦 Lista de pedidos</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:var(--text2)">${fecha}</span>
+        ${sinStock.length>0?`<button class="btn" onclick="copiarPedido()" style="font-size:11px;padding:5px 12px">📋 Copiar para WhatsApp</button>`:''}
+        ${sinStock.length>0?`<button class="btn" onclick="imprimirPedido()" style="font-size:11px;padding:5px 12px">🖨 Imprimir</button>`:''}
+      </div>
+    </div>
+    ${sinStock.length===0?`
+      <div style="text-align:center;padding:60px 20px;color:var(--text2)">
+        <div style="font-size:40px;margin-bottom:12px">✅</div>
+        <div style="font-size:15px;font-weight:500;margin-bottom:6px">Todo en stock</div>
+        <div style="font-size:12px">No hay productos con stock 0</div>
+      </div>
+    `:`
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">⚠️</span>
+        <div><div style="font-size:13px;font-weight:600;color:#f87171">${sinStock.length} producto${sinStock.length>1?'s':''} sin stock</div><div style="font-size:11px;color:var(--text2)">Necesitan reposición</div></div>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Precio</th><th style="text-align:center">Stock</th><th>Cant. a pedir</th></tr></thead>
+          <tbody>${sinStock.map((p,i)=>{const cat=getCat(p.categoriaId);return`<tr>
+            <td style="color:var(--text2);font-size:12px">${i+1}</td>
+            <td style="font-weight:500">${p.nombre}</td>
+            <td>${cat?cat.nombre:'—'}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2)">${p.codigo||'—'}</td>
+            <td>${fmt(p.precio)}</td>
+            <td style="text-align:center"><span style="background:rgba(239,68,68,0.15);color:#f87171;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">SIN STOCK</span></td>
+            <td><input type="number" min="1" value="1" id="qty-pedido-${p.id}" style="width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--dark2);color:var(--text);font-size:12px;text-align:center"></td>
+          </tr>`;}).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn" onclick="copiarPedido()" style="font-size:12px;padding:7px 16px">📋 Copiar para WhatsApp</button>
+        <button class="btn primary" onclick="imprimirPedido()" style="font-size:12px;padding:7px 16px">🖨 Imprimir lista</button>
+      </div>
+    `}
+  </div>`;
+}
+
+window.copiarPedido=function(){
+  const sinStock=data.productos.filter(p=>p.stock<=0);
+  if(!sinStock.length){mostrarToast('No hay productos sin stock');return;}
+  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  let txt='📦 *LISTA DE PEDIDO — Nickcel*\n📅 '+fecha+'\n\n';
+  sinStock.forEach((p,i)=>{const qty=document.getElementById('qty-pedido-'+p.id)?.value||1;txt+=(i+1)+'. '+p.nombre+(p.codigo?' ('+p.codigo+')':'')+' — Cant: '+qty+'\n';});
+  txt+='\nTotal: '+sinStock.length+' producto'+(sinStock.length>1?'s':'')+' a reponer';
+  navigator.clipboard.writeText(txt).then(()=>mostrarToast('✅ Lista copiada')).catch(()=>mostrarToast('No se pudo copiar'));
+};
+
+window.imprimirPedido=function(){
+  const sinStock=data.productos.filter(p=>p.stock<=0);
+  if(!sinStock.length)return;
+  const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const filas=sinStock.map((p,i)=>{const cat=getCat(p.categoriaId);const qty=document.getElementById('qty-pedido-'+p.id)?.value||1;return'<tr><td>'+(i+1)+'</td><td>'+p.nombre+'</td><td>'+(cat?cat.nombre:'—')+'</td><td>'+(p.codigo||'—')+'</td><td style="text-align:center;font-weight:700">'+qty+'</td></tr>';}).join('');
+  const w=window.open('','_blank');
+  w.document.write('<html><head><title>Pedido — Nickcel</title><style>body{font-family:sans-serif;padding:24px;color:#1a2236}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f4f8;padding:8px 12px;text-align:left}td{padding:9px 12px;border-bottom:1px solid #eee}</style></head><body><h2>📦 Lista de pedido — Nickcel</h2><p>Fecha: '+fecha+' · Productos sin stock: '+sinStock.length+'</p><table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad</th></tr></thead><tbody>'+filas+'</tbody></table></body></html>');
+  w.document.close();w.print();
+};
 
 function renderUsuarios(){
   const roleColors={admin:'#38bdf8',vendedor:'#a78bfa'};
@@ -420,8 +517,13 @@ function renderUsuarios(){
 }
 
 function renderDash(){
+  const mesSel=window._dashMes||mesActual();
+  const esHoy=mesSel===mesActual();
+  const mesesDisp=[...new Set(data.ventas.map(v=>v.mes).filter(Boolean))].sort().reverse();
+  if(!mesesDisp.includes(mesActual()))mesesDisp.unshift(mesActual());
+
   const totalV=data.ventas.reduce((s,v)=>s+v.total,0),cobrado=data.ventas.reduce((s,v)=>s+v.cobrado,0);
-  const mes=mesActual(),comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
+  const mes=mesSel,comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
   const prodBajo=data.productos.filter(p=>p.stock<=3);
   const cobradoEfectivo=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0)
     +(data.caja||[]).filter(c=>c.tipo==='ingreso').reduce((s,c)=>s+c.monto,0)
@@ -432,7 +534,7 @@ function renderDash(){
   const hoyDash=getFechaHoyISO();
   const rapiSemanasDB=getRapicuotaSemanasAgrupadas().filter(s=>s.ventas.some(v=>!v.rapicuotaLiquidado)).sort((a,b)=>a.cobro.localeCompare(b.cobro));
   const pendNickcel=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+(v.total-v.cobrado),0);
-  const ventasMes=data.ventas.filter(v=>v.mes===mes&&v.estado!=='cancelado');
+  const ventasMes=data.ventas.filter(v=>v.mes===mesSel&&v.estado!=='cancelado');
   const inversionMes=ventasMes.reduce((s,v)=>s+v.items.reduce((si,i)=>{const p=getProdById(i.productoId);return si+(p?.costo||0)*i.qty;},0),0);
   const totalVMes=ventasMes.reduce((s,v)=>s+v.total,0);
   const gananciaNetaMes=totalVMes-inversionMes;
@@ -459,6 +561,13 @@ function renderDash(){
   const chequesProximos=chequesPendientes.filter(c=>c.fechaPago<=en2dStr);
   const totalChequesPendientes=chequesPendientes.reduce((s,c)=>s+c.monto,0);
   return`<div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <select onchange="window._dashMes=this.value;render()" style="padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:var(--dark2);color:var(--text);font-size:12px;cursor:pointer">
+      ${mesesDisp.map(m=>{const[y,mo]=m.split('-');const label=new Date(+y,+mo-1,1).toLocaleString('es-AR',{month:'long',year:'numeric'});const cap=label.charAt(0).toUpperCase()+label.slice(1);return`<option value="${m}" ${m===mesSel?'selected':''}>${cap}${m===mesActual()?' (actual)':''}</option>`;}).join('')}
+    </select>
+    ${!esHoy?`<span style="background:rgba(245,158,11,0.15);color:#fbbf24;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">📅 Viendo mes anterior</span>`:''}
+  </div>
+  ${(()=>{const sinStock=data.productos.filter(p=>p.stock<=0);if(sinStock.length===0)return'';return`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px 16px;margin-bottom:14px;cursor:pointer" onclick="tab='pedidos';render()"><div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">📦</span><div><div style="font-size:13px;font-weight:700;color:#f87171">${sinStock.length} producto${sinStock.length>1?'s':''} sin stock</div><div style="font-size:11px;color:#94a3b8">${sinStock.slice(0,3).map(p=>p.nombre).join(' · ')}${sinStock.length>3?' · +más':''}</div></div></div><span style="font-size:11px;color:#f87171;padding:4px 10px;border:1px solid rgba(239,68,68,0.3);border-radius:8px">Ver →</span></div></div>`;})()}
   ${(()=>{const notifsCaja=(data.turnosCaja||[]).filter(t=>t.cierre&&!t.vistoPorAdmin);if(notifsCaja.length===0)return'';return`<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:12px 16px;margin-bottom:14px;cursor:pointer" onclick="tab='caja';render()">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px">
@@ -500,7 +609,7 @@ function renderDash(){
   </div>
   ${currentUser.role==='admin'?`
   <div class="resumen-row">
-    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">💵</div><div style="flex:1"><div class="resumen-label">Cobrado — Efectivo</div><div class="resumen-val" style="color:#4ade80">${fmt(cobradoEfectivo)}</div></div><button onclick="modal={type:'ajuste-caja'};render()" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80;border-radius:7px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap">+ / −</button></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(34,197,94,0.18)">💵</div><div style="flex:1"><div class="resumen-label">Cobrado — Efectivo</div><div class="resumen-val" style="color:#4ade80">${fmt(cobradoEfectivo)}</div></div>${(currentUser.role==='admin'||currentUser.id===2)?`<button onclick="modal={type:'ajuste-caja'};render()" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80;border-radius:7px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap">+ / −</button>`:''}</div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(167,122,255,0.18)">💳</div><div><div class="resumen-label">NBCH — Saldo cta.</div><div class="resumen-val" style="color:#a78bfa">${fmt(saldoNbch)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">🏦</div><div><div class="resumen-label">Brubank — Saldo cta.</div><div class="resumen-val" style="color:#f87171">${fmt(saldoBrubank)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(255,77,77,0.18)">🏦</div><div><div class="resumen-label">Galicia — Saldo cta.</div><div class="resumen-val" style="color:#ff4d4d">${fmt(saldoGalicia)}</div></div></div>
@@ -3018,7 +3127,32 @@ function bindApp(){
   document.querySelectorAll('.nav-tab').forEach(b=>{b.onclick=()=>{tab=b.dataset.tab;render();};});
 
   const svi=q('scan-venta-input');
-  if(svi){svi.focus();svi.onkeydown=e=>{if(e.key==='Enter'){const cod=svi.value.trim();if(!cod)return;const prod=getProd(cod);if(!prod){showFeedback('scan-venta-feedback','Código no encontrado: '+cod,'err');svi.value='';return;}if(prod.stock<=0){showFeedback('scan-venta-feedback',prod.nombre+' — sin stock','err');svi.value='';return;}const ex=carrito.find(i=>i.productoId===prod.id);if(ex)ex.qty++;else carrito.push({productoId:prod.id,nombre:prod.nombre,codigo:prod.codigo,categoriaId:prod.categoriaId,precio:prod.precio,qty:1});showFeedback('scan-venta-feedback','✓ '+prod.nombre+' agregado','ok');svi.value='';render();}};}
+  if(svi){
+    svi.focus();
+    if(!window._scanAutoFocusVenta){
+      window._scanAutoFocusVenta=true;
+      document.addEventListener('click',function(e){
+        const el=document.getElementById('scan-venta-input');
+        if(!el)return;
+        const tag=e.target.tagName;
+        if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||tag==='BUTTON')return;
+        el.focus();
+      });
+    }
+    svi.onkeydown=function(e){
+      if(e.key!=='Enter')return;
+      const cod=svi.value.trim();
+      if(!cod)return;
+      const prod=getProd(cod);
+      if(!prod){showFeedback('scan-venta-feedback','Código no encontrado: '+cod,'err');svi.value='';return;}
+      if(prod.stock<=0){showFeedback('scan-venta-feedback',prod.nombre+' — sin stock','err');svi.value='';return;}
+      const ex=carrito.find(i=>i.productoId===prod.id);
+      if(ex)ex.qty++;else carrito.push({productoId:prod.id,nombre:prod.nombre,codigo:prod.codigo,categoriaId:prod.categoriaId,precio:prod.precio,qty:1});
+      showFeedback('scan-venta-feedback','✓ '+prod.nombre+' agregado','ok');
+      svi.value='';render();
+      setTimeout(()=>{const el=document.getElementById('scan-venta-input');if(el)el.focus();},80);
+    };
+  }
 
   document.querySelectorAll('.carrito-plus').forEach(b=>{b.onclick=()=>{if(carrito[b.dataset.idx])carrito[b.dataset.idx].qty++;render();};});
   document.querySelectorAll('.carrito-minus').forEach(b=>{b.onclick=()=>{const idx=parseInt(b.dataset.idx);if(carrito[idx]){carrito[idx].qty--;if(carrito[idx].qty<=0)carrito.splice(idx,1);}render();};});
