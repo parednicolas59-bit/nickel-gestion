@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nickcel Ads IA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3a;
+    --accent: #ff4d00;
+    --accent2: #ff8c42;
+    --text: #f0f0f5;
+    --text-dim: #7a7a9a;
+    --green: #00e5a0;
+    --blue: #4d9fff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grain */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 48px;
+  }
+
+  .logo-mark {
+    width: 42px;
+    height: 42px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -0.3px;
+  }
+
+  header span {
+    color: var(--accent);
+  }
+
+  .badge {
+    margin-left: auto;
+    background: rgba(0,229,160,0.1);
+    color: var(--green);
+    border: 1px solid rgba(0,229,160,0.2);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 36px;
+    position: relative;
+  }
+
+  .steps::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .step-btn {
+    padding: 10px 18px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .step-btn.active {
+    color: var(--text);
+  }
+
+  .step-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    z-index: 1;
+  }
+
+  .step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .step-btn.active .step-num {
+    background: var(--accent);
+    color: white;
+  }
+
+  .step-btn.done .step-num {
+    background: var(--green);
+    color: var(--bg);
+  }
+
+  /* Panels */
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    background: var(--surface);
+    margin-bottom: 24px;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent);
+    background: rgba(255,77,0,0.04);
+  }
+
+  .upload-zone.has-image {
+    border-color: var(--green);
+    padding: 20px;
+  }
+
+  .upload-zone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 48px;
+    margin-bottom: 14px;
+    display: block;
+  }
+
+  .upload-zone h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .upload-zone p {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  #preview-img {
+    max-height: 260px;
+    max-width: 100%;
+    border-radius: 10px;
+    object-fit: contain;
+    display: none;
+  }
+
+  .upload-zone.has-image #preview-img { display: block; margin: 0 auto; }
+  .upload-zone.has-image .upload-placeholder { display: none; }
+
+  /* Form */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  input, textarea, select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    transition: border-color 0.2s;
+    outline: none;
+    resize: none;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: var(--surface2); }
+
+  /* Btn */
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 28px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 0.2px;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent2);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(255,77,0,0.3);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover { border-color: var(--text-dim); }
+
+  /* Loading */
+  .loading-state {
+    text-align: center;
+    padding: 60px 20px;
+    display: none;
+  }
+
+  .loading-state.active { display: block; }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--surface2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 300px;
+    margin: 24px auto 0;
+    text-align: left;
+  }
+
+  .ls-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-dim);
+    transition: color 0.3s;
+  }
+
+  .ls-item.active { color: var(--text); }
+  .ls-item.done { color: var(--green); }
+
+  .ls-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .ls-item.active .ls-dot { background: var(--accent); animation: pulse 1s infinite; }
+  .ls-item.done .ls-dot { background: var(--green); }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.7; }
+  }
+
+  /* Results */
+  .results-grid {
+    display: grid;
+    gap: 16px;
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--accent);
+  }
+
+  .result-card.green::before { background: var(--green); }
+  .result-card.blue::before { background: var(--blue); }
+
+  .rc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .rc-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rc-content {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .rc-content strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .rc-content .green { color: var(--green); }
+  .rc-content .blue { color: var(--blue); }
+
+  .copy-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 5px 10px;
+    color: var(--text-dim);
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+
+  .copy-btn:hover { color: var(--text); border-color: var(--text-dim); }
+
+  /* Red indicators */
+  .red-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 3px;
+  }
+
+  .red-meta { background: rgba(24,119,242,0.15); color: #4a90f5; }
+  .red-ig { background: rgba(225,48,108,0.15); color: #e1306c; }
+  .red-tiktok { background: rgba(255,255,255,0.08); color: var(--text); }
+  .red-wp { background: rgba(37,211,102,0.15); color: #25d366; }
+
+  /* Segmentation tags */
+  .seg-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+
+  .seg-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    margin-bottom: 4px;
+  }
+
+  .action-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .action-row .btn-primary { flex: 1; }
+
+  /* Meta form */
+  .meta-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 20px;
+  }
+
+  .meta-section h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .info-box {
+    background: rgba(77,159,255,0.08);
+    border: 1px solid rgba(77,159,255,0.2);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--blue);
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  .coming-soon {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+  }
+
+  .coming-soon .icon { font-size: 40px; margin-bottom: 14px; }
+  .coming-soon h3 { font-family: 'Syne', sans-serif; font-size: 17px; color: var(--text); margin-bottom: 8px; }
+  .coming-soon p { font-size: 14px; line-height: 1.6; max-width: 380px; margin: 0 auto; }
+
+  .tag-presupuesto {
+    background: rgba(255,77,0,0.1);
+    border: 1px solid rgba(255,77,0,0.2);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-block;
+    margin-top: 8px;
+  }
+
+  textarea { min-height: 80px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo-mark">N</div>
+    <h1>Nickcel <span>Ads IA</span></h1>
+    <div class="badge">BETA</div>
+  </header>
+
+  <!-- Steps nav -->
+  <div class="steps">
+    <button class="step-btn active" id="step-btn-1" onclick="goStep(1)">
+      <span class="step-num">1</span> Producto
+    </button>
+    <button class="step-btn" id="step-btn-2" onclick="goStep(2)">
+      <span class="step-num">2</span> Análisis IA
+    </button>
+    <button class="step-btn" id="step-btn-3" onclick="goStep(3)">
+      <span class="step-num">3</span> Publicar
+    </button>
+  </div>
+
+  <!-- Panel 1: Upload + datos -->
+  <div class="panel active" id="panel-1">
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" accept="image/*" id="file-input" onchange="handleFile(this)">
+      <div class="upload-placeholder">
+        <span class="upload-icon">📸</span>
+        <h3>Subí la foto del producto</h3>
+        <p>JPG, PNG, WEBP — arrastrá o hacé click</p>
+      </div>
+      <img id="preview-img" src="" alt="preview">
+    </div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label>Nombre del producto</label>
+        <input type="text" id="nombre" placeholder="Ej: Redmi A5 4/128GB" />
+      </div>
+      <div class="field">
+        <label>Precio de venta</label>
+        <input type="text" id="precio" placeholder="Ej: $89.990" />
+      </div>
+      <div class="field full">
+        <label>Descripción breve (opcional)</label>
+        <textarea id="descripcion" placeholder="Ej: Batería 5000mAh, pantalla 6.7, cámara 13MP. Ideal para el día a día."></textarea>
+      </div>
+      <div class="field">
+        <label>Objetivo de la campaña</label>
+        <select id="objetivo">
+          <option value="ventas">Generar ventas</option>
+          <option value="visitas">Visitas a la tienda</option>
+          <option value="contacto">Que me escriban por WhatsApp</option>
+          <option value="reconocimiento">Reconocimiento de marca</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Presupuesto diario</label>
+        <select id="presupuesto">
+          <option value="500">$500/día (básico)</option>
+          <option value="1000" selected>$1.000/día (recomendado)</option>
+          <option value="2000">$2.000/día (agresivo)</option>
+          <option value="5000">$5.000/día (máximo)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Zona geográfica</label>
+        <input type="text" id="zona" placeholder="Ej: Chaco, Corrientes, Formosa" value="Chaco, Corrientes, Formosa" />
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="analizarProducto()" id="btn-analizar">
+      ⚡ Analizar con IA y generar campaña
+    </button>
+  </div>
+
+  <!-- Panel 2: Loading + Results -->
+  <div class="panel" id="panel-2">
+
+    <div class="loading-state active" id="loading-state">
+      <div class="spinner"></div>
+      <p style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:4px;">Generando tu campaña...</p>
+      <p style="color:var(--text-dim);font-size:13px;">La IA está analizando el producto</p>
+      <div class="loading-steps">
+        <div class="ls-item active" id="ls-1"><span class="ls-dot"></span>Analizando imagen y producto</div>
+        <div class="ls-item" id="ls-2"><span class="ls-dot"></span>Eligiendo la red óptima</div>
+        <div class="ls-item" id="ls-3"><span class="ls-dot"></span>Generando copy publicitario</div>
+        <div class="ls-item" id="ls-4"><span class="ls-dot"></span>Definiendo segmentación</div>
+        <div class="ls-item" id="ls-5"><span class="ls-dot"></span>Armando la campaña completa</div>
+      </div>
+    </div>
+
+    <div id="results-state" style="display:none;">
+      <div class="results-grid" id="results-container"></div>
+      <div class="action-row">
+        <button class="btn-secondary" onclick="goStep(1)">← Editar producto</button>
+        <button class="btn-primary" onclick="goStep(3)">Publicar campaña →</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Panel 3: Publicar -->
+  <div class="panel" id="panel-3">
+    <div class="meta-section">
+      <h3>📡 Publicación en Meta (Facebook + Instagram)</h3>
+      <div class="info-box">
+        ℹ️ Para publicar automáticamente necesitás conectar tu cuenta de Meta Ads. Seguí el paso a paso que te mandé para crear la app en developers.facebook.com y pegá los datos acá.
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>App ID de Meta</label>
+          <input type="text" id="meta-app-id" value="2151425678985713" />
+        </div>
+        <div class="field">
+          <label>Ad Account ID</label>
+          <input type="text" id="meta-account-id" value="act_101292650566451" />
+        </div>
+        <div class="field full">
+          <label>Access Token</label>
+          <input type="text" id="meta-token" value="EAAektdNbSfEBRhWB7miDQYaZBqjhkjUePHC3ucsaS4kdTBJbb2cemAOPQYgMGRDBhFto7MJSkIVTjpa5Ke2I2OgyWQ0IrsZCb1tjtEeSIZB1Lce4i52RgqA7X2DTQMRztME9Wd8WcREhbgfApSF7xsNKf050b3NDd7UwmG8CjZC12zbi9ZBb1g9KHUWjMpih7LuVQP6Lax7LSJGVyqtZCHLMrVgFGH9ILGP7GzdsKbF8qemWAA9EEsZBZBifgEGSRbs4CbLuriMmK3XPxaqM00rG" />
+        </div>
+      </div>
+      <button class="btn-primary" onclick="publicarMeta()" id="btn-publicar">
+        🚀 Publicar en Facebook + Instagram
+      </button>
+    </div>
+
+    <div class="coming-soon">
+      <div class="icon">⏳</div>
+      <h3>TikTok Ads — próximamente</h3>
+      <p>La integración con TikTok Ads API está en desarrollo. Por ahora podés descargar el copy e imagen generados y subirlos manualmente.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let imageBase64 = null;
+  let campaignData = null;
+
+  function handleFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      imageBase64 = e.target.result;
+      const zone = document.getElementById('upload-zone');
+      const img = document.getElementById('preview-img');
+      img.src = imageBase64;
+      zone.classList.add('has-image');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function goStep(n) {
+    document.querySelectorAll('.panel').forEach((p, i) => {
+      p.classList.toggle('active', i === n - 1);
+    });
+    document.querySelectorAll('.step-btn').forEach((b, i) => {
+      b.classList.toggle('active', i === n - 1);
+    });
+  }
+
+  async function analizarProducto() {
+    const nombre = document.getElementById('nombre').value.trim();
+    const precio = document.getElementById('precio').value.trim();
+    const descripcion = document.getElementById('descripcion').value.trim();
+    const objetivo = document.getElementById('objetivo').value;
+    const presupuesto = document.getElementById('presupuesto').value;
+    const zona = document.getElementById('zona').value.trim();
+
+    if (!nombre) { alert('Ingresá el nombre del producto'); return; }
+
+    goStep(2);
+    document.getElementById('loading-state').classList.add('active');
+    document.getElementById('results-state').style.display = 'none';
+
+    // Animate loading steps
+    const steps = [1,2,3,4,5];
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i > 0) {
+        document.getElementById('ls-' + i).classList.remove('active');
+        document.getElementById('ls-' + i).classList.add('done');
+      }
+      i++;
+      if (i <= 5) {
+        document.getElementById('ls-' + i).classList.add('active');
+      } else {
+        clearInterval(interval);
+      }
+    }, 1400);
+
+    // Build prompt
+    let prompt = `Sos un experto en marketing digital y publicidad en redes sociales para el mercado argentino/paraguayo (interior del país, ciudades medianas).
+
+Tengo un producto para vender:
+- Nombre: ${nombre}
+- Precio: ${precio}
+- Descripción: ${descripcion || 'Sin descripción adicional'}
+- Objetivo de la campaña: ${objetivo}
+- Presupuesto diario disponible: $${presupuesto} ARS/día
+- Zona geográfica: ${zona}
+${imageBase64 ? '- Tengo imagen del producto disponible' : ''}
+
+Generá una campaña publicitaria completa y lista para publicar. Respondé SOLO en JSON con esta estructura exacta (sin markdown, sin texto extra):
+
+{
+  "red_optima": "Facebook" o "Instagram" o "TikTok" o "WhatsApp",
+  "razon_red": "explicación breve de por qué esa red para ese producto",
+  "headline": "título del anuncio (máx 40 caracteres, que enganche, en español rioplatense)",
+  "texto_principal": "copy completo del anuncio (3-4 líneas, conversacional, con emojis relevantes, en español rioplatense del interior)",
+  "cta": "texto del botón de llamado a la acción",
+  "descripcion_imagen": "descripción de cómo debería ser la imagen ideal para el anuncio (para guiar el diseño)",
+  "segmentacion": {
+    "edad_min": 18,
+    "edad_max": 50,
+    "genero": "todos" o "hombres" o "mujeres",
+    "intereses": ["interés1", "interés2", "interés3"],
+    "comportamientos": ["comportamiento1", "comportamiento2"],
+    "ubicaciones": ["ciudad/zona1", "ciudad/zona2"]
+  },
+  "duracion_dias": 7,
+  "presupuesto_total": "${presupuesto * 7}",
+  "tips": ["tip1 para maximizar resultados", "tip2", "tip3"]
+}`;
+
+    try {
+      const messages = [];
+      if (imageBase64) {
+        messages.push({
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64.split(',')[1] } },
+            { type: 'text', text: prompt }
+          ]
+        });
+      } else {
+        messages.push({ role: 'user', content: prompt });
+      }
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages
+        })
+      });
+
+      const data = await response.json();
+      const text = data.content.map(i => i.text || '').join('');
+      const clean = text.replace(/```json|```/g, '').trim();
+      campaignData = JSON.parse(clean);
+
+      clearInterval(interval);
+      steps.forEach(s => {
+        document.getElementById('ls-' + s).classList.remove('active');
+        document.getElementById('ls-' + s).classList.add('done');
+      });
+
+      setTimeout(() => {
+        document.getElementById('loading-state').classList.remove('active');
+        renderResults(campaignData);
+        document.getElementById('results-state').style.display = 'block';
+      }, 600);
+
+    } catch(err) {
+      clearInterval(interval);
+      document.getElementById('loading-state').classList.remove('active');
+      document.getElementById('results-state').style.display = 'block';
+      document.getElementById('results-container').innerHTML = `
+        <div class="result-card">
+          <div class="rc-content" style="color:#ff6b6b;">
+            Error al generar la campaña. Verificá tu conexión e intentá de nuevo.<br><small>${err.message}</small>
+          </div>
+        </div>`;
+    }
+  }
+
+  function getRedTag(red) {
+    const tags = {
+      'Facebook': '<span class="red-tag red-meta">📘 Facebook</span>',
+      'Instagram': '<span class="red-tag red-ig">📸 Instagram</span>',
+      'TikTok': '<span class="red-tag red-tiktok">🎵 TikTok</span>',
+      'WhatsApp': '<span class="red-tag red-wp">💬 WhatsApp</span>',
+    };
+    return tags[red] || `<span class="red-tag red-meta">${red}</span>`;
+  }
+
+  function renderResults(d) {
+    const container = document.getElementById('results-container');
+    container.innerHTML = `
+      <!-- Red óptima -->
+      <div class="result-card green">
+        <div class="rc-header">
+          <div class="rc-title">🎯 Red óptima para este producto</div>
+        </div>
+        <div class="rc-content">
+          ${getRedTag(d.red_optima)}
+          <p style="margin-top:10px;">${d.razon_red}</p>
+        </div>
+      </div>
+
+      <!-- Copy -->
+      <div class="result-card">
+        <div class="rc-header">
+          <div class="rc-title">✍️ Copy del anuncio</div>
+          <button class="copy-btn" onclick="copiarTexto('${escapeAttr(d.headline + '\n\n' + d.texto_principal + '\n\n' + d.cta)}')">Copiar</button>
+        </div>
+        <div class="rc-content">
+          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:10px;color:var(--text);">${d.headline}</div>
+          <div style="line-height:1.7;">${d.texto_principal.replace(/\n/g,'<br>')}</div>
+          <div style="margin-top:12px;">
+            <span style="background:var(--accent);color:white;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;">${d.cta}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Imagen sugerida -->
+      <div class="result-card blue">
+        <div class="rc-header">
+          <div class="rc-title">🖼️ Imagen recomendada</div>
+        </div>
+        <div class="rc-content">${d.descripcion_imagen}</div>
+      </div>
+
+      <!-- Segmentación -->
+      <div class="result-card">
+        <div class="rc-header">
+          <div class="rc-title">👥 Segmentación</div>
+        </div>
+        <div class="rc-content">
+          <div class="seg-item">
+            <div class="seg-label">Edad y género</div>
+            ${d.segmentacion.edad_min} - ${d.segmentacion.edad_max} años · ${d.segmentacion.genero}
+          </div>
+          <div class="seg-item">
+            <div class="seg-label">Intereses</div>
+            ${d.segmentacion.intereses.join(' · ')}
+          </div>
+          <div class="seg-item">
+            <div class="seg-label">Comportamientos</div>
+            ${d.segmentacion.comportamientos.join(' · ')}
+          </div>
+          <div class="seg-item">
+            <div class="seg-label">Ubicaciones</div>
+            ${d.segmentacion.ubicaciones.join(' · ')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Presupuesto -->
+      <div class="result-card green">
+        <div class="rc-header">
+          <div class="rc-title">💰 Presupuesto</div>
+        </div>
+        <div class="rc-content">
+          <span class="tag-presupuesto">$${Number(document.getElementById('presupuesto').value).toLocaleString('es-AR')}/día · ${d.duracion_dias} días</span>
+          <p style="margin-top:12px;color:var(--text-dim);font-size:13px;">Presupuesto total estimado: <strong style="color:var(--green);">$${Number(d.presupuesto_total).toLocaleString('es-AR')}</strong></p>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <div class="result-card">
+        <div class="rc-header">
+          <div class="rc-title">💡 Tips para maximizar resultados</div>
+        </div>
+        <div class="rc-content">
+          ${d.tips.map((t,i) => `<div style="margin-bottom:8px;display:flex;gap:10px;"><span style="color:var(--accent);font-weight:700;">${i+1}.</span><span>${t}</span></div>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function escapeAttr(str) {
+    return str.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+  }
+
+  function copiarTexto(texto) {
+    const decoded = texto.replace(/\\n/g, '\n');
+    navigator.clipboard.writeText(decoded).then(() => {
+      const btn = event.target;
+      btn.textContent = '✓ Copiado';
+      setTimeout(() => btn.textContent = 'Copiar', 2000);
+    });
+  }
+
+  async function publicarMeta() {
+    const appId = document.getElementById('meta-app-id').value.trim();
+    const accountId = document.getElementById('meta-account-id').value.trim();
+    const token = document.getElementById('meta-token').value.trim();
+
+    if (!appId || !accountId || !token) {
+      alert('Completá los datos de Meta para poder publicar');
+      return;
+    }
+
+    if (!campaignData) {
+      alert('Primero generá la campaña en el paso 2');
+      return;
+    }
+
+    const btn = document.getElementById('btn-publicar');
+    btn.disabled = true;
+    btn.textContent = '⏳ Publicando...';
+
+    try {
+      // Create campaign via Meta API
+      const presupuesto = document.getElementById('presupuesto').value;
+      
+      const campaignRes = await fetch(`https://graph.facebook.com/v18.0/${accountId}/campaigns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Nickcel - ${document.getElementById('nombre').value}`,
+          objective: 'OUTCOME_SALES',
+          status: 'PAUSED',
+          special_ad_categories: [],
+          access_token: token
+        })
+      });
+
+      const campaignResult = await campaignRes.json();
+
+      if (campaignResult.error) {
+        throw new Error(campaignResult.error.message);
+      }
+
+      btn.textContent = '✅ Campaña creada en Meta';
+      btn.style.background = 'var(--green)';
+      btn.style.color = 'var(--bg)';
+
+      setTimeout(() => {
+        alert(`✅ Campaña "${document.getElementById('nombre').value}" creada correctamente en Meta Ads Manager.\n\nID: ${campaignResult.id}\n\nEntrá a Meta Ads Manager para activarla cuando quieras.`);
+      }, 300);
+
+    } catch(err) {
+      btn.disabled = false;
+      btn.textContent = '🚀 Publicar en Facebook + Instagram';
+      alert('Error al publicar: ' + err.message + '\n\nVerificá que el token sea válido y que la cuenta publicitaria esté activa.');
+    }
+  }
+
+  // Drag and drop
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--accent)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.style.borderColor = '';
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        imageBase64 = ev.target.result;
+        document.getElementById('preview-img').src = imageBase64;
+        zone.classList.add('has-image');
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+</script>
+</body>
+</html>
