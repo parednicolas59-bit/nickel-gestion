@@ -348,7 +348,7 @@ function mostrarToast(msg,color){
   clearTimeout(t._tid);
   t._tid=setTimeout(()=>{t.style.opacity='0';},2200);
 }
-function render(){
+function render(){window._renderApp=render;
   const root=document.getElementById('root');
   if(!currentUser){root.innerHTML=renderLogin();bindLogin();return;}
   root.innerHTML=renderApp();bindApp();
@@ -1517,7 +1517,7 @@ function renderVendedores(){
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Vendedores</span>
     <div style="display:flex;gap:8px;align-items:center">
-    <select id="sel-mes-vend" style="padding:6px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">${mesesOpc.map(m=>`<option value="${m}"${m===mes?' selected':''}>${m}</option>`).join('')}</select>
+    <select id="sel-mes-vend" onchange="window._mesVend=this.value;window._renderApp&&window._renderApp()" style="padding:6px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">${mesesOpc.map(m=>`<option value="${m}"${m===mes?' selected':''}>${m}</option>`).join('')}</select>
     <button class="btn primary" id="nuevo-vend-btn">+ Nuevo vendedor</button><button class="btn success" id="cerrar-mes-btn">Cerrar mes ${mes}</button>
     </div></div>
     ${data.vendedores.map(v=>{
