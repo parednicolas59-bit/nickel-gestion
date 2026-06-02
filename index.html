@@ -3319,7 +3319,7 @@ function bindApp(){
   const selMes=q('sel-mes-vendedores');
   if(selMes)selMes.onchange=()=>{window._mesVendedores=selMes.value;render();};
 
-  const cmb=q('cerrar-mes-btn');if(cmb)cmb.onclick=()=>{const mes=mesActual();modal={type:'cerrar-mes',mes,detalle:data.vendedores.map(v=>{const vv=data.ventas.filter(vt=>vt.vendedorId===v.id&&vt.mes===mes);const com=vv.reduce((s,vt)=>s+calcCom(vt),0);return{id:v.id,nombre:v.nombre,sueldo:v.sueldo,comision:com,ventas:vv.length,total:v.sueldo+com};})};render();};
+  const cmb=q('cerrar-mes-btn');if(cmb)cmb.onclick=()=>{const mes=window._mesVendedores||mesActual();modal={type:'cerrar-mes',mes,detalle:data.vendedores.map(v=>{const vv=data.ventas.filter(vt=>vt.vendedorId===v.id&&vt.mes===mes);const com=vv.reduce((s,vt)=>s+calcCom(vt),0);return{id:v.id,nombre:v.nombre,sueldo:v.sueldo,comision:com,ventas:vv.length,total:v.sueldo+com};})};render();};
 
   // CIERRE DE CAJA — abrir turno
   const btnAbrir=q('btn-abrir-turno');
