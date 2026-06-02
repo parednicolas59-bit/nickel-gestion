@@ -1511,9 +1511,15 @@ function renderContactos(){
 }
 
 function renderVendedores(){
-  const mes=mesActual(),ventasMes=data.ventas.filter(v=>v.mes===mes);
+  const mes=window._mesVend||mesActual(),ventasMes=data.ventas.filter(v=>v.mes===mes);
+  const hoy=new Date(),mesesOpc=[];
+  for(let i=0;i<6;i++){const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);mesesOpc.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
   return`<div>
-    <div class="section-header"><span style="font-size:17px;font-weight:500">Vendedores</span><button class="btn primary" id="nuevo-vend-btn">+ Nuevo vendedor</button><button class="btn success" id="cerrar-mes-btn">Cerrar mes ${mes}</button></div>
+    <div class="section-header"><span style="font-size:17px;font-weight:500">Vendedores</span>
+    <div style="display:flex;gap:8px;align-items:center">
+    <select id="sel-mes-vend" style="padding:6px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">${mesesOpc.map(m=>`<option value="${m}"${m===mes?' selected':''}>${m}</option>`).join('')}</select>
+    <button class="btn primary" id="nuevo-vend-btn">+ Nuevo vendedor</button><button class="btn success" id="cerrar-mes-btn">Cerrar mes ${mes}</button>
+    </div></div>
     ${data.vendedores.map(v=>{
       const vv=ventasMes.filter(vt=>vt.vendedorId===v.id),com=vv.reduce((s,vt)=>s+calcCom(vt),0),tv=vv.reduce((s,vt)=>s+vt.total,0);
       const ini=v.nombre.split(' ').map(x=>x[0]).join('').substring(0,2).toUpperCase();
@@ -3174,7 +3180,8 @@ function bindApp(){
   const nvend=q('nuevo-vend-btn');if(nvend)nvend.onclick=()=>{modal={type:'nuevo-vend'};render();};
   const ncatb=q('nueva-cat-btn');if(ncatb)ncatb.onclick=()=>{modal={type:'nueva-cat'};render();};
   const nub=q('nuevo-user-btn');if(nub)nub.onclick=()=>{modal={type:'nuevo-user'};render();};
-  const cmb=q('cerrar-mes-btn');if(cmb)cmb.onclick=()=>{const mes=mesActual();modal={type:'cerrar-mes',mes,detalle:data.vendedores.map(v=>{const vv=data.ventas.filter(vt=>vt.vendedorId===v.id&&vt.mes===mes);const com=vv.reduce((s,vt)=>s+calcCom(vt),0);return{id:v.id,nombre:v.nombre,sueldo:v.sueldo,comision:com,ventas:vv.length,total:v.sueldo+com};})};render();};
+  const cmb=q('cerrar-mes-btn');if(cmb)cmb.onclick=()=>{const mes=window._mesVend||mesActual();modal={type:'cerrar-mes',mes,detalle:data.vendedores.map(v=>{const vv=data.ventas.filter(vt=>vt.vendedorId===v.id&&vt.mes===mes);const com=vv.reduce((s,vt)=>s+calcCom(vt),0);return{id:v.id,nombre:v.nombre,sueldo:v.sueldo,comision:com,ventas:vv.length,total:v.sueldo+com};})};render();};
+  const smv=document.getElementById('sel-mes-vend');if(smv)smv.onchange=()=>{window._mesVend=smv.value;render();};
 
   // CIERRE DE CAJA — abrir turno
   const btnAbrir=q('btn-abrir-turno');
