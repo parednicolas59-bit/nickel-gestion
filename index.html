@@ -533,7 +533,7 @@ function renderDash(){
     +(data.caja||[]).filter(c=>c.tipo==='ingreso').reduce((s,c)=>s+c.monto,0)
     -data.egresos.filter(e=>e.pagado&&(e.fuente==='Caja efectivo'||!e.fuente)).reduce((s,e)=>s+e.monto,0);
   const cobradoMP=(data.mercadopago||[]).filter(c=>c.tipo==='ingreso').reduce((s,c)=>s+c.monto,0)-(data.mercadopago||[]).filter(c=>c.tipo==='egreso').reduce((s,c)=>s+c.monto,0);
-  const pendCredivip=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0);
+  const pendCredivip=data.ventas.filter(v=>v.estado==='pendiente'&&v.medioPago==='credivip').reduce((s,v)=>s+(v.total-v.cobrado),0);
   const pendRapicuota=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0);
   const hoyDash=getFechaHoyISO();
   const rapiSemanasDB=getRapicuotaSemanasAgrupadas().filter(s=>s.ventas.some(v=>!v.rapicuotaLiquidado)).sort((a,b)=>a.cobro.localeCompare(b.cobro));
