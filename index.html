@@ -115,6 +115,7 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .psb-cambiar{font-size:11px;color:var(--blue3);cursor:pointer;text-decoration:underline;white-space:nowrap;margin-left:8px}
 </style>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head><body>
 <div id="root"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -292,6 +293,7 @@ async function initApp(){
     ]);
     if(fbData){
       data=fbData;
+      data._modal=null;
       try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
     } else {
       data=load(); // fallback solo si Firebase no responde
@@ -479,7 +481,8 @@ window.imprimirPedido=function(){
   const fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const filas=sinStock.map((p,i)=>{const cat=getCat(p.categoriaId);const qty=document.getElementById('qty-pedido-'+p.id)?.value||1;return'<tr><td>'+(i+1)+'</td><td>'+p.nombre+'</td><td>'+(cat?cat.nombre:'—')+'</td><td>'+(p.codigo||'—')+'</td><td style="text-align:center;font-weight:700">'+qty+'</td></tr>';}).join('');
   const w=window.open('','_blank');
-  w.document.write('<html><head><title>Pedido — Nickcel</title><style>body{font-family:sans-serif;padding:24px;color:#1a2236}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f4f8;padding:8px 12px;text-align:left}td{padding:9px 12px;border-bottom:1px solid #eee}</style></head><body><h2>📦 Lista de pedido — Nickcel</h2><p>Fecha: '+fecha+' · Productos sin stock: '+sinStock.length+'</p><table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad</th></tr></thead><tbody>'+filas+'</tbody></table></body></html>');
+  w.document.write('<html><head><title>Pedido — Nickcel</title><style>body{font-family:sans-serif;padding:24px;color:#1a2236}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f4f8;padding:8px 12px;text-align:left}td{padding:9px 12px;border-bottom:1px solid #eee}</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head><body><h2>📦 Lista de pedido — Nickcel</h2><p>Fecha: '+fecha+' · Productos sin stock: '+sinStock.length+'</p><table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad</th></tr></thead><tbody>'+filas+'</tbody></table></body></html>');
   w.document.close();w.print();
 };
 
@@ -701,7 +704,8 @@ function printComprobante(venta){
     .footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}
     @media print{body{padding:10px}.btn-print{display:none}}
     .btn-print{display:block;width:100%;margin-top:20px;padding:10px;background:#1e8fcf;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
-  </style></head><body>
+  </style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head><body>
   <div class="logo">NICKEL</div>
   <div class="subtitulo">Tecno &amp; Hogar S.R.L. &mdash; Quitilipi, Chaco</div>
   <div class="titulo">${factLabel} N&deg; ${String(venta.id).padStart(8,'0')}</div>
@@ -1511,9 +1515,12 @@ function renderContactos(){
 }
 
 function renderVendedores(){
-  const mes=mesActual(),ventasMes=data.ventas.filter(v=>v.mes===mes);
+  const mesSel=window._mesVendedores||mesActual(),ventasMes=data.ventas.filter(v=>v.mes===mesSel);
+  const mes=mesSel;
+  // Generar últimos 6 meses
+  const meses=[];const hoy=new Date();for(let i=0;i<6;i++){const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);meses.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
   return`<div>
-    <div class="section-header"><span style="font-size:17px;font-weight:500">Vendedores</span><button class="btn primary" id="nuevo-vend-btn">+ Nuevo vendedor</button><button class="btn success" id="cerrar-mes-btn">Cerrar mes ${mes}</button></div>
+    <div class="section-header"><span style="font-size:17px;font-weight:500">Vendedores</span><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="sel-mes-vendedores" style="padding:6px 10px;font-size:13px;width:140px">${meses.map(m=>`<option value="${m}"${m===mesSel?' selected':''}>${m}</option>`).join('')}</select><button class="btn primary" id="nuevo-vend-btn">+ Nuevo vendedor</button><button class="btn success" id="cerrar-mes-btn">Cerrar mes ${mes}</button></div></div>
     ${data.vendedores.map(v=>{
       const vv=ventasMes.filter(vt=>vt.vendedorId===v.id),com=vv.reduce((s,vt)=>s+calcCom(vt),0),tv=vv.reduce((s,vt)=>s+vt.total,0);
       const ini=v.nombre.split(' ').map(x=>x[0]).join('').substring(0,2).toUpperCase();
@@ -2513,16 +2520,72 @@ function renderModal(){
     <div class="form-row"><label class="form-label">Motivo</label><textarea id="m-dev-motivo" style="${INP};height:50px;resize:vertical"></textarea></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn danger" id="modal-save-dev">Confirmar</button></div>
   </div></div>`;
-  if(m.type==='cerrar-mes') return`<div class="modal-bg"><div class="modal">
-    <div class="modal-title">Cerrar mes ${m.mes}</div>
-    ${m.detalle.map(d=>`<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px;margin-bottom:8px">
-      <div style="font-size:13px;font-weight:500;margin-bottom:6px">${d.nombre}</div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:#94a3b8"><span>Sueldo base</span><span>${fmt(d.sueldo)}</span></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:#a78bfa"><span>Comisiones (${d.ventas} ventas)</span><span>${fmt(d.comision)}</span></div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:500;color:#4ade80;margin-top:6px;border-top:1px solid var(--border);padding-top:6px"><span>Total</span><span>${fmt(d.total)}</span></div>
-    </div>`).join('')}
-    <div style="text-align:right;font-size:13px">Total general: <span style="color:#4ade80;font-weight:500">${fmt(m.detalle.reduce((s,d)=>s+d.total,0))}</span></div>
-    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn success" id="modal-confirm-cierre">Confirmar cierre</button></div>
+  if(m.type==='cerrar-mes'){
+  const mes=m.mes;
+  const ventasMes=data.ventas.filter(v=>(v.mes&&v.mes===mes)||(v.fecha&&v.fecha.startsWith(mes))||(v.fechaVenta&&v.fechaVenta.startsWith(mes)));
+  const totEfectivo=ventasMes.filter(v=>(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.total,0);
+  const totTransferencia=ventasMes.filter(v=>v.medioPago==='transferencia').reduce((s,v)=>s+v.total,0);
+  const totMercadopago=ventasMes.filter(v=>v.medioPago==='mercadopago').reduce((s,v)=>s+v.total,0);
+  const totRapicuota=ventasMes.filter(v=>v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0);
+  const totCredivip=ventasMes.filter(v=>v.medioPago==='credivip').reduce((s,v)=>s+v.total,0);
+  const totPagares=ventasMes.filter(v=>v.medioPago==='nickcel-pagares').reduce((s,v)=>s+v.total,0);
+  const totTarjetaNbch=ventasMes.filter(v=>v.medioPago==='tarjeta-nbch').reduce((s,v)=>s+v.total,0);
+  const totTarjetaSantander=ventasMes.filter(v=>v.medioPago==='tarjeta-santander').reduce((s,v)=>s+v.total,0);
+  const totTarjetaGalicia=ventasMes.filter(v=>v.medioPago==='tarjeta-galicia').reduce((s,v)=>s+v.total,0);
+  const totTarjetas=totTarjetaNbch+totTarjetaSantander+totTarjetaGalicia;
+  const totFinancieras=totRapicuota+totCredivip+totPagares;
+  const totalGeneral=ventasMes.reduce((s,v)=>s+v.total,0);
+  return`<div class="modal-bg"><div class="modal" style="max-width:600px">
+    <div class="modal-title">📊 Cierre de mes — ${mes}</div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:14px">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">💵 EFECTIVO</div>
+        <div style="font-size:20px;font-weight:600;color:#4ade80">${fmt(totEfectivo)}</div>
+        <div style="font-size:11px;color:#64748b">${ventasMes.filter(v=>(v.medioPago||'efectivo')==='efectivo').length} ventas</div>
+      </div>
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:14px">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">💳 TARJETAS</div>
+        <div style="font-size:20px;font-weight:600;color:#818cf8">${fmt(totTarjetas)}</div>
+        <div style="font-size:11px;color:#64748b">NBCH ${fmt(totTarjetaNbch)} · Santander ${fmt(totTarjetaSantander)} · Galicia ${fmt(totTarjetaGalicia)}</div>
+      </div>
+      <div style="background:rgba(251,146,60,0.08);border:1px solid rgba(251,146,60,0.2);border-radius:10px;padding:14px">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">🏦 TRANSFERENCIA</div>
+        <div style="font-size:20px;font-weight:600;color:#fb923c">${fmt(totTransferencia)}</div>
+        <div style="font-size:11px;color:#64748b">${ventasMes.filter(v=>v.medioPago==='transferencia').length} ventas</div>
+      </div>
+      <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:14px">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">📱 MERCADO PAGO</div>
+        <div style="font-size:20px;font-weight:600;color:#60a5fa">${fmt(totMercadopago)}</div>
+        <div style="font-size:11px;color:#64748b">${ventasMes.filter(v=>v.medioPago==='mercadopago').length} ventas</div>
+      </div>
+      <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:10px;padding:14px;grid-column:1/-1">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">💰 FINANCIERAS</div>
+        <div style="font-size:20px;font-weight:600;color:#c084fc">${fmt(totFinancieras)}</div>
+        <div style="font-size:11px;color:#64748b">Rapicuota ${fmt(totRapicuota)} · Credivip ${fmt(totCredivip)} · Pagarés ${fmt(totPagares)}</div>
+      </div>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">VENDEDORES</div>
+      ${m.detalle.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span>${d.nombre}</span>
+        <span style="color:#4ade80">${fmt(d.total)} <span style="color:#94a3b8;font-size:10px">(sueldo ${fmt(d.sueldo)} + com ${fmt(d.comision)})</span></span>
+      </div>`).join('')}
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;margin-bottom:16px">
+      <span style="font-size:14px;font-weight:500">TOTAL GENERAL</span>
+      <span style="font-size:22px;font-weight:700;color:#4ade80">${fmt(totalGeneral)}</span>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:16px;text-align:center">${ventasMes.length} ventas en el mes</div>
+
+    <div class="form-actions" style="flex-wrap:wrap;gap:8px">
+      <button class="btn" id="modal-cancel">Cancelar</button>
+      <button class="btn" id="btn-descargar-excel" style="background:#217346;color:#fff;border-color:#217346">📊 Excel</button>
+      <button class="btn" id="btn-descargar-pdf" style="background:#dc2626;color:#fff;border-color:#dc2626">📄 PDF</button>
+      <button class="btn success" id="modal-confirm-cierre">✅ Confirmar cierre</button>
+    </div>
   </div></div>`;
   if(m.type==='nuevo-credito')return`<div class="modal-bg"><div class="modal">${renderModalNuevoCredito()}</div></div>`;
   if(m.type==='ver-credito')return`<div class="modal-bg"><div class="modal" style="max-width:580px">${renderModalVerCredito(m.credito)}</div></div>`;
@@ -3174,6 +3237,88 @@ function bindApp(){
   const nvend=q('nuevo-vend-btn');if(nvend)nvend.onclick=()=>{modal={type:'nuevo-vend'};render();};
   const ncatb=q('nueva-cat-btn');if(ncatb)ncatb.onclick=()=>{modal={type:'nueva-cat'};render();};
   const nub=q('nuevo-user-btn');if(nub)nub.onclick=()=>{modal={type:'nuevo-user'};render();};
+  // DESCARGAR EXCEL CIERRE MES
+  const btnExcel=q('btn-descargar-excel');
+  if(btnExcel)btnExcel.onclick=()=>{
+    const mes=modal.mes;
+    const ventasMes=data.ventas.filter(v=>(v.mes&&v.mes===mes)||(v.fecha&&v.fecha.startsWith(mes))||(v.fechaVenta&&v.fechaVenta.startsWith(mes)));
+    const rows=[['Fecha','Producto','Cliente','Medio de pago','Total','Vendedor']];
+    ventasMes.forEach(v=>{
+      const prod=v.items?.map(i=>i.nombre||i.productoNombre||'').join(', ')||v.descripcion||'—';
+      const vend=data.vendedores?.find(vd=>vd.id===v.vendedorId)?.nombre||'—';
+      rows.push([v.fecha||mes, prod, v.clienteNombre||'—', v.medioPago||'efectivo', v.total, vend]);
+    });
+    // Resumen
+    rows.push([]);
+    rows.push(['RESUMEN DEL MES','','','','','']);
+    const medios={'efectivo':'Efectivo','transferencia':'Transferencia','mercadopago':'Mercado Pago','rapicuota':'Rapicuota','credivip':'Credivip','nickcel-pagares':'Pagarés Nickcel','tarjeta-nbch':'Tarjeta NBCH','tarjeta-santander':'Tarjeta Santander','tarjeta-galicia':'Tarjeta Galicia'};
+    Object.entries(medios).forEach(([k,label])=>{
+      const tot=ventasMes.filter(v=>(v.medioPago||'efectivo')===k).reduce((s,v)=>s+v.total,0);
+      if(tot>0)rows.push([label,'','','',tot,'']);
+    });
+    rows.push(['TOTAL GENERAL','','','',ventasMes.reduce((s,v)=>s+v.total,0),'']);
+    modal.detalle.forEach(d=>rows.push([`Sueldo ${d.nombre}`,'','','',d.total,'']));
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:35},{wch:20},{wch:18},{wch:14},{wch:18}];
+    XLSX.utils.book_append_sheet(wb,ws,'Cierre '+mes);
+    XLSX.writeFile(wb,'Nickcel-Cierre-'+mes+'.xlsx');
+  };
+
+  // DESCARGAR PDF CIERRE MES
+  const btnPdf=q('btn-descargar-pdf');
+  if(btnPdf)btnPdf.onclick=()=>{
+    const mes=modal.mes;
+    const ventasMes=data.ventas.filter(v=>(v.mes&&v.mes===mes)||(v.fecha&&v.fecha.startsWith(mes))||(v.fechaVenta&&v.fechaVenta.startsWith(mes)));
+    const calcTot=(mp)=>ventasMes.filter(v=>(v.medioPago||'efectivo')===mp).reduce((s,v)=>s+v.total,0);
+    const totalGeneral=ventasMes.reduce((s,v)=>s+v.total,0);
+    const fmtN=n=>'$'+Math.round(n||0).toLocaleString('es-AR');
+    const mediosRows=[
+      {label:'💵 Efectivo',tot:calcTot('efectivo'),color:'#16a34a'},
+      {label:'🏦 Transferencia',tot:calcTot('transferencia'),color:'#ea580c'},
+      {label:'📱 Mercado Pago',tot:calcTot('mercadopago'),color:'#2563eb'},
+      {label:'💳 Tarjeta NBCH',tot:calcTot('tarjeta-nbch'),color:'#7c3aed'},
+      {label:'💳 Tarjeta Santander',tot:calcTot('tarjeta-santander'),color:'#7c3aed'},
+      {label:'💳 Tarjeta Galicia',tot:calcTot('tarjeta-galicia'),color:'#7c3aed'},
+      {label:'🏢 Rapicuota',tot:calcTot('rapicuota'),color:'#b45309'},
+      {label:'🏢 Credivip',tot:calcTot('credivip'),color:'#b45309'},
+      {label:'📝 Pagarés Nickcel',tot:calcTot('nickcel-pagares'),color:'#b45309'},
+    ].filter(r=>r.tot>0);
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+      body{font-family:Arial,sans-serif;color:#111;padding:30px;max-width:700px;margin:0 auto}
+      h1{font-size:22px;margin-bottom:4px}
+      .sub{color:#666;font-size:13px;margin-bottom:24px}
+      .row{display:flex;justify-content:space-between;padding:10px 14px;border-radius:6px;margin-bottom:8px;font-size:14px}
+      .total-row{display:flex;justify-content:space-between;padding:14px 16px;background:#111;color:#fff;border-radius:8px;font-size:18px;font-weight:700;margin:16px 0}
+      .vend-row{display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #eee;font-size:13px}
+      h3{font-size:14px;color:#666;text-transform:uppercase;letter-spacing:1px;margin:20px 0 8px}
+      @media print{body{padding:10px}}
+    </style></head><body>
+    <h1>🏪 Nickcel Tecno & Hogar</h1>
+    <div class="sub">Informe de cierre — ${mes} · ${ventasMes.length} ventas</div>
+    <h3>Desglose por medio de pago</h3>
+    ${mediosRows.map(r=>`<div class="row" style="background:${r.color}18;border-left:4px solid ${r.color}">
+      <span>${r.label}</span><strong>${fmtN(r.tot)}</strong>
+    </div>`).join('')}
+    <div class="total-row"><span>TOTAL GENERAL</span><span>${fmtN(totalGeneral)}</span></div>
+    <h3>Vendedores</h3>
+    ${modal.detalle.map(d=>`<div class="vend-row">
+      <span>${d.nombre}</span>
+      <span>Sueldo ${fmtN(d.sueldo)} + Comisión ${fmtN(d.comision)} = <strong>${fmtN(d.total)}</strong></span>
+    </div>`).join('')}
+    <div style="margin-top:40px;text-align:center;font-size:10px;color:#aaa">Generado por NickGestión — ${new Date().toLocaleDateString('es-AR')}</div>
+    </body></html>`;
+    const w=window.open('','_blank','width=800,height=600');
+    w.document.write(html);
+    w.document.close();
+    setTimeout(()=>w.print(),500);
+  };
+
+  // SELECTOR MES VENDEDORES
+  const selMes=q('sel-mes-vendedores');
+  if(selMes)selMes.onchange=()=>{window._mesVendedores=selMes.value;render();};
+
   const cmb=q('cerrar-mes-btn');if(cmb)cmb.onclick=()=>{const mes=mesActual();modal={type:'cerrar-mes',mes,detalle:data.vendedores.map(v=>{const vv=data.ventas.filter(vt=>vt.vendedorId===v.id&&vt.mes===mes);const com=vv.reduce((s,vt)=>s+calcCom(vt),0);return{id:v.id,nombre:v.nombre,sueldo:v.sueldo,comision:com,ventas:vv.length,total:v.sueldo+com};})};render();};
 
   // CIERRE DE CAJA — abrir turno
