@@ -2528,7 +2528,7 @@ function renderModal(){
       <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:500;color:#4ade80;margin-top:6px;border-top:1px solid var(--border);padding-top:6px"><span>Total</span><span>${fmt(d.total)}</span></div>
     </div>`).join('')}
     <div style="text-align:right;font-size:13px">Total general: <span style="color:#4ade80;font-weight:500">${fmt(m.detalle.reduce((s,d)=>s+d.total,0))}</span></div>
-    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn success" id="modal-confirm-cierre">Confirmar cierre</button></div>
+    <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn" id="btn-pdf-cierre" style="background:#dc2626;color:#fff;border-color:#dc2626">📄 PDF</button><button class="btn success" id="modal-confirm-cierre">Confirmar cierre</button></div>
   </div></div>`;
   if(m.type==='nuevo-credito')return`<div class="modal-bg"><div class="modal">${renderModalNuevoCredito()}</div></div>`;
   if(m.type==='ver-credito')return`<div class="modal-bg"><div class="modal" style="max-width:580px">${renderModalVerCredito(m.credito)}</div></div>`;
@@ -3182,6 +3182,60 @@ function bindApp(){
   const nub=q('nuevo-user-btn');if(nub)nub.onclick=()=>{modal={type:'nuevo-user'};render();};
   const cmb=q('cerrar-mes-btn');if(cmb)cmb.onclick=()=>{const mes=window._mesVend||mesActual();modal={type:'cerrar-mes',mes,detalle:data.vendedores.map(v=>{const vv=data.ventas.filter(vt=>vt.vendedorId===v.id&&vt.mes===mes);const com=vv.reduce((s,vt)=>s+calcCom(vt),0);return{id:v.id,nombre:v.nombre,sueldo:v.sueldo,comision:com,ventas:vv.length,total:v.sueldo+com};})};render();};
   const smv=document.getElementById('sel-mes-vend');if(smv)smv.onchange=()=>{window._mesVend=smv.value;render();};
+
+  // PDF CIERRE MES
+  const btnPdfCierre=document.getElementById('btn-pdf-cierre');
+  if(btnPdfCierre)btnPdfCierre.onclick=()=>{
+    const mes=modal.mes;
+    const ventasMes=data.ventas.filter(v=>v.mes===mes);
+    const totalBruto=ventasMes.reduce((s,v)=>s+v.total,0);
+    const fmtN=n=>'$'+Math.round(n||0).toLocaleString('es-AR');
+    const medios=[
+      {label:'Efectivo',key:'efectivo'},
+      {label:'Transferencia',key:'transferencia'},
+      {label:'Mercado Pago',key:'mercadopago'},
+      {label:'Tarjeta NBCH',key:'tarjeta-nbch'},
+      {label:'Tarjeta Santander',key:'tarjeta-santander'},
+      {label:'Tarjeta Galicia',key:'tarjeta-galicia'},
+      {label:'Rapicuota',key:'rapicuota'},
+      {label:'Credivip',key:'credivip'},
+      {label:'Pagarés Nickcel',key:'nickcel-pagares'},
+    ];
+    const totalSueldos=modal.detalle.reduce((s,d)=>s+d.sueldo,0);
+    const totalComisiones=modal.detalle.reduce((s,d)=>s+d.comision,0);
+    const ganancia=totalBruto-totalSueldos-totalComisiones;
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+      body{font-family:Arial,sans-serif;color:#111;padding:30px;max-width:650px;margin:0 auto}
+      h1{font-size:22px;margin-bottom:2px}
+      .sub{color:#666;font-size:13px;margin-bottom:24px}
+      .total-box{background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:16px;display:flex;justify-content:space-between;align-items:center;margin:16px 0}
+      .total-box span{font-size:13px;color:#166534;font-weight:600;text-transform:uppercase}
+      .total-box strong{font-size:26px;font-weight:700;color:#15803d}
+      .ganancia-box{background:#eff6ff;border:2px solid #2563eb;border-radius:8px;padding:16px;display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+      .ganancia-box span{font-size:13px;color:#1d4ed8;font-weight:600;text-transform:uppercase}
+      .ganancia-box strong{font-size:22px;font-weight:700;color:#1d4ed8}
+      h3{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:1px;margin:20px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px}
+      .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
+      .row span{color:#666}
+      .row strong{color:#111}
+      .footer{margin-top:30px;text-align:center;font-size:10px;color:#aaa}
+    </style></head><body>
+    <h1>🏪 Nickcel Tecno & Hogar</h1>
+    <div class="sub">Informe de cierre — ${mes} · ${ventasMes.length} ventas registradas</div>
+    <div class="total-box"><span>Total ventas en bruto</span><strong>${fmtN(totalBruto)}</strong></div>
+    <div class="ganancia-box"><span>Ganancia estimada</span><strong>${fmtN(ganancia)}</strong></div>
+    <h3>Desglose por medio de pago</h3>
+    ${medios.map(m=>{const tot=ventasMes.filter(v=>(v.medioPago||'efectivo')===m.key).reduce((s,v)=>s+v.total,0);if(!tot)return'';return`<div class="row"><span>${m.label}</span><strong>${fmtN(tot)}</strong></div>`;}).join('')}
+    <h3>Sueldos y comisiones</h3>
+    ${modal.detalle.map(d=>`<div class="row"><span>${d.nombre}</span><strong>${fmtN(d.sueldo+d.comision)} <span style="font-weight:400;color:#999">(sueldo ${fmtN(d.sueldo)} + com ${fmtN(d.comision)})</span></strong></div>`).join('')}
+    <div class="row" style="font-weight:600"><span>Total sueldos + comisiones</span><strong>${fmtN(totalSueldos+totalComisiones)}</strong></div>
+    <div class="footer">Generado por NickGestión — ${new Date().toLocaleDateString('es-AR')}</div>
+    </body></html>`;
+    const w=window.open('','_blank','width=750,height=700');
+    w.document.write(html);
+    w.document.close();
+    setTimeout(()=>w.print(),600);
+  };
 
   // CIERRE DE CAJA — abrir turno
   const btnAbrir=q('btn-abrir-turno');
