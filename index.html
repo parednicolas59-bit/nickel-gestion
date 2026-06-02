@@ -3620,7 +3620,36 @@ function bindApp(){
   const mscom=q('modal-save-comisiones');if(mscom)mscom.onclick=()=>{const v=data.vendedores.find(x=>x.id===modal.vend.id);if(!v.comisiones)v.comisiones={};data.categorias.forEach(cat=>{v.comisiones[cat.id]=parseFloat(q('com-cat-'+cat.id)?.value)||0;});save(data);modal=null;render();};
   const mscat=q('modal-save-cat');if(mscat)mscat.onclick=()=>{data.categorias.push({id:data.nextId.categoria++,nombre:q('m-catnombre').value,color:q('m-catcolor').value});save(data);modal=null;render();};
   const msd=q('modal-save-dev');if(msd)msd.onclick=()=>{const vid=parseInt(q('m-dev-venta').value),v=data.ventas.find(x=>x.id===vid);if(v){v.estado='cancelado';v.cobrado=0;v.notas='DEV: '+(q('m-dev-motivo').value||'');v.items.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock+=i.qty;});}save(data);modal=null;render();};
-  const mcc=q('modal-confirm-cierre');if(mcc)mcc.onclick=()=>{data.cierres.push({id:data.nextId.cierre++,mes:modal.mes,fecha:getFechaHoyISO(),detalle:modal.detalle});save(data);modal=null;render();};
+  const mcc=q('modal-confirm-cierre');if(mcc)mcc.onclick=()=>{
+    // Guardar el cierre
+    data.cierres.push({id:data.nextId.cierre++,mes:modal.mes,fecha:getFechaHoyISO(),detalle:modal.detalle});
+    // Resetear cuentas a 0
+    data.nbch=[];
+    data.brubank=[];
+    data.galicia=[];
+    data.mercadopago=[];
+    data.supervielle=[];
+    data.caja=[];
+    data.egresos=[];
+    data.cobranzaCredivip=[];
+    data.cobranzaRapicuota=[];
+    data.cobranzaPagares=[];
+    data.cheques=[];
+    // Resetear nextIds de cuentas
+    data.nextId.nbch=1;
+    data.nextId.brubank=1;
+    data.nextId.galicia=1;
+    data.nextId.mercadopago=1;
+    data.nextId.supervielle=1;
+    data.nextId.caja=1;
+    data.nextId.egreso=1;
+    data.nextId.cobranzaCredivip=1;
+    data.nextId.cobranzaRapicuota=1;
+    data.nextId.cobranzaPagares=1;
+    data.nextId.cheque=1;
+    save(data);modal=null;render();
+    alert('✅ Mes cerrado. Todas las cuentas fueron reseteadas a 0.');
+  };
   // ===== GALICIA =====
   window._irGalicia=()=>{tab='galicia';render();};
   // ===== RAPICUOTA =====
