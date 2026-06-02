@@ -1512,8 +1512,8 @@ function renderContactos(){
 
 function renderVendedores(){
   const mes=window._mesVend||mesActual(),ventasMes=data.ventas.filter(v=>v.mes===mes);
-  const hoy=new Date(),mesesOpc=[];
-  for(let i=0;i<6;i++){const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);mesesOpc.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
+  const hoy=new Date();
+  const mesesOpc=['2026-06','2026-05','2026-04','2026-03','2026-02','2026-01'];
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Vendedores</span>
     <div style="display:flex;gap:8px;align-items:center">
