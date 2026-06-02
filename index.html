@@ -3203,33 +3203,55 @@ function bindApp(){
     ];
     const totalSueldos=modal.detalle.reduce((s,d)=>s+d.sueldo,0);
     const totalComisiones=modal.detalle.reduce((s,d)=>s+d.comision,0);
-    const ganancia=totalBruto-totalSueldos-totalComisiones;
+    // Calcular costo de productos vendidos
+    const totalCosto=ventasMes.reduce((s,v)=>{
+      const itemsCosto=(v.items||[]).reduce((si,item)=>{
+        const prod=data.productos.find(p=>p.id===item.productoId);
+        return si+((prod?.costo||0)*item.qty);
+      },0);
+      return s+itemsCosto;
+    },0);
+    // Egresos del mes
+    const egresosMes=(data.egresos||[]).filter(e=>e.fecha&&e.fecha.startsWith(mes));
+    const totalEgresos=egresosMes.reduce((s,e)=>s+e.monto,0);
+    const gananciaBruta=totalBruto-totalCosto;
+    const gananciaNeta=gananciaBruta-totalSueldos-totalComisiones-totalEgresos;
     const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
       body{font-family:Arial,sans-serif;color:#111;padding:30px;max-width:650px;margin:0 auto}
       h1{font-size:22px;margin-bottom:2px}
-      .sub{color:#666;font-size:13px;margin-bottom:24px}
-      .total-box{background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:16px;display:flex;justify-content:space-between;align-items:center;margin:16px 0}
-      .total-box span{font-size:13px;color:#166534;font-weight:600;text-transform:uppercase}
-      .total-box strong{font-size:26px;font-weight:700;color:#15803d}
-      .ganancia-box{background:#eff6ff;border:2px solid #2563eb;border-radius:8px;padding:16px;display:flex;justify-content:space-between;align-items:center;margin:8px 0}
-      .ganancia-box span{font-size:13px;color:#1d4ed8;font-weight:600;text-transform:uppercase}
-      .ganancia-box strong{font-size:22px;font-weight:700;color:#1d4ed8}
-      h3{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:1px;margin:20px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px}
-      .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
-      .row span{color:#666}
-      .row strong{color:#111}
-      .footer{margin-top:30px;text-align:center;font-size:10px;color:#aaa}
+      .sub{color:#666;font-size:13px;margin-bottom:20px}
+      .box{border-radius:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+      .box span{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+      .box strong{font-size:22px;font-weight:700}
+      .green{background:#f0fdf4;border:2px solid #16a34a}.green span{color:#166534}.green strong{color:#15803d}
+      .blue{background:#eff6ff;border:2px solid #2563eb}.blue span{color:#1d4ed8}.blue strong{color:#1d4ed8}
+      .red{background:#fef2f2;border:1.5px solid #fca5a5}.red span{color:#dc2626}.red strong{color:#dc2626}
+      .gray{background:#f9fafb;border:1.5px solid #e5e7eb}.gray span{color:#6b7280}.gray strong{color:#374151}
+      .purple{background:#faf5ff;border:2px solid #7c3aed}.purple span{color:#6d28d9}.purple strong{color:#6d28d9}
+      h3{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin:18px 0 6px;border-bottom:1px solid #f3f4f6;padding-bottom:4px}
+      .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f9fafb;font-size:13px}
+      .row span{color:#6b7280}.row strong{color:#111}
+      .footer{margin-top:28px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:12px}
     </style></head><body>
     <h1>🏪 Nickcel Tecno & Hogar</h1>
-    <div class="sub">Informe de cierre — ${mes} · ${ventasMes.length} ventas registradas</div>
-    <div class="total-box"><span>Total ventas en bruto</span><strong>${fmtN(totalBruto)}</strong></div>
-    <div class="ganancia-box"><span>Ganancia estimada</span><strong>${fmtN(ganancia)}</strong></div>
+    <div class="sub">Cierre de mes — <strong>${mes}</strong> · ${ventasMes.length} ventas</div>
+
+    <div class="box green"><span>Ventas totales (bruto)</span><strong>${fmtN(totalBruto)}</strong></div>
+    <div class="box gray"><span>Costo de productos vendidos</span><strong>- ${fmtN(totalCosto)}</strong></div>
+    <div class="box blue"><span>Ganancia bruta</span><strong>${fmtN(gananciaBruta)}</strong></div>
+    ${totalEgresos>0?`<div class="box red"><span>Egresos del mes</span><strong>- ${fmtN(totalEgresos)}</strong></div>`:''}
+    <div class="box gray"><span>Sueldos + comisiones</span><strong>- ${fmtN(totalSueldos+totalComisiones)}</strong></div>
+    <div class="box purple"><span>Ganancia neta estimada</span><strong>${fmtN(gananciaNeta)}</strong></div>
+
     <h3>Desglose por medio de pago</h3>
     ${medios.map(m=>{const tot=ventasMes.filter(v=>(v.medioPago||'efectivo')===m.key).reduce((s,v)=>s+v.total,0);if(!tot)return'';return`<div class="row"><span>${m.label}</span><strong>${fmtN(tot)}</strong></div>`;}).join('')}
+
+    ${totalEgresos>0?`<h3>Egresos del mes</h3>${egresosMes.map(e=>`<div class="row"><span>${e.concepto} (${e.fuente||''})</span><strong>${fmtN(e.monto)}</strong></div>`).join('')}`:''}
+
     <h3>Sueldos y comisiones</h3>
-    ${modal.detalle.map(d=>`<div class="row"><span>${d.nombre}</span><strong>${fmtN(d.sueldo+d.comision)} <span style="font-weight:400;color:#999">(sueldo ${fmtN(d.sueldo)} + com ${fmtN(d.comision)})</span></strong></div>`).join('')}
-    <div class="row" style="font-weight:600"><span>Total sueldos + comisiones</span><strong>${fmtN(totalSueldos+totalComisiones)}</strong></div>
-    <div class="footer">Generado por NickGestión — ${new Date().toLocaleDateString('es-AR')}</div>
+    ${modal.detalle.map(d=>`<div class="row"><span>${d.nombre}</span><strong>${fmtN(d.sueldo+d.comision)}</strong> <span style="font-size:11px;color:#aaa">(s.${fmtN(d.sueldo)} + c.${fmtN(d.comision)})</span></div>`).join('')}
+
+    <div class="footer">Generado por NickGestión · ${new Date().toLocaleDateString('es-AR')}</div>
     </body></html>`;
     const w=window.open('','_blank','width=750,height=700');
     w.document.write(html);
