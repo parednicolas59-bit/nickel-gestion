@@ -632,7 +632,7 @@ function renderDash(){
     </div>`:''}
   </div>
   <div class="resumen-row">
-    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Pend. — CrediVIP</div><div class="resumen-val" style="color:#fbbf24">${fmt(pendCredivip)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Pend. — CrediVIP</div><div class="resumen-val" style="color:#fbbf24">${fmt(pendCredivip)}</div>${pendCredivip>0?`<button onclick="window._cobrarCredivip&&window._cobrarCredivip()" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:none;background:#16a34a;color:#fff;font-size:11px;cursor:pointer;font-weight:600">✓ Cobrado</button>`:''}</div></div>
     ${rapiSemanasDB.length>0?`<div class="resumen-item" style="flex-direction:column;align-items:flex-start;gap:6px;min-width:200px">
       <div style="display:flex;align-items:center;gap:8px;width:100%">
         <div class="resumen-ico" style="background:rgba(139,92,246,0.18);flex-shrink:0">🟣</div>
@@ -3261,6 +3261,21 @@ function bindApp(){
     w.document.write(html);
     w.document.close();
     setTimeout(()=>w.print(),600);
+  };
+
+  // COBRAR CREDIVIP
+  window._cobrarCredivip=()=>{
+    if(!confirm('¿Confirmar que CrediVIP depositó todo el saldo pendiente?'))return;
+    // Marcar todas las ventas de credivip como cobradas
+    data.ventas.forEach(v=>{
+      if(v.medioPago==='credivip'&&v.estado!=='cancelado'){
+        v.cobrado=v.total;
+        v.estado='cobrado';
+      }
+    });
+    save(data);
+    render();
+    alert('✅ CrediVIP marcado como cobrado. Saldo en $0.');
   };
 
   // CIERRE DE CAJA — abrir turno
