@@ -2583,7 +2583,6 @@ function renderModal(){
       <button class="btn success" id="modal-confirm-cierre">✅ Confirmar cierre</button>
     </div>
   </div></div>`;
-}
   if(m.type==='nuevo-credito')return`<div class="modal-bg"><div class="modal">${renderModalNuevoCredito()}</div></div>`;
   if(m.type==='ver-credito')return`<div class="modal-bg"><div class="modal" style="max-width:580px">${renderModalVerCredito(m.credito)}</div></div>`;
   if(m.type==='cobrar-credito')return`<div class="modal-bg"><div class="modal">${renderModalCobrarCredito(m.credito)}</div></div>`;
