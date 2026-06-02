@@ -525,10 +525,11 @@ function renderDash(){
   const totalV=data.ventas.reduce((s,v)=>s+v.total,0),cobrado=data.ventas.reduce((s,v)=>s+v.cobrado,0);
   const mes=mesSel,comMes=data.ventas.filter(v=>v.mes===mes).reduce((s,v)=>s+calcCom(v),0);
   const prodBajo=data.productos.filter(p=>p.stock<=3);
-  const cobradoEfectivo=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0)
+  const mesActDash=mesActual();
+  const cobradoEfectivo=data.ventas.filter(v=>v.cobrado>0&&v.mes===mesActDash&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0)
     +(data.caja||[]).filter(c=>c.tipo==='ingreso').reduce((s,c)=>s+c.monto,0)
     -data.egresos.filter(e=>e.pagado&&(e.fuente==='Caja efectivo'||!e.fuente)).reduce((s,e)=>s+e.monto,0);
-  const cobradoMP=data.ventas.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0);
+  const cobradoMP=data.ventas.filter(v=>v.cobrado>0&&v.mes===mesActDash&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0);
   const pendCredivip=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0);
   const pendRapicuota=data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0);
   const hoyDash=getFechaHoyISO();
