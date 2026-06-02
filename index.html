@@ -326,6 +326,7 @@ async function initApp(){
       if(!data.nextId.galicia)data.nextId.galicia=1;
       data.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
       try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
+      if(!currentUser) modal=null;
       render();
     });
   }
