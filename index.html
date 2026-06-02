@@ -50,8 +50,8 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .badge.pagado{background:rgba(139,92,246,0.15);color:#a78bfa}
 .badge.admin{background:rgba(30,143,207,0.2);color:#38bdf8}
 .badge.vendedor{background:rgba(139,92,246,0.15);color:#a78bfa}
-.modal-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);display:flex;align-items:flex-start;justify-content:center;padding-top:20px;z-index:10}
-.modal{background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:20px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto}
+.modal-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);display:flex;align-items:flex-start;justify-content:center;padding-top:20px;z-index:10;cursor:pointer}
+.modal{cursor:default;background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:20px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto}
 .modal-title{font-size:15px;font-weight:500;margin-bottom:14px}
 .form-row{margin-bottom:10px}
 .form-label{font-size:11px;color:var(--text2);margin-bottom:4px;display:block}
@@ -484,7 +484,30 @@ window.imprimirPedido=function(){
   const filas=sinStock.map((p,i)=>{const cat=getCat(p.categoriaId);const qty=document.getElementById('qty-pedido-'+p.id)?.value||1;return'<tr><td>'+(i+1)+'</td><td>'+p.nombre+'</td><td>'+(cat?cat.nombre:'—')+'</td><td>'+(p.codigo||'—')+'</td><td style="text-align:center;font-weight:700">'+qty+'</td></tr>';}).join('');
   const w=window.open('','_blank');
   w.document.write('<html><head><title>Pedido — Nickcel</title><style>body{font-family:sans-serif;padding:24px;color:#1a2236}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f4f8;padding:8px 12px;text-align:left}td{padding:9px 12px;border-bottom:1px solid #eee}</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-</head><body><h2>📦 Lista de pedido — Nickcel</h2><p>Fecha: '+fecha+' · Productos sin stock: '+sinStock.length+'</p><table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad</th></tr></thead><tbody>'+filas+'</tbody></table></body></html>');
+</head><body><h2>📦 Lista de pedido — Nickcel</h2><p>Fecha: '+fecha+' · Productos sin stock: '+sinStock.length+'</p><table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th>Código</th><th>Cantidad</th></tr></thead><tbody>'+filas+'</tbody></table><div id="emergency-close" style="position:fixed;bottom:20px;left:20px;z-index:9999;display:none">
+  <button onclick="window._closeModal&&window._closeModal()" style="background:#ef4444;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.4)">✕ Cerrar ventana</button>
+</div>
+<script>
+window._closeModal = function() {
+  document.querySelectorAll('.modal-bg').forEach(function(el) {
+    el.parentNode && el.parentNode.removeChild(el);
+  });
+  document.getElementById('emergency-close').style.display = 'none';
+};
+// Mostrar botón si hay modal
+setInterval(function() {
+  var hasModal = document.querySelector('.modal-bg');
+  var btn = document.getElementById('emergency-close');
+  if (btn) btn.style.display = hasModal ? 'block' : 'none';
+}, 500);
+// Click en fondo oscuro cierra modal
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.classList.contains('modal-bg')) {
+    window._closeModal && window._closeModal();
+  }
+});
+</script>
+</body></html>');
   w.document.close();w.print();
 };
 
@@ -735,7 +758,30 @@ function printComprobante(venta){
   ${venta.notas?`<div class="seccion"><div class="seccion-label">Notas</div><div style="padding:6px 0;color:#555">${venta.notas}</div></div>`:''}
   <div class="footer">Este comprobante no reemplaza factura oficial &bull; Gracias por su compra</div>
   <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-  </body></html>`);
+  <div id="emergency-close" style="position:fixed;bottom:20px;left:20px;z-index:9999;display:none">
+  <button onclick="window._closeModal&&window._closeModal()" style="background:#ef4444;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.4)">✕ Cerrar ventana</button>
+</div>
+<script>
+window._closeModal = function() {
+  document.querySelectorAll('.modal-bg').forEach(function(el) {
+    el.parentNode && el.parentNode.removeChild(el);
+  });
+  document.getElementById('emergency-close').style.display = 'none';
+};
+// Mostrar botón si hay modal
+setInterval(function() {
+  var hasModal = document.querySelector('.modal-bg');
+  var btn = document.getElementById('emergency-close');
+  if (btn) btn.style.display = hasModal ? 'block' : 'none';
+}, 500);
+// Click en fondo oscuro cierra modal
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.classList.contains('modal-bg')) {
+    window._closeModal && window._closeModal();
+  }
+});
+</script>
+</body></html>`);
   w.document.close();
 }
 function drawCharts(){
@@ -3310,7 +3356,30 @@ function bindApp(){
       <span>Sueldo ${fmtN(d.sueldo)} + Comisión ${fmtN(d.comision)} = <strong>${fmtN(d.total)}</strong></span>
     </div>`).join('')}
     <div style="margin-top:40px;text-align:center;font-size:10px;color:#aaa">Generado por NickGestión — ${new Date().toLocaleDateString('es-AR')}</div>
-    </body></html>`;
+    <div id="emergency-close" style="position:fixed;bottom:20px;left:20px;z-index:9999;display:none">
+  <button onclick="window._closeModal&&window._closeModal()" style="background:#ef4444;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.4)">✕ Cerrar ventana</button>
+</div>
+<script>
+window._closeModal = function() {
+  document.querySelectorAll('.modal-bg').forEach(function(el) {
+    el.parentNode && el.parentNode.removeChild(el);
+  });
+  document.getElementById('emergency-close').style.display = 'none';
+};
+// Mostrar botón si hay modal
+setInterval(function() {
+  var hasModal = document.querySelector('.modal-bg');
+  var btn = document.getElementById('emergency-close');
+  if (btn) btn.style.display = hasModal ? 'block' : 'none';
+}, 500);
+// Click en fondo oscuro cierra modal
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.classList.contains('modal-bg')) {
+    window._closeModal && window._closeModal();
+  }
+});
+</script>
+</body></html>`;
     const w=window.open('','_blank','width=800,height=600');
     w.document.write(html);
     w.document.close();
@@ -4687,4 +4756,27 @@ window.checkMedioPagoAviso=function(sel){
 };
 </script>
 
+<div id="emergency-close" style="position:fixed;bottom:20px;left:20px;z-index:9999;display:none">
+  <button onclick="window._closeModal&&window._closeModal()" style="background:#ef4444;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.4)">✕ Cerrar ventana</button>
+</div>
+<script>
+window._closeModal = function() {
+  document.querySelectorAll('.modal-bg').forEach(function(el) {
+    el.parentNode && el.parentNode.removeChild(el);
+  });
+  document.getElementById('emergency-close').style.display = 'none';
+};
+// Mostrar botón si hay modal
+setInterval(function() {
+  var hasModal = document.querySelector('.modal-bg');
+  var btn = document.getElementById('emergency-close');
+  if (btn) btn.style.display = hasModal ? 'block' : 'none';
+}, 500);
+// Click en fondo oscuro cierra modal
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.classList.contains('modal-bg')) {
+    window._closeModal && window._closeModal();
+  }
+});
+</script>
 </body></html>
