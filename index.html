@@ -2518,7 +2518,7 @@ function renderModal(){
   </div></div>`;
   if(m.type==='cerrar-mes'){
   const mes=m.mes;
-  const ventasMes=data.ventas.filter(v=>v.mes===mes||v.fecha?.startsWith(mes));
+  const ventasMes=data.ventas.filter(v=>(v.mes&&v.mes===mes)||(v.fecha&&v.fecha.startsWith(mes))||(v.fechaVenta&&v.fechaVenta.startsWith(mes)));
   const totEfectivo=ventasMes.filter(v=>(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.total,0);
   const totTransferencia=ventasMes.filter(v=>v.medioPago==='transferencia').reduce((s,v)=>s+v.total,0);
   const totMercadopago=ventasMes.filter(v=>v.medioPago==='mercadopago').reduce((s,v)=>s+v.total,0);
@@ -3237,7 +3237,7 @@ function bindApp(){
   const btnExcel=q('btn-descargar-excel');
   if(btnExcel)btnExcel.onclick=()=>{
     const mes=modal.mes;
-    const ventasMes=data.ventas.filter(v=>v.mes===mes||v.fecha?.startsWith(mes));
+    const ventasMes=data.ventas.filter(v=>(v.mes&&v.mes===mes)||(v.fecha&&v.fecha.startsWith(mes))||(v.fechaVenta&&v.fechaVenta.startsWith(mes)));
     const rows=[['Fecha','Producto','Cliente','Medio de pago','Total','Vendedor']];
     ventasMes.forEach(v=>{
       const prod=v.items?.map(i=>i.nombre||i.productoNombre||'').join(', ')||v.descripcion||'—';
@@ -3265,7 +3265,7 @@ function bindApp(){
   const btnPdf=q('btn-descargar-pdf');
   if(btnPdf)btnPdf.onclick=()=>{
     const mes=modal.mes;
-    const ventasMes=data.ventas.filter(v=>v.mes===mes||v.fecha?.startsWith(mes));
+    const ventasMes=data.ventas.filter(v=>(v.mes&&v.mes===mes)||(v.fecha&&v.fecha.startsWith(mes))||(v.fechaVenta&&v.fechaVenta.startsWith(mes)));
     const calcTot=(mp)=>ventasMes.filter(v=>(v.medioPago||'efectivo')===mp).reduce((s,v)=>s+v.total,0);
     const totalGeneral=ventasMes.reduce((s,v)=>s+v.total,0);
     const fmtN=n=>'$'+Math.round(n||0).toLocaleString('es-AR');
