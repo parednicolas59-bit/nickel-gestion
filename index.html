@@ -2458,9 +2458,10 @@ function renderModal(){
     <div class="form-row"><label class="form-label">Nombre</label><input type="text" id="m-pnombre" value="${m.prod?.nombre||''}" style="${INP}"></div>
     <div class="form-row"><label class="form-label">Código de barras</label><input type="text" id="m-pcodigo" value="${m.prod?.codigo||''}" placeholder="Escaneá o escribí el código" style="${INP}"></div>
     <div class="two-col">
-      <div class="form-row"><label class="form-label">Categoría</label><select id="m-pcat" style="${INP}">${data.categorias.map(c=>`<option value="${c.id}"${m.prod?.categoriaId==c.id?' selected':''}>${c.nombre}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Categoría</label><select id="m-pcat" onchange="document.getElementById('imei-row').style.display=this.value=='4'?'block':'none'" style="${INP}">${data.categorias.map(c=>`<option value="${c.id}"${m.prod?.categoriaId==c.id?' selected':''}>${c.nombre}</option>`).join('')}</select></div>
       <div class="form-row"><label class="form-label">Precio venta</label><input type="number" id="m-pprecio" value="${m.prod?.precio||0}" style="${INP}"></div>
     </div>
+    <div id="imei-row" class="form-row" style="display:${m.prod?.categoriaId==4?'block':'none'}"><label class="form-label">IMEI</label><input type="text" id="m-pimei" value="${m.prod?.imei||''}" placeholder="Número IMEI del celular" style="${INP}"></div>
     <div class="two-col">
       <div class="form-row"><label class="form-label">Precio costo <span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:1px 6px;border-radius:5px">admin</span></label><input type="number" id="m-pcosto" value="${m.prod?.costo||0}" style="${INP}" placeholder="0"></div>
       <div class="form-row"><label class="form-label">Stock</label><input type="number" id="m-pstock" value="${m.prod?.stock||0}" style="${INP}"></div>
@@ -3281,7 +3282,11 @@ function bindApp(){
     else if(comprasMes===2){fidelMsg='🎉 ¡Felicitaciones! Ya tenés tu 10% de descuento ganado. Presentá este comprobante en tu próxima compra.';fidelColor='#15803d';fidelBg='#f0fdf4';}
     else if(comprasMes>=3){fidelMsg='🌟 ¡Cliente frecuente! Gracias por seguir eligiéndonos.';fidelColor='#7c3aed';fidelBg='#faf5ff';}
     const tel=(venta.clienteTel||'').replace(/\D/g,'');
-    const itemsRows=venta.items.map(i=>`<tr><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6">${i.nombre}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:center">${i.qty}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:right">${fmtN(i.precio)}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600">${fmtN(i.precio*i.qty)}</td></tr>`).join('');
+    const itemsRows=venta.items.map(i=>{
+      const prod=data.productos.find(p=>p.id===i.productoId);
+      const imei=prod?.imei?`<div style="font-size:10px;color:#6b7280;margin-top:2px">IMEI: ${prod.imei}</div>`:'';
+      return`<tr><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6">${i.nombre}${imei}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:center">${i.qty}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:right">${fmtN(i.precio)}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600">${fmtN(i.precio*i.qty)}</td></tr>`;
+    }).join('');
     // Mensaje WPP
     const wppItems=venta.items.map(i=>`▪ ${i.nombre} x${i.qty} — ${fmtN(i.precio)}`).join('%0A');
     const wppFidel=comprasMes===1?'🎯 ¡Una compra más este mes y ganás un 10% de descuento!':comprasMes>=2?'🎉 ¡Ya tenés tu 10% de descuento ganado! Presentá este mensaje en tu próxima compra.':'';
@@ -3728,8 +3733,8 @@ function bindApp(){
     const costo=parseFloat(q('m-pcosto')?.value)||0;
     const provId=parseInt(q('m-pprov')?.value)||null;
     const descEfectivo=parseFloat(q('m-pdesc-efectivo')?.value)||0;
-    if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.costo=costo;p.stock=parseInt(q('m-pstock').value)||0;p.proveedorId=provId;p.descEfectivo=descEfectivo;}
-    else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,costo,stock:parseInt(q('m-pstock').value)||0,proveedorId:provId,descEfectivo});}
+    if(modal.prod){const p=data.productos.find(x=>x.id===modal.prod.id);p.nombre=q('m-pnombre').value;p.codigo=q('m-pcodigo').value;p.categoriaId=parseInt(q('m-pcat').value);p.precio=parseFloat(q('m-pprecio').value)||0;p.costo=costo;p.stock=parseInt(q('m-pstock').value)||0;p.proveedorId=provId;p.descEfectivo=descEfectivo;if(parseInt(q('m-pcat').value)===4)p.imei=q('m-pimei')?.value||'';}
+    else{data.productos.push({id:data.nextId.producto++,nombre:q('m-pnombre').value,codigo:q('m-pcodigo').value,categoriaId:parseInt(q('m-pcat').value)||null,precio:parseFloat(q('m-pprecio').value)||0,costo,stock:parseInt(q('m-pstock').value)||0,proveedorId:provId,descEfectivo,imei:parseInt(q('m-pcat').value)===4?(q('m-pimei')?.value||''):'',});}
     save(data);modal=null;render();
   };
   const msprov=q('modal-save-prov');if(msprov)msprov.onclick=()=>{
