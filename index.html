@@ -817,6 +817,7 @@ function renderVentas(){
       <td><div class="actions-cell">
         <button class="btn" data-ver-venta="${v.id}" style="font-size:11px;padding:3px 7px">Ver</button>
         <button class="btn" data-print-venta="${v.id}" style="font-size:11px;padding:3px 7px">🖨️</button>
+        <button class="btn" onclick="window._generarComprobanteVenta&&window._generarComprobanteVenta(data.ventas.find(x=>x.id===${v.id}))" style="font-size:11px;padding:3px 7px;background:#25d366;color:#fff;border-color:#25d366">📄</button>
         ${currentUser.role==='admin'?`<button class="btn" data-edit-venta="${v.id}" style="font-size:11px;padding:3px 7px">✏️</button>`:''}
         <button class="btn" data-cobrar="${v.id}" style="font-size:11px;padding:3px 7px">Cobrar</button>
         ${currentUser.role==='admin'?`<button class="btn danger" data-del-venta="${v.id}" style="font-size:11px;padding:3px 6px">✕</button>`:''}
