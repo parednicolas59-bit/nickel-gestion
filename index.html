@@ -3280,10 +3280,23 @@ function bindApp(){
   // COBRAR MERCADO PAGO
   window._cobrarMP=()=>{
     if(!confirm('¿Confirmar que Mercado Pago depositó todo el saldo?'))return;
-    data.mercadopago=[];
-    data.nextId.mercadopago=1;
+    // Registrar todas las ventas MP sin movimiento como liquidadas
+    if(!data.nextId.mercadopago)data.nextId.mercadopago=1;
+    data.ventas.filter(v=>(v.medioPago==='mercadopago'||v.medioPago==='transferencia')&&v.cobrado>0&&v.estado!=='cancelado').forEach(v=>{
+      const yaReg=(data.mercadopago||[]).some(m=>m.tipo==='ingreso'&&m.descripcion&&m.descripcion.includes('Venta #'+v.id));
+      if(!yaReg){
+        if(!data.mercadopago)data.mercadopago=[];
+        data.mercadopago.push({id:data.nextId.mercadopago++,fecha:getFechaHoyISO(),tipo:'ingreso',descripcion:'Venta #'+v.id+' — '+v.cliente,monto:v.cobrado,ventaId:v.id});
+      }
+    });
+    // Luego registrar egreso por el total para dejar saldo en 0
+    const saldoActual=getSaldoMp();
+    if(saldoActual>0){
+      if(!data.mercadopago)data.mercadopago=[];
+      data.mercadopago.push({id:data.nextId.mercadopago++,fecha:getFechaHoyISO(),tipo:'egreso',descripcion:'Retiro MP — saldo cobrado',monto:saldoActual});
+    }
     save(data);render();
-    alert('✅ Mercado Pago reseteado a $0.');
+    alert('✅ Mercado Pago marcado como cobrado. Saldo en $0.');
   };
 
   // COBRAR CREDIVIP
