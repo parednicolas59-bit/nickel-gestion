@@ -761,10 +761,10 @@ function renderVentas(){
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Ventas</span><button class="btn primary" id="nueva-venta-btn">+ Nueva venta manual</button><button class="btn" id="devolucion-btn">Devolución</button></div>
     <div class="metrics">
-      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">🛒</div><div class="metric-label">Cantidad</div><div class="metric-value">${data.ventas.length}</div></div>
+      <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">🛒</div><div class="metric-label">Cantidad</div><div class="metric-value">${_ventasMes.length}</div></div>
       <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">✅</div><div class="metric-label">Cobrado</div><div class="metric-value" style="color:#4ade80">${fmt(cobrado)}</div></div>
       <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">A cobrar</div><div class="metric-value" style="color:#fbbf24">${fmt(totalV-cobrado)}</div></div>
-      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">👥</div><div class="metric-label">Comisiones</div><div class="metric-value" style="color:#a78bfa">${fmt(data.ventas.reduce((s,v)=>s+calcCom(v),0))}</div></div>
+      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">👥</div><div class="metric-label">Comisiones</div><div class="metric-value" style="color:#a78bfa">${fmt(_ventasMes.reduce((s,v)=>s+calcCom(v),0))}</div></div>
     </div>
     ${currentUser.role==='admin'?`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
