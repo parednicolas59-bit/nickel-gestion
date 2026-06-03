@@ -618,7 +618,7 @@ function renderDash(){
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">🏦</div><div><div class="resumen-label">Brubank — Saldo cta.</div><div class="resumen-val" style="color:#f87171">${fmt(saldoBrubank)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(255,77,77,0.18)">🏦</div><div><div class="resumen-label">Galicia — Saldo cta.</div><div class="resumen-val" style="color:#ff4d4d">${fmt(saldoGalicia)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(0,207,170,0.18)">🏦</div><div><div class="resumen-label">Supervielle — Saldo</div><div class="resumen-val" style="color:#00cfaa">${fmt(saldoSupervielle)}</div></div></div>
-    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(0,174,243,0.18)">💙</div><div><div class="resumen-label">Mercado Pago — Saldo</div><div class="resumen-val" style="color:#00aef3">${fmt(saldoMp)}</div></div></div>
+    <div class="resumen-item"><div class="resumen-ico" style="background:rgba(0,174,243,0.18)">💙</div><div><div class="resumen-label">Mercado Pago — Saldo</div><div class="resumen-val" style="color:#00aef3">${fmt(saldoMp)}</div>${saldoMp>0?`<button onclick="window._cobrarMP&&window._cobrarMP()" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:none;background:#16a34a;color:#fff;font-size:11px;cursor:pointer;font-weight:600">✓ Cobrado</button>`:''}</div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(245,158,11,0.18)">🟠</div><div><div class="resumen-label">Cobr. CrediVIP — Saldo</div><div class="resumen-val" style="color:#fbbf24">${fmt(saldoCobranzaCredivip)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Cobr. Rapicuota — Saldo</div><div class="resumen-val" style="color:#a78bfa">${fmt(saldoCobranzaRapicuota)}</div></div></div>
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(56,189,248,0.18)">📄</div><div><div class="resumen-label">Cobr. Pagarés — Saldo</div><div class="resumen-val" style="color:#38bdf8">${fmt(saldoCobranzaPagares)}</div></div></div>
@@ -649,7 +649,7 @@ function renderDash(){
           </div>`;
         }).join('')}
       </div>
-    </div>`:`<div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Pend. — Rapicuota</div><div class="resumen-val" style="color:#a78bfa">${fmt(pendRapicuota)}</div></div></div>`}
+    </div>`:`<div class="resumen-item"><div class="resumen-ico" style="background:rgba(139,92,246,0.18)">🟣</div><div><div class="resumen-label">Pend. — Rapicuota</div><div class="resumen-val" style="color:#a78bfa">${fmt(pendRapicuota)}</div>${pendRapicuota>0?`<button onclick="window._cobrarRapicuota&&window._cobrarRapicuota()" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:none;background:#16a34a;color:#fff;font-size:11px;cursor:pointer;font-weight:600">✓ Cobrado</button>`:''}</div></div>`}
     <div class="resumen-item"><div class="resumen-ico" style="background:rgba(30,143,207,0.18)">📄</div><div><div class="resumen-label">Pend. — Nickcel Pagarés</div><div class="resumen-val" style="color:#38bdf8">${fmt(pendNickcel)}</div></div></div>
     ${nbchPendientes.length>0?`<div class="resumen-item" style="border-color:${nbchVencidas.length>0?'rgba(239,68,68,0.3)':'var(--border)'}"><div class="resumen-ico" style="background:rgba(167,122,255,0.18)">💳</div><div><div class="resumen-label">Pend. — Tarjeta NBCH</div><div class="resumen-val" style="color:${nbchVencidas.length>0?'#f87171':'#a78bfa'}">${fmt(nbchPendientes.reduce((s,v)=>s+v.total,0))}</div></div></div>`:''}
     ${brubankPendientes.length>0?`<div class="resumen-item" style="border-color:${brubankVencidas.length>0?'rgba(239,68,68,0.3)':'var(--border)'}"><div class="resumen-ico" style="background:rgba(248,113,113,0.18)">💳</div><div><div class="resumen-label">Pend. — Santander</div><div class="resumen-val" style="color:#f87171">${fmt(brubankPendientes.reduce((s,v)=>s+v.total,0))}</div></div></div>`:''}
@@ -3261,6 +3261,29 @@ function bindApp(){
     w.document.write(html);
     w.document.close();
     setTimeout(()=>w.print(),600);
+  };
+
+  // COBRAR RAPICUOTA
+  window._cobrarRapicuota=()=>{
+    if(!confirm('¿Confirmar que Rapicuota depositó todo el saldo pendiente?'))return;
+    data.ventas.forEach(v=>{
+      if(v.medioPago==='rapicuota'&&v.estado!=='cancelado'){
+        v.cobrado=v.total;
+        v.estado='cobrado';
+        v.rapicuotaLiquidado=true;
+      }
+    });
+    save(data);render();
+    alert('✅ Rapicuota marcado como cobrado.');
+  };
+
+  // COBRAR MERCADO PAGO
+  window._cobrarMP=()=>{
+    if(!confirm('¿Confirmar que Mercado Pago depositó todo el saldo?'))return;
+    data.mercadopago=[];
+    data.nextId.mercadopago=1;
+    save(data);render();
+    alert('✅ Mercado Pago reseteado a $0.');
   };
 
   // COBRAR CREDIVIP
