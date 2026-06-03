@@ -802,7 +802,7 @@ function renderVentas(){
     </div>
     <div class="card"><div class="card-title">Historial</div>
     <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Items</th><th>Total</th><th>Cobrado</th><th>Comisión</th>${currentUser.role==='admin'?'<th style="color:#4ade80">Ganancia</th>':''}<th>Estado</th>${currentUser.role==='admin'?'<th>Pago</th>':''}<th>Factura</th><th></th></tr></thead>
-    <tbody>${data.ventas.slice().reverse().map(v=>{const vnd=getVend(v.vendedorId);const mp=v.medioPago||'efectivo';const sub=v.mpSubtipo||null;
+    <tbody>${data.ventas.filter(v=>v.mes===mesActual()).slice().reverse().map(v=>{const vnd=getVend(v.vendedorId);const mp=v.medioPago||'efectivo';const sub=v.mpSubtipo||null;
       const ganV=v.estado!=='cancelado'?v.items.reduce((s,i)=>{const p=getProdById(i.productoId);return s+(i.precio-(p?.costo||0))*i.qty;},0):0;
       return`<tr>
       <td>${fd(v.fecha)}</td><td>${v.cliente}</td><td style="color:#a78bfa">${vnd?vnd.nombre.split(' ')[0]:'-'}</td>
