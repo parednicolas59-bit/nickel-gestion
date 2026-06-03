@@ -3543,6 +3543,29 @@ function bindApp(){
     data.ventas.unshift({id:data.nextId.venta++,fecha,mes,ts:Date.now(),cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombre,monto:total});}
     save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
+    // WhatsApp automático + PDF comprobante
+    setTimeout(()=>{
+      const venta=data.ventas[0];
+      const tel=(venta.clienteTel||'').replace(/\D/g,'');
+      if(tel && tel.length>=8){
+        const vend=data.vendedores.find(v=>v.id===venta.vendedorId);
+        const vendNombre=vend?vend.nombre.split(' ')[0]:'Nickcel';
+        // Contar compras del mes del cliente
+        const mesV=venta.mes||venta.fecha.substring(0,7);
+        const comprasMes=data.ventas.filter(v=>v.cliente===venta.cliente&&(v.mes||v.fecha.substring(0,7))===mesV).length;
+        // Mensaje de fidelización
+        let fidelMsg='';
+        if(comprasMes===1) fidelMsg='🎯 *¡Una compra más este mes y ganás un 10% de descuento en tu próxima visita!*';
+        else if(comprasMes===2) fidelMsg='🎉 *¡Felicitaciones! Ya tenés tu 10% de descuento ganado. Presentá este mensaje en tu próxima compra en Nickcel.*';
+        else if(comprasMes>=3) fidelMsg='🌟 *¡Cliente frecuente! Recordá que tenés beneficios esperándote en Nickcel.*';
+        const items=venta.items.map(i=>`▪ ${i.nombre} x${i.qty} — $${i.precio.toLocaleString('es-AR')}`).join('\n');
+        const fmtN=n=>'$'+Math.round(n||0).toLocaleString('es-AR');
+        const mpLabels={'efectivo':'Efectivo 💵','mercadopago':'Mercado Pago 📱','transferencia':'Transferencia 🏦','tarjeta-nbch':'Tarjeta NBCH 💳','tarjeta-santander':'Tarjeta Santander 💳','tarjeta-galicia':'Tarjeta Galicia 💳','rapicuota':'Rapicuota','credivip':'CrediVIP','nickcel-pagares':'Pagarés Nickcel'};
+        const mpLabel=mpLabels[venta.medioPago]||venta.medioPago||'Efectivo';
+        const msg=`Hola ${venta.cliente.split(' ')[0]}! 👋\n\n✅ *Tu compra en Nickcel fue registrada:*\n\n${items}\n\n💰 *Total: ${fmtN(venta.total)}*\n💳 Medio de pago: ${mpLabel}\n👤 Atendido por: ${vendNombre}\n\n${fidelMsg}\n\nGracias por elegirnos! 🙏\n— *Nickcel Tecno & Hogar*`;
+        window.open('https://wa.me/549'+tel+'?text='+encodeURIComponent(msg),'_blank');
+      }
+    },800);
   }catch(err){alert('Error al guardar: '+err.message);console.error(err);}};
   const msv=q('modal-save-venta');
   if(msv)msv.onclick=()=>{
@@ -3568,6 +3591,29 @@ function bindApp(){
     carritoManual.forEach(item=>{const prod=getProdById(item.productoId);if(prod)prod.stock=Math.max(0,prod.stock-item.qty);});
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombreM,monto:total});}
     save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
+    // WhatsApp automático + PDF comprobante
+    setTimeout(()=>{
+      const venta=data.ventas[0];
+      const tel=(venta.clienteTel||'').replace(/\D/g,'');
+      if(tel && tel.length>=8){
+        const vend=data.vendedores.find(v=>v.id===venta.vendedorId);
+        const vendNombre=vend?vend.nombre.split(' ')[0]:'Nickcel';
+        // Contar compras del mes del cliente
+        const mesV=venta.mes||venta.fecha.substring(0,7);
+        const comprasMes=data.ventas.filter(v=>v.cliente===venta.cliente&&(v.mes||v.fecha.substring(0,7))===mesV).length;
+        // Mensaje de fidelización
+        let fidelMsg='';
+        if(comprasMes===1) fidelMsg='🎯 *¡Una compra más este mes y ganás un 10% de descuento en tu próxima visita!*';
+        else if(comprasMes===2) fidelMsg='🎉 *¡Felicitaciones! Ya tenés tu 10% de descuento ganado. Presentá este mensaje en tu próxima compra en Nickcel.*';
+        else if(comprasMes>=3) fidelMsg='🌟 *¡Cliente frecuente! Recordá que tenés beneficios esperándote en Nickcel.*';
+        const items=venta.items.map(i=>`▪ ${i.nombre} x${i.qty} — $${i.precio.toLocaleString('es-AR')}`).join('\n');
+        const fmtN=n=>'$'+Math.round(n||0).toLocaleString('es-AR');
+        const mpLabels={'efectivo':'Efectivo 💵','mercadopago':'Mercado Pago 📱','transferencia':'Transferencia 🏦','tarjeta-nbch':'Tarjeta NBCH 💳','tarjeta-santander':'Tarjeta Santander 💳','tarjeta-galicia':'Tarjeta Galicia 💳','rapicuota':'Rapicuota','credivip':'CrediVIP','nickcel-pagares':'Pagarés Nickcel'};
+        const mpLabel=mpLabels[venta.medioPago]||venta.medioPago||'Efectivo';
+        const msg=`Hola ${venta.cliente.split(' ')[0]}! 👋\n\n✅ *Tu compra en Nickcel fue registrada:*\n\n${items}\n\n💰 *Total: ${fmtN(venta.total)}*\n💳 Medio de pago: ${mpLabel}\n👤 Atendido por: ${vendNombre}\n\n${fidelMsg}\n\nGracias por elegirnos! 🙏\n— *Nickcel Tecno & Hogar*`;
+        window.open('https://wa.me/549'+tel+'?text='+encodeURIComponent(msg),'_blank');
+      }
+    },800);
     }catch(err){alert('Error al guardar: '+err.message);console.error(err);}
   };
   const msc=q('modal-save-cobro');if(msc)msc.onclick=()=>{
