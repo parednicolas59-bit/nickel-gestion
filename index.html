@@ -747,13 +747,15 @@ function drawCharts(){
 }
 
 function renderVentas(){
-  const totalV=data.ventas.reduce((s,v)=>s+v.total,0),cobrado=data.ventas.reduce((s,v)=>s+v.cobrado,0);
+  const _mesCurr=mesActual();
+  const _ventasMes=data.ventas.filter(v=>v.mes===_mesCurr);
+  const totalV=_ventasMes.reduce((s,v)=>s+v.total,0),cobrado=_ventasMes.reduce((s,v)=>s+v.cobrado,0);
   const carritoTotal=carrito.reduce((s,i)=>s+i.precio*i.qty,0);
-  const vEfectivo=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0):0;
-  const vMP=currentUser.role==='admin'?data.ventas.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0):0;
-  const vCredivip=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0):0;
-  const vRapicuota=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0):0;
-  const vNickcel=currentUser.role==='admin'?data.ventas.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+(v.total-v.cobrado),0):0;
+  const vEfectivo=currentUser.role==='admin'?_ventasMes.filter(v=>v.cobrado>0&&(v.medioPago||'efectivo')==='efectivo').reduce((s,v)=>s+v.cobrado,0):0;
+  const vMP=currentUser.role==='admin'?_ventasMes.filter(v=>v.cobrado>0&&(v.medioPago==='mercadopago'||v.medioPago==='transferencia')).reduce((s,v)=>s+v.cobrado,0):0;
+  const vCredivip=currentUser.role==='admin'?_ventasMes.filter(v=>v.estado!=='cancelado'&&v.medioPago==='credivip').reduce((s,v)=>s+v.total,0):0;
+  const vRapicuota=currentUser.role==='admin'?_ventasMes.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0):0;
+  const vNickcel=currentUser.role==='admin'?_ventasMes.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+(v.total-v.cobrado),0):0;
   const mpSubtipoLabel={transferencia:'🏦 Transf.',debito:'💳 Déb.',credito:'💳 Créd.',qr:'📱 QR'};
   const mpBadge=(mp,sub)=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='tarjeta-nbch'?'rgba(167,122,255,0.2)':mp==='tarjeta-santander'?'rgba(234,67,53,0.15)':mp==='tarjeta-galicia'?'rgba(255,77,77,0.18)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='mercadopago'?'rgba(0,174,243,0.18)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='tarjeta'?'#a78bfa':mp==='tarjeta-nbch'?'#c4b5fd':mp==='tarjeta-santander'?'#f87171':mp==='tarjeta-galicia'?'#ff4d4d':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='mercadopago'?'#00aef3':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='tarjeta'?'💳 Tarjeta':mp==='tarjeta-nbch'?'💳 Tarjeta NBCH':mp==='tarjeta-santander'?'💳 Santander':mp==='tarjeta-galicia'?'💳 Yolo/Galicia':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='mercadopago'?'💙 MP'+(sub?' '+mpSubtipoLabel[sub]:''):mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span>`;
   return`<div>
