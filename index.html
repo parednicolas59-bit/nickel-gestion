@@ -2312,6 +2312,7 @@ function renderModal(){
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
     </div>
+    ${carrito.some(i=>{const p=data.productos.find(x=>x.id===i.productoId);return p?.categoriaId===4;})?`<div class="form-row"><label class="form-label" style="color:#22c55e">📱 IMEI de celulares</label>${carrito.filter(i=>{const p=data.productos.find(x=>x.id===i.productoId);return p?.categoriaId===4;}).map(i=>`<div style="margin-bottom:8px"><div style="font-size:12px;color:#94a3b8;margin-bottom:4px">${i.nombre}</div><input type="text" id="imei-item-${i.productoId}" placeholder="IMEI (opcional)" style="${INP};font-size:13px"></div>`).join('')}</div>`:''}
     <div class="form-row"><label class="form-label">Notas</label><textarea id="m-notas" style="${INP};height:46px;resize:vertical"></textarea></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn success" id="modal-save-venta-scan">Confirmar</button></div>
   </div></div>`;
@@ -3283,8 +3284,7 @@ function bindApp(){
     else if(comprasMes>=3){fidelMsg='🌟 ¡Cliente frecuente! Gracias por seguir eligiéndonos.';fidelColor='#7c3aed';fidelBg='#faf5ff';}
     const tel=(venta.clienteTel||'').replace(/\D/g,'');
     const itemsRows=venta.items.map(i=>{
-      const prod=data.productos.find(p=>p.id===i.productoId);
-      const imei=prod?.imei?`<div style="font-size:10px;color:#6b7280;margin-top:2px">IMEI: ${prod.imei}</div>`:'';
+      const imei=i.imei?`<div style="font-size:10px;color:#6b7280;margin-top:2px">IMEI: ${i.imei}</div>`:'';
       return`<tr><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6">${i.nombre}${imei}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:center">${i.qty}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:right">${fmtN(i.precio)}</td><td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600">${fmtN(i.precio*i.qty)}</td></tr>`;
     }).join('');
     // Mensaje WPP
@@ -3610,7 +3610,7 @@ function bindApp(){
     if(carrito.length===0){alert('Agregá al menos un producto al carrito.');return;}
     if(!clienteNombre||!clienteTel){alert('Completá el nombre y teléfono del cliente.');return;}
     if(factura==='factura-x'&&!clienteDni){alert('La Factura X requiere el DNI del cliente.');return;}
-    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,ts:Date.now(),cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio})),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
+    data.ventas.unshift({id:data.nextId.venta++,fecha,mes,ts:Date.now(),cliente:clienteNombre,clienteTel,clienteDni,vendedorId:vendId,items:carrito.map(i=>{const p=data.productos.find(x=>x.id===i.productoId);const imeiVal=p?.categoriaId===4?(document.getElementById('imei-item-'+i.productoId)?.value||''):'';return{productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio,...(imeiVal?{imei:imeiVal}:{})}}),total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});carrito.forEach(i=>{const p=getProdById(i.productoId);if(p)p.stock=Math.max(0,p.stock-i.qty);});carrito=[];
     if(medioPago==='mercadopago'){if(!data.mercadopago)data.mercadopago=[];if(!data.nextId.mercadopago)data.nextId.mercadopago=1;data.mercadopago.unshift({id:data.nextId.mercadopago++,fecha,tipo:'ingreso',descripcion:'Venta #'+data.ventas[0].id+' — '+clienteNombre,monto:total});}
     save(data);modal=null;tab='ventas';mostrarToast('✅ Venta confirmada con éxito');render();
     // PDF automático al confirmar venta
