@@ -2385,6 +2385,7 @@ function renderModal(){
       <div class="form-row"><label class="form-label">Facturación ARCA</label><select id="m-factura" style="${INP}"><option value="sin-factura">Sin factura</option><option value="factura-a">Factura A</option><option value="factura-b">Factura B</option><option value="factura-x">Factura X</option></select></div>
       <div class="form-row"><label class="form-label">N° Factura (opcional)</label><input id="m-nro-factura" placeholder="0001-00000001" style="${INP}"></div>
     </div>
+    ${carritoManual.some(i=>{const p=data.productos.find(x=>x.id===i.productoId);return p?.categoriaId===4;})?`<div class="form-row"><label class="form-label" style="color:#22c55e">📱 IMEI de celulares</label>${carritoManual.filter(i=>{const p=data.productos.find(x=>x.id===i.productoId);return p?.categoriaId===4;}).map(i=>`<div style="margin-bottom:8px"><div style="font-size:12px;color:#94a3b8;margin-bottom:4px">${i.nombre}</div><input type="text" id="imei-item-${i.productoId}" placeholder="IMEI (opcional)" style="${INP};font-size:13px"></div>`).join('')}</div>`:''} 
     <div class="form-row"><label class="form-label">Notas</label><textarea id="m-notas" style="${INP};height:40px;resize:vertical"></textarea></div>
     <div class="form-actions"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn success" id="modal-save-venta" ${carritoManual.length===0?'disabled':''}style="${carritoManual.length===0?'opacity:0.5;cursor:not-allowed':''}">✓ Confirmar venta ${carritoManual.length>0?'('+fmt(carritoTotal)+')':''}</button></div>
   </div></div>`;
@@ -3634,7 +3635,7 @@ function bindApp(){
     }
     const total=carritoManual.reduce((s,i)=>s+i.precio*i.qty,0);
     const cobrado=estado==='cobrado'?total:0;
-    const items=carritoManual.map(i=>({productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio}));
+    const items=carritoManual.map(i=>{const p=data.productos.find(x=>x.id===i.productoId);const imeiVal=p?.categoriaId===4?(document.getElementById('imei-item-'+i.productoId)?.value||''):'';return{productoId:i.productoId,nombre:i.nombre,categoriaId:i.categoriaId,qty:i.qty,precio:i.precio,...(imeiVal?{imei:imeiVal}:{})};});
     data.ventas.unshift({id:data.nextId.venta++,fecha,mes:fecha.substring(0,7),ts:Date.now(),cliente:clienteNombreM,clienteTel:clienteTelM,clienteDni:clienteDniM,vendedorId:vendId,items,total,cobrado,estado,factura,nroFactura,medioPago,mpSubtipo,notas:q('m-notas').value});
     // Descontar stock
     carritoManual.forEach(item=>{const prod=getProdById(item.productoId);if(prod)prod.stock=Math.max(0,prod.stock-item.qty);});
