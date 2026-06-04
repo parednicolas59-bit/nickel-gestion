@@ -119,6 +119,8 @@
   .api-key-box input { width: 100%; background: var(--bg); }
   .api-key-box small { display: block; margin-top: 6px; color: var(--text-dim); font-size: 11px; }
   .api-key-box a { color: var(--blue); }
+  .saved-indicator { display: inline-block; color: var(--green); font-size: 11px; margin-left: 8px; opacity: 0; transition: opacity 0.3s; }
+  .saved-indicator.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -135,8 +137,8 @@
   </div>
 
   <div class="api-key-box" id="api-config">
-    <label>🔑 API Key de OpenRouter (para Claude)</label>
-    <input type="password" id="api-key" placeholder="sk-or-v1-..." value="" />
+    <label>🔑 API Key de OpenRouter (para Claude) <span class="saved-indicator" id="key-saved">✓ Guardada</span></label>
+    <input type="password" id="api-key" placeholder="sk-or-v1-..." />
     <small>👉 <a href="https://openrouter.ai/settings/keys" target="_blank">Conseguí tu API key gratis en openrouter.ai</a> · Se guarda solo en tu navegador</small>
   </div>
 
@@ -186,11 +188,11 @@
   <div class="panel" id="panel-3">
     <div class="meta-section">
       <h3>📡 Publicación en Meta (Facebook + Instagram)</h3>
-      <div class="info-box">ℹ️ Para publicar automáticamente necesitás conectar tu cuenta de Meta Ads. Seguí el paso a paso que te mandé para crear la app en developers.facebook.com y pegá los datos acá.</div>
+      <div class="info-box">ℹ️ Para publicar automáticamente necesitás conectar tu cuenta de Meta Ads. Seguí el paso a paso que te mandé para crear la app en developers.facebook.com y pegá los datos acá. Los datos se guardan solo en tu navegador.</div>
       <div class="form-grid">
-        <div class="field"><label>App ID de Meta</label><input type="text" id="meta-app-id" value="2151425678985713" /></div>
-        <div class="field"><label>Ad Account ID</label><input type="text" id="meta-account-id" value="act_101292650566451" /></div>
-        <div class="field full"><label>Access Token</label><input type="text" id="meta-token" value="EAAektdNbSfEBRhWB7miDQYaZBqjhkjUePHC3ucsaS4kdTBJbb2cemAOPQYgMGRDBhFto7MJSkIVTjpa5Ke2I2OgyWQ0IrsZCb1tjtEeSIZB1Lce4i52RgqA7X2DTQMRztME9Wd8WcREhbgfApSF7xsNKf050b3NDd7UwmG8CjZC12zbi9ZBb1g9KHUWjMpih7LuVQP6Lax7LSJGVyqtZCHLMrVgFGH9ILGP7GzdsKbF8qemWAA9EEsZBZBifgEGSRbs4CbLuriMmK3XPxaqM00rG" /></div>
+        <div class="field"><label>App ID de Meta <span class="saved-indicator" id="meta-saved">✓ Guardado</span></label><input type="text" id="meta-app-id" placeholder="Ej: 1234567890123456" /></div>
+        <div class="field"><label>Ad Account ID</label><input type="text" id="meta-account-id" placeholder="Ej: act_1234567890" /></div>
+        <div class="field full"><label>Access Token</label><input type="password" id="meta-token" placeholder="Pegá tu Access Token acá" /></div>
       </div>
       <button class="btn-primary" onclick="publicarMeta()" id="btn-publicar">🚀 Publicar en Facebook + Instagram</button>
     </div>
@@ -202,8 +204,41 @@
 
 <script>
   let imageBase64 = null, campaignData = null, generatedImages = [];
+
+  // Cargar datos guardados
   const savedKey = localStorage.getItem('openrouter_api_key');
-  if (savedKey) document.getElementById('api-key').value = savedKey;
+  if (savedKey) {
+    document.getElementById('api-key').value = savedKey;
+    document.getElementById('key-saved').classList.add('show');
+  }
+  const savedMetaAppId = localStorage.getItem('meta_app_id');
+  const savedMetaAccountId = localStorage.getItem('meta_account_id');
+  const savedMetaToken = localStorage.getItem('meta_token');
+  if (savedMetaAppId) document.getElementById('meta-app-id').value = savedMetaAppId;
+  if (savedMetaAccountId) document.getElementById('meta-account-id').value = savedMetaAccountId;
+  if (savedMetaToken) document.getElementById('meta-token').value = savedMetaToken;
+  if (savedMetaAppId || savedMetaAccountId || savedMetaToken) {
+    document.getElementById('meta-saved').classList.add('show');
+  }
+
+  // Guardar API key al cambiar
+  document.getElementById('api-key').addEventListener('change', function() {
+    if (this.value.trim()) {
+      localStorage.setItem('openrouter_api_key', this.value.trim());
+      document.getElementById('key-saved').classList.add('show');
+    }
+  });
+
+  // Guardar datos Meta al cambiar
+  ['meta-app-id', 'meta-account-id', 'meta-token'].forEach(id => {
+    document.getElementById(id).addEventListener('change', function() {
+      const keyMap = { 'meta-app-id': 'meta_app_id', 'meta-account-id': 'meta_account_id', 'meta-token': 'meta_token' };
+      if (this.value.trim()) {
+        localStorage.setItem(keyMap[id], this.value.trim());
+        document.getElementById('meta-saved').classList.add('show');
+      }
+    });
+  });
 
   function handleFile(input) {
     const file = input.files[0];
@@ -286,14 +321,8 @@
       });
 
       const data = await response.json();
-      console.log('API response:', data);
-
-      if (data.error) {
-        throw new Error(data.error.message || 'Error de API');
-      }
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        throw new Error('Respuesta inesperada de la API');
-      }
+      if (data.error) throw new Error(data.error.message || 'Error de API');
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) throw new Error('Respuesta inesperada de la API');
 
       const text = data.choices[0].message.content;
       const clean = text.replace(/```json|```/g, '').trim();
@@ -395,6 +424,12 @@
     const token = document.getElementById('meta-token').value.trim();
     if (!appId || !accountId || !token) { alert('Completá los datos de Meta para poder publicar'); return; }
     if (!campaignData) { alert('Primero generá la campaña en el paso 2'); return; }
+
+    // Guardar en localStorage
+    localStorage.setItem('meta_app_id', appId);
+    localStorage.setItem('meta_account_id', accountId);
+    localStorage.setItem('meta_token', token);
+
     const btn = document.getElementById('btn-publicar');
     btn.disabled = true; btn.textContent = '⏳ Publicando...';
     try {
@@ -406,7 +441,10 @@
       if (campaignResult.error) throw new Error(campaignResult.error.message);
       btn.textContent = '✅ Campaña creada en Meta'; btn.style.background = 'var(--green)'; btn.style.color = 'var(--bg)';
       setTimeout(() => { alert(`✅ Campaña "${document.getElementById('nombre').value}" creada correctamente en Meta Ads Manager.\n\nID: ${campaignResult.id}\n\nEntrá a Meta Ads Manager para activarla cuando quieras.`); }, 300);
-    } catch(err) { btn.disabled = false; btn.textContent = '🚀 Publicar en Facebook + Instagram'; alert('Error al publicar: ' + err.message + '\n\nVerificá que el token sea válido y que la cuenta publicitaria esté activa.'); }
+    } catch(err) {
+      btn.disabled = false; btn.textContent = '🚀 Publicar en Facebook + Instagram';
+      alert('Error al publicar: ' + err.message + '\n\nVerificá que el token sea válido y que la cuenta publicitaria esté activa.');
+    }
   }
 
   async function generarImagenes() {
@@ -442,7 +480,7 @@
         html += `<div class="img-card"><div class="img-placeholder" style="color:#ff6b6b;">Error al generar</div><div class="img-label">${labels[i]}</div></div>`;
       }
     });
-    html += '</div><div class="img-prompt-display"><strong>📝 Prompt base usado:</strong><br>"${prompts[0].substring(0, 200)}..."</div><p class="download-hint">💡 <strong>Para descargar:</strong> Click derecho en la imagen → "Guardar imagen como..." o usá el botón ⬇️ arriba de cada foto.</p>';
+    html += '</div><div class="img-prompt-display"><strong>📝 Prompt base usado:</strong><br>"' + prompts[0].substring(0, 200) + '..."</div><p class="download-hint">💡 <strong>Para descargar:</strong> Click derecho en la imagen → "Guardar imagen como..." o usá el botón ⬇️ arriba de cada foto.</p>';
     container.innerHTML = html; btn.textContent = '✅ Generadas'; btn.disabled = false;
   }
 
