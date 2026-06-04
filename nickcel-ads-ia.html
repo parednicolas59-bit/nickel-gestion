@@ -206,11 +206,11 @@
   let imageBase64 = null, campaignData = null, generatedImages = [];
 
   // Cargar datos guardados
-  const FIXED_KEY = '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';
-  document.getElementById('api-key').value = FIXED_KEY;
+  const FIXED_KEY = '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';
+  
   document.getElementById('key-saved').classList.add('show');
-  document.getElementById('api-config').style.display = 'none';
-  const savedKey = FIXED_KEY;
+  
+  
 
   const savedMeta = { app: localStorage.getItem('meta_app_id'), account: localStorage.getItem('meta_account_id'), token: localStorage.getItem('meta_token') };
   if (savedMeta.app) { document.getElementById('meta-app-id').value = savedMeta.app; document.getElementById('meta-saved').classList.add('show'); }
@@ -241,7 +241,7 @@
   }
 
   async function analizarProducto() {
-    const apiKey = FIXED_KEY;
+    const apiKey = ANTHROPIC_KEY;
 
     const nombre = document.getElementById('nombre').value.trim();
     const precio = document.getElementById('precio').value.trim();
@@ -270,22 +270,22 @@
     try {
       const messages = [];
       if (imageBase64) {
-        messages.push({ role: 'user', content: [{ type: 'image_url', image_url: { url: imageBase64 } }, { type: 'text', text: promptText }] });
+        const mediaType = imageBase64.split(';')[0].split(':')[1]; const b64 = imageBase64.split(',')[1]; messages.push({ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } }, { type: 'text', text: promptText }] });
       } else {
         messages.push({ role: 'user', content: promptText });
       }
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey, 'HTTP-Referer': window.location.href, 'X-Title': 'Nickcel Ads IA' },
-        body: JSON.stringify({ model: 'meta-llama/llama-3.3-70b-instruct:free', max_tokens: 2000, messages: messages })
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-allow-browser': 'true' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2000, messages: messages })
       });
 
       const data = await response.json();
       if (data.error) throw new Error(data.error.message || 'Error de API');
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) throw new Error('Respuesta inesperada de la API');
+      if (!data.content || !data.content[0]) throw new Error('Respuesta inesperada de la API');
 
-      const text = data.choices[0].message.content;
+      const text = data.content[0].text;
       const clean = text.replace(/```json|```/g, '').trim();
       campaignData = JSON.parse(clean);
 
