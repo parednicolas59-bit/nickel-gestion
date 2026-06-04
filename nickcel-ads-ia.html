@@ -241,9 +241,7 @@
   }
 
   async function analizarProducto() {
-    const apiKey = document.getElementById('api-key').value.trim();
-    if (!apiKey) { alert('Necesitás una API key de OpenRouter. Conseguila gratis en openrouter.ai/settings/keys'); return; }
-    localStorage.setItem('openrouter_api_key', apiKey);
+    const apiKey = FIXED_KEY;
 
     const nombre = document.getElementById('nombre').value.trim();
     const precio = document.getElementById('precio').value.trim();
