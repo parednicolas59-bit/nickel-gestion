@@ -310,6 +310,14 @@ async function initApp(){
       const tsNuevo=newData._lastSaved||0;
       const tsActual=data._lastSaved||0;
       if(tsNuevo<=tsActual)return;
+      // PROTECCIÓN: nunca pisar ventas locales si Firebase trae menos ventas
+      if(newData.ventas && data.ventas && newData.ventas.length < data.ventas.length){
+        const idsFirebase = new Set(newData.ventas.map(v=>v.id));
+        const ventasExtra = data.ventas.filter(v=>!idsFirebase.has(v.id));
+        newData.ventas = [...newData.ventas, ...ventasExtra].sort((a,b)=>(b.id||0)-(a.id||0));
+        const maxId = Math.max(...newData.ventas.map(v=>v.id||0), 0);
+        if(newData.nextId && maxId >= newData.nextId.venta) newData.nextId.venta = maxId+1;
+      }
       data=newData;
       if(!data.creditos)data.creditos=[];
       if(!data.nextId.credito)data.nextId.credito=1;
