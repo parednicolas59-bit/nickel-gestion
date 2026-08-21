@@ -220,10 +220,11 @@ const def={
   brubank:[],
   galicia:[],
   turnosCaja:[],
+  recargosSemanales:{3:0.15,4:0.25,6:0.31,8:0.35},
   nextId:{venta:4,egreso:2,producto:5,contacto:4,vendedor:4,categoria:7,cierre:1,user:5,credito:1,proveedor:1,nbch:1,brubank:1,galicia:1,turno:1}
 };
 function load(){
-  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;if(!d.supervielle)d.supervielle=[];if(!d.nextId.supervielle)d.nextId.supervielle=1;if(!d.cobranzaCredivip)d.cobranzaCredivip=[];if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;if(!d.cobranzaPagares)d.cobranzaPagares=[];if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;if(!d.turnosCaja)d.turnosCaja=[];if(!d.nextId.turno)d.nextId.turno=1;d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
+  try{const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.users||d.users.length===0)d.users=JSON.parse(JSON.stringify(def.users));if(!d.creditos)d.creditos=[];if(!d.nextId.credito)d.nextId.credito=1;if(!d.proveedores)d.proveedores=[];if(!d.nextId.proveedor)d.nextId.proveedor=1;if(!d.nbch)d.nbch=[];if(!d.nextId.nbch)d.nextId.nbch=1;if(!d.brubank)d.brubank=[];if(!d.nextId.brubank)d.nextId.brubank=1;if(!d.galicia)d.galicia=[];if(!d.nextId.galicia)d.nextId.galicia=1;if(!d.mercadopago)d.mercadopago=[];if(!d.nextId.mercadopago)d.nextId.mercadopago=1;if(!d.supervielle)d.supervielle=[];if(!d.nextId.supervielle)d.nextId.supervielle=1;if(!d.cobranzaCredivip)d.cobranzaCredivip=[];if(!d.nextId.cobranzaCredivip)d.nextId.cobranzaCredivip=1;if(!d.cobranzaRapicuota)d.cobranzaRapicuota=[];if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;if(!d.cobranzaPagares)d.cobranzaPagares=[];if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;if(!d.turnosCaja)d.turnosCaja=[];if(!d.nextId.turno)d.nextId.turno=1;if(!d.recargosSemanales)d.recargosSemanales={3:0.15,4:0.25,6:0.31,8:0.35};d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});return d;}}catch(e){}
   return JSON.parse(JSON.stringify(def));
 }
 async function loadFromFirebase(){
@@ -253,6 +254,7 @@ async function loadFromFirebase(){
       if(!d.nextId.cobranzaRapicuota)d.nextId.cobranzaRapicuota=1;
       if(!d.cobranzaPagares)d.cobranzaPagares=[];
       if(!d.nextId.cobranzaPagares)d.nextId.cobranzaPagares=1;
+      if(!d.recargosSemanales)d.recargosSemanales={3:0.15,4:0.25,6:0.31,8:0.35};
       // Migrar ventas con medioPago=transferencia a mercadopago (solo renombra, sin generar movimientos)
       d.ventas.forEach(v=>{if(v.medioPago==='transferencia'){v.medioPago='mercadopago';if(!v.mpSubtipo)v.mpSubtipo='transferencia';}});
       d.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
@@ -310,13 +312,27 @@ async function initApp(){
       const tsNuevo=newData._lastSaved||0;
       const tsActual=data._lastSaved||0;
       if(tsNuevo<=tsActual)return;
-      // PROTECCIÓN: nunca pisar ventas locales si Firebase trae menos ventas
+      // PROTECCIÓN ventas: nunca pisar ventas locales si Firebase trae menos
       if(newData.ventas && data.ventas && newData.ventas.length < data.ventas.length){
         const idsFirebase = new Set(newData.ventas.map(v=>v.id));
         const ventasExtra = data.ventas.filter(v=>!idsFirebase.has(v.id));
         newData.ventas = [...newData.ventas, ...ventasExtra].sort((a,b)=>(b.id||0)-(a.id||0));
         const maxId = Math.max(...newData.ventas.map(v=>v.id||0), 0);
         if(newData.nextId && maxId >= newData.nextId.venta) newData.nextId.venta = maxId+1;
+      }
+      // PROTECCIÓN productos: nunca pisar productos locales si Firebase trae menos
+      if(newData.productos && data.productos && newData.productos.length < data.productos.length){
+        const idsFirebase = new Set(newData.productos.map(p=>p.id));
+        const prodExtra = data.productos.filter(p=>!idsFirebase.has(p.id));
+        newData.productos = [...newData.productos, ...prodExtra];
+        const maxId = Math.max(...newData.productos.map(p=>p.id||0), 0);
+        if(newData.nextId && maxId >= newData.nextId.producto) newData.nextId.producto = maxId+1;
+      }
+      // PROTECCIÓN contactos
+      if(newData.contactos && data.contactos && newData.contactos.length < data.contactos.length){
+        const idsFirebase = new Set(newData.contactos.map(c=>c.id));
+        const extra = data.contactos.filter(c=>!idsFirebase.has(c.id));
+        newData.contactos = [...newData.contactos, ...extra];
       }
       data=newData;
       if(!data.creditos)data.creditos=[];
@@ -380,11 +396,11 @@ function bindLogin(){
 }
 
 function renderApp(){
-  const allTabs=['dashboard','ventas','egresos','productos','pedidos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','rapicuota','mercadopago','supervielle','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','cheques','informes','financiera','usuarios'];
-  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',pedidos:'📦 Pedidos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',rapicuota:'🟣 Rapicuota',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-credivip':'🟠 Cobr. CrediVIP','cobranza-rapicuota':'🟣 Cobr. Rapicuota','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
+  const allTabs=['dashboard','ventas','egresos','productos','pedidos','proveedores','contactos','vendedores','categorias','caja','nbch','brubank','galicia','mercadopago','supervielle','cobranza-pagares','cheques','informes','financiera','usuarios'];
+  const labels={dashboard:'Dashboard',ventas:'Ventas',egresos:'Egresos',productos:'Productos',pedidos:'📦 Pedidos',proveedores:'Proveedores',contactos:'Contactos',vendedores:'Vendedores',categorias:'Categorías',caja:'Caja',nbch:'💳 NBCH',brubank:'🏦 Brubank',galicia:'🏦 Galicia',mercadopago:'💙 Mercado Pago',supervielle:'🏦 Supervielle','cobranza-pagares':'📄 Cobr. Pagarés',cheques:'📄 Cheques',informes:'Informes',financiera:'Financiera',usuarios:'Usuarios'};
   // Caja solo para admin y Yamila (userId 2)
   const tieneCaja=currentUser.role==='admin'||currentUser.id===2;
-  const tabsVendedor=['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
+  const tabsVendedor=['ventas','productos','contactos','cobranza-pagares','financiera'];
   if(tieneCaja&&currentUser.role!=='admin')tabsVendedor.push('caja');
   const tabs=currentUser.role==='admin'?allTabs:tabsVendedor;
   return`<div style="position:relative;min-height:600px">
@@ -2551,6 +2567,7 @@ function renderModal(){
   if(m.type==='nuevo-credito')return`<div class="modal-bg"><div class="modal">${renderModalNuevoCredito()}</div></div>`;
   if(m.type==='ver-credito')return`<div class="modal-bg"><div class="modal" style="max-width:580px">${renderModalVerCredito(m.credito)}</div></div>`;
   if(m.type==='cobrar-credito')return`<div class="modal-bg"><div class="modal">${renderModalCobrarCredito(m.credito)}</div></div>`;
+  if(m.type==='editar-recargos')return`<div class="modal-bg"><div class="modal">${renderModalEditarRecargos()}</div></div>`;
   if(m.type==='comp-entrega')return`<div class="modal-bg"><div class="modal" style="max-width:660px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <span style="font-size:15px;font-weight:500">Comprobante de entrega</span>
@@ -3521,6 +3538,26 @@ function bindApp(){
   const mwc=q('modal-wpp-comp');if(mwc&&modal&&modal.venta){mwc.onclick=()=>{const v=modal.venta;const tel=(v.clienteTel||'').replace(/\D/g,'');if(!tel){alert('El cliente no tiene teléfono registrado.');return;}const items=v.items.map(i=>`• ${i.nombre} x${i.qty} — $${Math.round(i.precio*i.qty).toLocaleString('es-AR')}`).join('\n');const texto=`✅ *Comprobante de compra*\n\nGracias ${v.cliente}! Tu compra fue registrada.\n\n${items}\n\n*Total: $${Math.round(v.total).toLocaleString('es-AR')}*\n\nGracias por elegirnos! 🙏\n— Nickcel Tecno & Hogar`;window.open('https://wa.me/549'+tel+'?text='+encodeURIComponent(texto),'_blank');};}
 
   const ncred=q('nuevo-credito-btn');if(ncred)ncred.onclick=()=>{modal={type:'nuevo-credito'};render();};
+  const erec=q('editar-recargos-btn');if(erec)erec.onclick=()=>{modal={type:'editar-recargos'};render();};
+  const addrec=q('add-recargo-row');if(addrec)addrec.onclick=()=>{
+    const cont=q('recargos-filas');
+    const div=document.createElement('div');
+    div.className='two-col';div.style.cssText='align-items:end;margin-bottom:4px';
+    div.innerHTML=`<div class="form-row" style="margin-bottom:0"><label class="form-label">Cuotas</label><input type="number" min="1" value="" style="${INP}" class="rec-ncuotas" data-orig=""></div><div class="form-row" style="margin-bottom:0"><label class="form-label">Recargo (%)</label><input type="number" step="0.1" min="0" value="" style="${INP}" class="rec-pct"></div>`;
+    cont.appendChild(div);
+  };
+  const msrec=q('modal-save-recargos');if(msrec)msrec.onclick=()=>{
+    const nuevos={};
+    document.querySelectorAll('.rec-ncuotas').forEach((inp,i)=>{
+      const n=parseInt(inp.value);
+      const pctInp=document.querySelectorAll('.rec-pct')[i];
+      const pct=parseFloat(pctInp.value);
+      if(n>0&&!isNaN(pct))nuevos[n]=pct/100;
+    });
+    if(Object.keys(nuevos).length===0){alert('Cargá al menos un plan de cuotas válido.');return;}
+    data.recargosSemanales=nuevos;
+    save(data);modal=null;mostrarToast('✅ Recargos actualizados');render();
+  };
   document.querySelectorAll('[data-ver-credito]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.verCredito);modal={type:'ver-credito',credito:c};render();};});
   document.querySelectorAll('[data-cobrar-credito]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.cobrarCredito);modal={type:'cobrar-credito',credito:c};render();};});
   document.querySelectorAll('[data-pagare]').forEach(b=>{b.onclick=()=>{const c=data.creditos.find(x=>x.id==b.dataset.pagare);modal={type:'pagare',credito:c};render();};});
@@ -4348,7 +4385,10 @@ function renderFinanciera(){
   return`<div>
     <div class="section-header">
       <span style="font-size:17px;font-weight:500">Financiera Nickel — Créditos Semanales</span>
-      <button class="btn primary" id="nuevo-credito-btn">+ Nuevo crédito</button>
+      <div style="display:flex;gap:8px">
+        ${currentUser&&currentUser.role==='admin'?`<button class="btn" id="editar-recargos-btn">⚙️ Recargos semanales</button>`:''}
+        <button class="btn primary" id="nuevo-credito-btn">+ Nuevo crédito</button>
+      </div>
     </div>
     <div class="metrics">
       <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">📋</div><div class="metric-label">Créditos activos</div><div class="metric-value">${data.creditos.filter(c=>c.estado!='cancelado').length}</div></div>
@@ -4455,6 +4495,19 @@ function renderFinanciera(){
   </div>`;
 }
 
+function renderModalEditarRecargos(){
+  const rec=data.recargosSemanales||{3:0.15,4:0.25,6:0.31,8:0.35};
+  const filas=Object.keys(rec).sort((a,b)=>a-b).map(n=>`
+    <div class="two-col" style="align-items:end;margin-bottom:4px" data-rec-row="${n}">
+      <div class="form-row" style="margin-bottom:0"><label class="form-label">Cuotas</label><input type="number" min="1" value="${n}" style="${INP}" class="rec-ncuotas" data-orig="${n}"></div>
+      <div class="form-row" style="margin-bottom:0"><label class="form-label">Recargo (%)</label><input type="number" step="0.1" min="0" value="${(rec[n]*100).toFixed(1)}" style="${INP}" class="rec-pct"></div>
+    </div>`).join('');
+  return`<div class="modal-title">Recargos semanales — Rapicuota</div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;background:rgba(30,143,207,0.08);padding:8px 10px;border-radius:7px;">Definí el % de recargo para cada plan de cuotas semanales. Se aplica a partir del próximo crédito que generes; los créditos ya existentes no cambian.</div>
+    <div id="recargos-filas">${filas}</div>
+    <button class="btn" id="add-recargo-row" style="margin-top:8px;font-size:12px">+ Agregar plan de cuotas</button>
+    <div class="form-actions" style="margin-top:16px"><button class="btn" id="modal-cancel">Cancelar</button><button class="btn primary" id="modal-save-recargos">Guardar</button></div>`;
+}
 function renderModalNuevoCredito(){
   const hoy=getFechaHoyISO();
   return`<div class="modal-title">Nuevo Crédito Nickel</div>
@@ -4482,10 +4535,7 @@ function renderModalNuevoCredito(){
     <div class="form-row"><label class="form-label">Cuotas *</label>
       <select id="c-ncuotas" style="${INP}" onchange="calcCreditoNuevo()">
         <option value="">— Seleccioná —</option>
-        <option value="3">3 cuotas (15% recargo)</option>
-        <option value="4">4 cuotas (25% recargo)</option>
-        <option value="6">6 cuotas (31% recargo)</option>
-        <option value="8">8 cuotas (35% recargo)</option>
+        ${Object.keys(data.recargosSemanales||{}).sort((a,b)=>a-b).map(n=>`<option value="${n}">${n} cuotas (${Math.round(data.recargosSemanales[n]*100)}% recargo)</option>`).join('')}
       </select>
     </div>
     <div id="credito-calc" style="display:none;background:rgba(30,143,207,0.08);border:1px solid rgba(30,143,207,0.25);border-radius:10px;padding:14px;margin:10px 0">
@@ -4505,7 +4555,7 @@ function renderModalNuevoCredito(){
 }
 window.calcCreditoPreview=function(){};
 window.calcCreditoNuevo=function(){
-  const RECARGOS={3:0.15,4:0.25,6:0.31,8:0.35};
+  const RECARGOS=data.recargosSemanales||{3:0.15,4:0.25,6:0.31,8:0.35};
   const contado=parseFloat(document.getElementById('c-precio-contado')?.value)||0;
   const entrega=parseFloat(document.getElementById('c-entrega')?.value)||0;
   const n=parseInt(document.getElementById('c-ncuotas')?.value)||0;
