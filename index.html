@@ -1987,8 +1987,7 @@ function calcTotalesTurno(turno){
     const vFecha=(v.fecha||'').substring(0,10);
     const tFecha=(fechaTurno||'').substring(0,10);
     if(vFecha!==tFecha)return false;
-    // Solo filtrar por vendedor si la venta TIENE vendedor asignado Y no coincide
-    if(vendedorId&&v.vendedorId&&parseInt(v.vendedorId)!==vendedorId)return false;
+    // Se incluyen TODAS las ventas del día del local, sin importar qué vendedor las cargó
     return true;
   });
   const egresosTurno=(data.egresos||[]).filter(e=>e.pagado&&e.fecha===fechaTurno);
@@ -2011,12 +2010,20 @@ function calcTotalesTurno(turno){
     else medios.otros+=monto;
   });
   const totalVentas=Object.values(medios).reduce((s,v)=>s+v,0);
+  // Desglose por vendedor
+  const porVendedor={};
+  ventasTurno.forEach(v=>{
+    const vd=(data.vendedores||[]).find(x=>parseInt(x.id)===parseInt(v.vendedorId));
+    const nom=vd?vd.nombre:'Sin vendedor';
+    if(!porVendedor[nom])porVendedor[nom]={cant:0,total:0};
+    porVendedor[nom].cant++;porVendedor[nom].total+=(v.total||0);
+  });
   const totalEgresos=egresosTurno.reduce((s,e)=>s+e.monto,0);
   const totalFinancieras=totalCobrCredivip+totalCobrRapicuota+totalCobrPagares;
   const cobrFinancierasEfectivo=[...cobranzaCredivipTurno,...cobranzaRapicuotaTurno,...cobranzaPagaresTurno].filter(c=>c.formaPago==='efectivo'||!c.formaPago).reduce((s,c)=>s+c.monto,0);
   const saldoEfectivo=(turno.saldoApertura||0)+medios.efectivo;
   const saldoEfectivoFinancieras=cobrFinancierasEfectivo;
-  return{ventasTurno,egresosTurno,medios,totalVentas,totalEgresos,totalFinancieras,cobranzaCredivipTurno,cobranzaRapicuotaTurno,cobranzaPagaresTurno,totalCobrCredivip,totalCobrRapicuota,totalCobrPagares,saldoEfectivo,saldoEfectivoFinancieras};
+  return{ventasTurno,porVendedor,egresosTurno,medios,totalVentas,totalEgresos,totalFinancieras,cobranzaCredivipTurno,cobranzaRapicuotaTurno,cobranzaPagaresTurno,totalCobrCredivip,totalCobrRapicuota,totalCobrPagares,saldoEfectivo,saldoEfectivoFinancieras};
 }
 
 
@@ -3417,6 +3424,8 @@ function bindApp(){
   if(btnAbrir)btnAbrir.onclick=()=>{
     const saldoInp=parseFloat(q('inp-saldo-apertura')?.value)||0;
     if(!data.turnosCaja)data.turnosCaja=[];
+    const yaCerradoHoy=data.turnosCaja.some(t=>t.estado==='cerrado'&&t.fecha===getFechaHoyISO());
+    if(yaCerradoHoy&&!confirm('⚠️ La caja de hoy ya fue cerrada.\nSi abrís otro turno, las ventas del día se van a contar de nuevo.\n\n¿Abrir otro turno igual?'))return;
     if(!data.nextId.turno)data.nextId.turno=1;
     const ahora=Date.now();
     const turno={
@@ -3439,7 +3448,7 @@ function bindApp(){
   const btnCerrar=q('btn-cerrar-turno');
   if(btnCerrar)btnCerrar.onclick=()=>{
     const turno=getTurnoActivo();
-    if(!turno)return;
+    if(!turno||turno.estado!=='abierto')return;
     const tot=calcTotalesTurno(turno);
     const ahora=Date.now();
     turno.cierre={hora:getHoraActual(),ts:ahora};
@@ -3464,6 +3473,7 @@ function bindApp(){
       tot.medios.rapicuota>0?`🟣 Rapicuota: $${tot.medios.rapicuota.toLocaleString('es-AR')}`:'',
       tot.medios['nickcel-pagares']>0?`📄 Pagarés: $${tot.medios['nickcel-pagares'].toLocaleString('es-AR')}`:'',
       `📥 *Total ventas: $${tot.totalVentas.toLocaleString('es-AR')}*`,
+      ...(Object.keys(tot.porVendedor).length>1?Object.entries(tot.porVendedor).map(([n,x])=>`   👤 ${n}: ${x.cant} venta${x.cant!==1?'s':''} · $${x.total.toLocaleString('es-AR')}`):[]),
       ``,
       ...(tot.totalFinancieras>0?[
         `💼 *COBROS FINANCIERAS*`,
