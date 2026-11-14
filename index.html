@@ -182,7 +182,7 @@ window.addEventListener('online', async () => {
 </script>
 <script>
 const SK='nick_v5';
-const APP_VERSION='v14.11e';
+const APP_VERSION='v14.11f';
 // Aviso de versión nueva: compara con el index.html publicado (sin caché)
 (function(){
   const base=location.href.split('#')[0].split('?')[0];
@@ -526,7 +526,7 @@ function render(){window._renderApp=render;
 function renderLogin(){
   return`<div class="login-wrap"><div class="login-card">
     <div class="login-logo">Nick<span>Gestión</span></div>
-    <div class="form-row"><label class="form-label">Email</label><input id="l-email" type="text" value="nico@local" style="background:#0f172a;width:100%;padding:7px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:#f1f5f9;font-size:12px"></div>
+    <div class="form-row"><label class="form-label">Email</label><input id="l-email" type="text" value="" placeholder="Tu usuario" autocomplete="off" style="background:#0f172a;width:100%;padding:7px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:#f1f5f9;font-size:12px"></div>
     <div class="form-row"><label class="form-label">Contraseña</label><input id="l-pass" type="password" value="" style="background:#0f172a;width:100%;padding:7px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:#f1f5f9;font-size:12px"></div>
     <div id="l-err" style="color:#f87171;font-size:11px;margin-bottom:8px;display:none">Usuario o contraseña incorrectos</div>
     <button class="btn primary" id="l-btn" style="width:100%;padding:9px">Ingresar</button>
