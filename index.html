@@ -144,7 +144,7 @@ window._fbSave = async function(d) {
       if(ind){ ind.textContent='● Guardado'; ind.style.background='rgba(34,197,94,0.15)'; ind.style.color='#4ade80'; }
       return true;
     } catch(e) {
-      console.error("Firebase save error:", e);
+      console.error("[sync] ERROR al guardar en Firebase:", e && (e.code||""), e && e.message, "tamaño KB:", window._tamDatosKB);
       if(intentos > 0) {
         await new Promise(r => setTimeout(r, 2000));
         return intentar(intentos - 1);
@@ -182,7 +182,7 @@ window.addEventListener('online', async () => {
 </script>
 <script>
 const SK='nick_v5';
-const APP_VERSION='v14.11c';
+const APP_VERSION='v14.11d';
 // Aviso de versión nueva: compara con el index.html publicado (sin caché)
 (function(){
   const base=location.href.split('#')[0].split('?')[0];
@@ -307,27 +307,27 @@ function registrarIngreso(prod,qty,origen){
 function _claveVenta(v){if(!v._k)v._k=v.ts?('t'+v.ts+'|'+(v.cliente||'')):('i'+v.id+'|'+(v.fecha||'')+'|'+(v.cliente||'')+'|'+(v.total||0));return v._k;}
 function _claveIng(x){return x.ts+'|'+x.pid+'|'+x.q;}
 function mergeDatos(W,L){
-  if(!W||!L)return 0;let n=0;
+  if(!W||!L)return 0;let n=0;const _mot={};const _r=(k)=>{n++;_mot[k]=(_mot[k]||0)+1;};window._ultimoMerge=_mot;
   W.ventas=W.ventas||[];W.productos=W.productos||[];W.nextId=W.nextId||{};
   (W.ventas).forEach(_claveVenta);(L.ventas||[]).forEach(_claveVenta);
   // ventas borradas (en cualquier dispositivo)
   const bor=new Set([...(W.ventasBorradas||[]),...(L.ventasBorradas||[])]);
-  if(bor.size){const antes=(W.ventasBorradas||[]).length;W.ventasBorradas=[...bor].slice(-1000);if(W.ventasBorradas.length!==antes)n++;
-    const c=W.ventas.length;W.ventas=W.ventas.filter(v=>!bor.has(_claveVenta(v)));if(W.ventas.length!==c)n++;}
+  if(bor.size){const antes=(W.ventasBorradas||[]).length;W.ventasBorradas=[...bor].slice(-1000);if(W.ventasBorradas.length!==antes)_r('ventasBorradas-lista');
+    const c=W.ventas.length;W.ventas=W.ventas.filter(v=>!bor.has(_claveVenta(v)));if(W.ventas.length!==c)_r('ventas-filtradas-por-borrado');}
   // productos y contactos borrados (en cualquier dispositivo)
   const borP=new Set([...(W.productosBorrados||[]),...(L.productosBorrados||[])]);
-  if(borP.size){const a=(W.productosBorrados||[]).length;W.productosBorrados=[...borP];if(W.productosBorrados.length!==a)n++;
-    const c=W.productos.length;W.productos=W.productos.filter(p=>!borP.has(p.id));if(W.productos.length!==c)n++;}
+  if(borP.size){const a=(W.productosBorrados||[]).length;W.productosBorrados=[...borP];if(W.productosBorrados.length!==a)_r('productosBorrados-lista');
+    const c=W.productos.length;W.productos=W.productos.filter(p=>!borP.has(p.id));if(W.productos.length!==c)_r('productos-filtrados-por-borrado');}
   const borC=new Set([...(W.contactosBorrados||[]),...(L.contactosBorrados||[])]);
-  if(borC.size&&W.contactos){const a=(W.contactosBorrados||[]).length;W.contactosBorrados=[...borC];if(W.contactosBorrados.length!==a)n++;
-    const c=W.contactos.length;W.contactos=W.contactos.filter(x=>!borC.has(x.id));if(W.contactos.length!==c)n++;}
+  if(borC.size&&W.contactos){const a=(W.contactosBorrados||[]).length;W.contactosBorrados=[...borC];if(W.contactosBorrados.length!==a)_r('contactosBorrados-lista');
+    const c=W.contactos.length;W.contactos=W.contactos.filter(x=>!borC.has(x.id));if(W.contactos.length!==c)_r('contactos-filtrados-por-borrado');}
   // productos que W no tiene
   const nuevosPid=new Set();const idsP=new Set(W.productos.map(p=>p.id));
-  (L.productos||[]).forEach(p=>{if(borP.has(p.id))return;if(!idsP.has(p.id)){W.productos.push(JSON.parse(JSON.stringify(p)));idsP.add(p.id);nuevosPid.add(p.id);n++;}});
+  (L.productos||[]).forEach(p=>{if(borP.has(p.id))return;if(!idsP.has(p.id)){W.productos.push(JSON.parse(JSON.stringify(p)));idsP.add(p.id);nuevosPid.add(p.id);_r('producto-agregado');}});
   if(W.productos.length){const mx=Math.max(...W.productos.map(p=>p.id||0));if(!(W.nextId.producto>mx))W.nextId.producto=mx+1;}
   const prod=id=>nuevosPid.has(id)?null:W.productos.find(p=>p.id===id);
   // contactos
-  if(L.contactos){W.contactos=W.contactos||[];const idsC=new Set(W.contactos.map(c=>c.id));L.contactos.forEach(c=>{if(borC.has(c.id))return;if(!idsC.has(c.id)){W.contactos.push(c);idsC.add(c.id);n++;}});}
+  if(L.contactos){W.contactos=W.contactos||[];const idsC=new Set(W.contactos.map(c=>c.id));L.contactos.forEach(c=>{if(borC.has(c.id))return;if(!idsC.has(c.id)){W.contactos.push(c);idsC.add(c.id);_r('contacto-agregado');}});}
   // ventas
   const wMap=new Map(W.ventas.map(v=>[_claveVenta(v),v]));
   (L.ventas||[]).forEach(v=>{
@@ -337,11 +337,11 @@ function mergeDatos(W,L){
       const c=JSON.parse(JSON.stringify(v));
       if(W.ventas.some(x=>x.id===c.id))c.id=Math.max(0,...W.ventas.map(x=>x.id||0),...(L.ventas||[]).map(x=>x.id||0))+1;
       if(c.estado!=='cancelado')(c.items||[]).forEach(i=>{const p=prod(i.productoId);if(p)p.stock=Math.max(0,(p.stock||0)-i.qty);});
-      W.ventas.push(c);wMap.set(k,c);n++;
+      W.ventas.push(c);wMap.set(k,c);_r('venta-agregada');
     }else if(v.estado==='cancelado'&&w.estado!=='cancelado'){
       // devolución hecha en el otro dispositivo
       w.estado='cancelado';w.cobrado=0;w.notas=v.notas;
-      (w.items||[]).forEach(i=>{const p=prod(i.productoId);if(p)p.stock=(p.stock||0)+i.qty;});n++;
+      (w.items||[]).forEach(i=>{const p=prod(i.productoId);if(p)p.stock=(p.stock||0)+i.qty;});_r('devolucion-propagada');
     }
   });
   W.ventas.sort((a,b)=>(b.id||0)-(a.id||0));
@@ -349,7 +349,7 @@ function mergeDatos(W,L){
   // ingresos de stock
   if(L.ingresosStock&&L.ingresosStock.length){
     W.ingresosStock=W.ingresosStock||[];const ks=new Set(W.ingresosStock.map(_claveIng));
-    L.ingresosStock.forEach(x=>{const k=_claveIng(x);if(ks.has(k))return;W.ingresosStock.push(x);ks.add(k);const p=prod(x.pid);if(p)p.stock=(p.stock||0)+x.q;n++;});
+    L.ingresosStock.forEach(x=>{const k=_claveIng(x);if(ks.has(k))return;W.ingresosStock.push(x);ks.add(k);const p=prod(x.pid);if(p)p.stock=(p.stock||0)+x.q;_r('ingreso-agregado');});
   }
   return n;
 }
@@ -416,12 +416,18 @@ async function _initApp(conFirebase){
           const r=await Promise.race([window._fbLoad(),new Promise(res=>setTimeout(()=>res(null),4000))]);
           if(r){
             const c=mergeDatos(d,r);
+            console.log('[sync] guardando',new Date().toLocaleTimeString(),'mezcla:',c,JSON.stringify(window._ultimoMerge||{}));
             d._lastSaved=Math.max(d._lastSaved||0,(r._lastSaved||0)+1);
             try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
             if(c>0)renderSeguro();
           }
         }
       }catch(e){console.error('merge antes de guardar',e);}
+      try{
+        const kb=Math.round(new Blob([JSON.stringify(d)]).size/1024);window._tamDatosKB=kb;
+        console.log('[sync] tamaño de los datos:',kb,'KB (límite de Firebase: 1024 KB)');
+        if(kb>900){const ind=document.getElementById('sync-indicator');if(ind){ind.textContent='⚠️ Datos al límite ('+kb+' KB)';ind.style.background='rgba(239,68,68,0.15)';ind.style.color='#f87171';}}
+      }catch(e){}
       await _orig(d);
     };
   }
@@ -456,6 +462,7 @@ async function _initApp(conFirebase){
       if(tsNuevo<=tsActual)return;
       // Mezclar lo que este dispositivo tiene y Firebase no (ventas, ingresos, productos, contactos) con su efecto en stock
       const _cambios=mergeDatos(newData,data);
+      console.log('[sync] recibido de otro dispositivo',new Date().toLocaleTimeString(),'cambios:',_cambios,JSON.stringify(window._ultimoMerge||{}));
       data=newData;
       if(!data.creditos)data.creditos=[];
       if(!data.nextId.credito)data.nextId.credito=1;
