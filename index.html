@@ -182,6 +182,32 @@ window.addEventListener('online', async () => {
 </script>
 <script>
 const SK='nick_v5';
+const APP_VERSION='v14.11b';
+// Aviso de versión nueva: compara con el index.html publicado (sin caché)
+(function(){
+  const base=location.href.split('#')[0].split('?')[0];
+  let avisado=false;
+  async function chequear(){
+    if(avisado)return;
+    try{
+      const r=await fetch(base+'?chk='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+      const t=await r.text();const m=t.match(/const APP_VERSION='([^']+)'/);
+      try{fetch(base,{cache:'reload'}).catch(()=>{});}catch(e){}
+      if(m&&m[1]!==APP_VERSION)mostrar(m[1]);
+    }catch(e){}
+  }
+  function mostrar(v){
+    avisado=true;
+    const d=document.createElement('div');d.id='aviso-version';
+    d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#f59e0b;color:#111827;font:600 14px system-ui,sans-serif;padding:10px 14px;text-align:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+    d.innerHTML='🔄 Hay una versión nueva del sistema ('+v+'). <u>Tocá acá para actualizar</u> — si estás cargando algo, terminá primero.';
+    d.onclick=()=>{location.replace(base+'?v='+encodeURIComponent(v));};
+    document.body.appendChild(d);
+  }
+  window.addEventListener('load',()=>setTimeout(chequear,4000));
+  setInterval(chequear,180000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')chequear();});
+})();
 const mesActual=()=>{const d=new Date();return d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'));};
 const listaMeses=(extra)=>{const s=new Set(data.ventas.map(v=>v.mes).filter(Boolean));const h=new Date();for(let i=0;i<12;i++){const d=new Date(h.getFullYear(),h.getMonth()-i,1);s.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}if(extra)s.add(extra);return[...s].sort().reverse();};
 const nombreMes=m=>{const[y,mo]=m.split('-');const l=new Date(+y,+mo-1,1).toLocaleString('es-AR',{month:'long',year:'numeric'});return l.charAt(0).toUpperCase()+l.slice(1)+(m===mesActual()?' (actual)':'');};
@@ -462,7 +488,7 @@ function renderApp(){
   const tabs=currentUser.role==='admin'?allTabs:tabsVendedor;
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
-      <span class="logo">Nick<span>Gestión</span></span><span title="Versión del sistema" style="font-size:10px;color:#64748b;margin-left:6px">v14.11</span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
+      <span class="logo">Nick<span>Gestión</span></span><span title="Versión del sistema" style="font-size:10px;color:#64748b;margin-left:6px">${APP_VERSION}</span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
       <div class="nav-tabs">${tabs.map(t=>`<button class="nav-tab${t===tab?' active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}</div>
       <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span>${(currentUser.role==='admin'||currentUser.id===2)?`<button onclick="exportarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.12);color:#4ade80;cursor:pointer;font-family:inherit" title="Descargar backup">💾 Backup</button>`:''} ${currentUser.role==='admin'?`<button onclick="restaurarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);color:#fbbf24;cursor:pointer;font-family:inherit" title="Restaurar backup">📂 Restaurar</button><input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmarRestaurar(this)">`:''}<button class="logout" id="logout-btn">Salir</button></div>
     </div>
