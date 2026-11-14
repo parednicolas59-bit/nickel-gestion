@@ -462,7 +462,7 @@ function renderApp(){
   const tabs=currentUser.role==='admin'?allTabs:tabsVendedor;
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
-      <span class="logo">Nick<span>Gestión</span></span><span title="Versión del sistema" style="font-size:10px;color:#64748b;margin-left:6px">v13.11-b</span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
+      <span class="logo">Nick<span>Gestión</span></span><span title="Versión del sistema" style="font-size:10px;color:#64748b;margin-left:6px">v14.11</span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
       <div class="nav-tabs">${tabs.map(t=>`<button class="nav-tab${t===tab?' active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}</div>
       <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span>${(currentUser.role==='admin'||currentUser.id===2)?`<button onclick="exportarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.12);color:#4ade80;cursor:pointer;font-family:inherit" title="Descargar backup">💾 Backup</button>`:''} ${currentUser.role==='admin'?`<button onclick="restaurarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);color:#fbbf24;cursor:pointer;font-family:inherit" title="Restaurar backup">📂 Restaurar</button><input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmarRestaurar(this)">`:''}<button class="logout" id="logout-btn">Salir</button></div>
     </div>
@@ -867,12 +867,14 @@ function renderVentas(){
   const mpBadge=(mp,sub)=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='tarjeta-nbch'?'rgba(167,122,255,0.2)':mp==='tarjeta-santander'?'rgba(234,67,53,0.15)':mp==='tarjeta-galicia'?'rgba(255,77,77,0.18)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='credil'?'rgba(45,212,191,0.16)':mp==='mercadopago'?'rgba(0,174,243,0.18)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='tarjeta'?'#a78bfa':mp==='tarjeta-nbch'?'#c4b5fd':mp==='tarjeta-santander'?'#f87171':mp==='tarjeta-galicia'?'#ff4d4d':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='credil'?'#2dd4bf':mp==='mercadopago'?'#00aef3':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='tarjeta'?'💳 Tarjeta':mp==='tarjeta-nbch'?'💳 Tarjeta NBCH':mp==='tarjeta-santander'?'💳 Santander':mp==='tarjeta-galicia'?'💳 Yolo/Galicia':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='credil'?'🟢 Credil':mp==='mercadopago'?'💙 MP'+(sub?' '+mpSubtipoLabel[sub]:''):mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span>`;
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Ventas</span>${selectorMes('_mesVentas',_mesCurr)}<button class="btn primary" id="nueva-venta-btn">+ Nueva venta manual</button><button class="btn" id="devolucion-btn">Devolución</button></div>
-    <div class="metrics">
+    ${currentUser.role!=='admin'?(()=>{const mias=_ventasMes.filter(v=>currentUser.vendedorId!=null&&v.vendedorId==currentUser.vendedorId&&v.estado!=='cancelado');const com=mias.reduce((s,v)=>s+calcCom(v),0);return`<div class="metrics">
+      <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">💜</div><div class="metric-label">Tus comisiones — ${nombreMes(_mesCurr)}</div><div class="metric-value" style="color:#a78bfa">${fmt(com)}</div><div style="font-size:11px;color:#64748b">${mias.length} venta${mias.length!==1?'s':''} tuya${mias.length!==1?'s':''}</div></div>
+    </div>`;})():`<div class="metrics">
       <div class="metric m1"><div class="metric-accent"></div><div class="metric-icon">🛒</div><div class="metric-label">Cantidad</div><div class="metric-value">${_ventasMes.length}</div></div>
       <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">✅</div><div class="metric-label">Cobrado</div><div class="metric-value" style="color:#4ade80">${fmt(cobrado)}</div></div>
       <div class="metric m3"><div class="metric-accent"></div><div class="metric-icon">⏳</div><div class="metric-label">A cobrar</div><div class="metric-value" style="color:#fbbf24">${fmt(totalV-cobrado)}</div></div>
       <div class="metric m5"><div class="metric-accent"></div><div class="metric-icon">👥</div><div class="metric-label">Comisiones</div><div class="metric-value" style="color:#a78bfa">${fmt(_ventasMes.reduce((s,v)=>s+calcCom(v),0))}</div></div>
-    </div>
+    </div>`}
     ${currentUser.role==='admin'?`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="metric m2"><div class="metric-accent"></div><div class="metric-icon">💵</div><div class="metric-label">Cobrado — Efectivo</div><div class="metric-value" style="color:#4ade80">${fmt(vEfectivo)}</div></div>
@@ -917,7 +919,7 @@ function renderVentas(){
       return`<tr>
       <td>${fd(v.fecha)}</td><td>${v.cliente}</td><td style="color:#a78bfa">${vnd?vnd.nombre.split(' ')[0]:'-'}</td>
       <td style="color:#94a3b8;font-size:11px">${v.items.map(i=>i.nombre).join(', ')}</td>
-      <td>${fmt(v.total)}</td><td>${fmt(v.cobrado)}</td><td style="color:#a78bfa">${fmt(calcCom(v))}</td>
+      <td>${fmt(v.total)}</td><td>${fmt(v.cobrado)}</td><td style="color:#a78bfa">${currentUser.role==='admin'||(currentUser.vendedorId!=null&&v.vendedorId==currentUser.vendedorId)?fmt(calcCom(v)):'—'}</td>
       ${currentUser.role==='admin'?`<td style="color:${ganV>0?'#4ade80':'#f87171'};font-weight:500">${fmt(ganV)}</td>`:''}
       <td><span class="badge ${v.estado}">${v.estado}</span></td>
       ${currentUser.role==='admin'?`<td>${mpBadge(mp,sub)}${mp==='rapicuota'&&!v.rapicuotaLiquidado?`<div style="font-size:10px;color:#a78bfa;margin-top:2px">📅 ${fd(getRapicuotaSemana(v.fecha).cobro)}</div>`:''}${mp==='credil'&&!v.credilLiquidado&&v.estado!=='cancelado'?`<div style="font-size:10px;color:#2dd4bf;margin-top:2px">📅 ${fd(getCredilSemana(v.fecha).cobro)}</div>`:''}</td>`:''}
