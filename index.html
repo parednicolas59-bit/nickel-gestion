@@ -288,13 +288,20 @@ function mergeDatos(W,L){
   const bor=new Set([...(W.ventasBorradas||[]),...(L.ventasBorradas||[])]);
   if(bor.size){const antes=(W.ventasBorradas||[]).length;W.ventasBorradas=[...bor].slice(-1000);if(W.ventasBorradas.length!==antes)n++;
     const c=W.ventas.length;W.ventas=W.ventas.filter(v=>!bor.has(_claveVenta(v)));if(W.ventas.length!==c)n++;}
+  // productos y contactos borrados (en cualquier dispositivo)
+  const borP=new Set([...(W.productosBorrados||[]),...(L.productosBorrados||[])]);
+  if(borP.size){const a=(W.productosBorrados||[]).length;W.productosBorrados=[...borP];if(W.productosBorrados.length!==a)n++;
+    const c=W.productos.length;W.productos=W.productos.filter(p=>!borP.has(p.id));if(W.productos.length!==c)n++;}
+  const borC=new Set([...(W.contactosBorrados||[]),...(L.contactosBorrados||[])]);
+  if(borC.size&&W.contactos){const a=(W.contactosBorrados||[]).length;W.contactosBorrados=[...borC];if(W.contactosBorrados.length!==a)n++;
+    const c=W.contactos.length;W.contactos=W.contactos.filter(x=>!borC.has(x.id));if(W.contactos.length!==c)n++;}
   // productos que W no tiene
   const nuevosPid=new Set();const idsP=new Set(W.productos.map(p=>p.id));
-  (L.productos||[]).forEach(p=>{if(!idsP.has(p.id)){W.productos.push(JSON.parse(JSON.stringify(p)));idsP.add(p.id);nuevosPid.add(p.id);n++;}});
+  (L.productos||[]).forEach(p=>{if(borP.has(p.id))return;if(!idsP.has(p.id)){W.productos.push(JSON.parse(JSON.stringify(p)));idsP.add(p.id);nuevosPid.add(p.id);n++;}});
   if(W.productos.length){const mx=Math.max(...W.productos.map(p=>p.id||0));if(!(W.nextId.producto>mx))W.nextId.producto=mx+1;}
   const prod=id=>nuevosPid.has(id)?null:W.productos.find(p=>p.id===id);
   // contactos
-  if(L.contactos){W.contactos=W.contactos||[];const idsC=new Set(W.contactos.map(c=>c.id));L.contactos.forEach(c=>{if(!idsC.has(c.id)){W.contactos.push(c);idsC.add(c.id);n++;}});}
+  if(L.contactos){W.contactos=W.contactos||[];const idsC=new Set(W.contactos.map(c=>c.id));L.contactos.forEach(c=>{if(borC.has(c.id))return;if(!idsC.has(c.id)){W.contactos.push(c);idsC.add(c.id);n++;}});}
   // ventas
   const wMap=new Map(W.ventas.map(v=>[_claveVenta(v),v]));
   (L.ventas||[]).forEach(v=>{
@@ -455,7 +462,7 @@ function renderApp(){
   const tabs=currentUser.role==='admin'?allTabs:tabsVendedor;
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
-      <span class="logo">Nick<span>Gestión</span></span><span title="Versión del sistema" style="font-size:10px;color:#64748b;margin-left:6px">v13.11-sync</span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
+      <span class="logo">Nick<span>Gestión</span></span><span title="Versión del sistema" style="font-size:10px;color:#64748b;margin-left:6px">v13.11-b</span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
       <div class="nav-tabs">${tabs.map(t=>`<button class="nav-tab${t===tab?' active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}</div>
       <div class="ub"><span style="color:#fff">${currentUser.name}</span><span style="font-size:10px;background:rgba(30,143,207,0.2);color:#38bdf8;padding:2px 7px;border-radius:10px">${currentUser.role}</span>${(currentUser.role==='admin'||currentUser.id===2)?`<button onclick="exportarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.12);color:#4ade80;cursor:pointer;font-family:inherit" title="Descargar backup">💾 Backup</button>`:''} ${currentUser.role==='admin'?`<button onclick="restaurarBackup()" style="font-size:10px;padding:3px 8px;border-radius:7px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);color:#fbbf24;cursor:pointer;font-family:inherit" title="Restaurar backup">📂 Restaurar</button><input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmarRestaurar(this)">`:''}<button class="logout" id="logout-btn">Salir</button></div>
     </div>
@@ -3809,9 +3816,9 @@ function bindApp(){
   document.querySelectorAll('[data-pagar]').forEach(b=>{b.onclick=()=>{const e=data.egresos.find(x=>x.id==b.dataset.pagar);if(e){e.pagado=true;if(e.fuente==='NBCH'){if(!data.nbch)data.nbch=[];data.nbch.push({id:data.nextId.nbch++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Brubank'){if(!data.brubank)data.brubank=[];data.brubank.push({id:data.nextId.brubank++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Galicia'){if(!data.galicia)data.galicia=[];data.galicia.push({id:data.nextId.galicia++,fecha:e.fecha,concepto:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Mercado Pago'){if(!data.mercadopago)data.mercadopago=[];data.mercadopago.push({id:data.nextId.mercadopago++,fecha:e.fecha,descripcion:'Egreso: '+e.concepto,tipo:'egreso',monto:e.monto});}else if(e.fuente==='Supervielle'){if(!data.supervielle)data.supervielle=[];data.supervielle.unshift({id:data.nextId.supervielle++,fecha:e.fecha,tipo:'egreso',descripcion:'Egreso: '+e.concepto,monto:e.monto});}else if(e.fuente==='Cobr. CrediVIP'){if(!data.cobranzaCredivip)data.cobranzaCredivip=[];data.cobranzaCredivip.push({id:data.nextId.cobranzaCredivip++,fecha:e.fecha,cliente:'Egreso',dni:'',nroCuota:0,monto:-e.monto,formaPago:'efectivo',notas:'Egreso: '+e.concepto});}else if(e.fuente==='Cobr. Rapicuota'){if(!data.cobranzaRapicuota)data.cobranzaRapicuota=[];data.cobranzaRapicuota.push({id:data.nextId.cobranzaRapicuota++,fecha:e.fecha,cliente:'Egreso',dni:'',nroCuota:0,monto:-e.monto,formaPago:'efectivo',notas:'Egreso: '+e.concepto});}save(data);render();}};});
   document.querySelectorAll('[data-del-egreso]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.egresos=data.egresos.filter(e=>e.id!=b.dataset.delEgreso);save(data);render();}};});
   document.querySelectorAll('[data-edit-prod]').forEach(b=>{b.onclick=()=>{const p=data.productos.find(x=>x.id==b.dataset.editProd);modal={type:'nuevo-prod',prod:p};render();};});
-  document.querySelectorAll('[data-del-prod]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.productos=data.productos.filter(p=>p.id!=b.dataset.delProd);save(data);render();}};});
+  document.querySelectorAll('[data-del-prod]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){const _pid=data.productos.find(p=>p.id==b.dataset.delProd)?.id;if(_pid!=null){if(!data.productosBorrados)data.productosBorrados=[];data.productosBorrados.push(_pid);}data.productos=data.productos.filter(p=>p.id!=b.dataset.delProd);save(data);render();}};});
   const lbp=q('limpiar-busq-prod');if(lbp)lbp.onclick=()=>{window._busqProd='';const inp=q('busq-prod-tabla');if(inp)inp.value='';filtrarProductosTabla();};
-  document.querySelectorAll('[data-del-contacto]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.contactos=data.contactos.filter(c=>c.id!=b.dataset.delContacto);save(data);render();}};});
+  document.querySelectorAll('[data-del-contacto]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){const _cid=data.contactos.find(c=>c.id==b.dataset.delContacto)?.id;if(_cid!=null){if(!data.contactosBorrados)data.contactosBorrados=[];if(!data.contactosBorrados.includes(_cid))data.contactosBorrados.push(_cid);}data.contactos=data.contactos.filter(c=>c.id!=b.dataset.delContacto);save(data);render();}};});
   document.querySelectorAll('[data-del-prov]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar este proveedor?')){data.proveedores=data.proveedores.filter(p=>p.id!=b.dataset.delProv);save(data);render();}};});
   document.querySelectorAll('[data-del-cat]').forEach(b=>{b.onclick=()=>{if(confirm('¿Eliminar?')){data.categorias=data.categorias.filter(c=>c.id!=b.dataset.delCat);save(data);render();}};});
   document.querySelectorAll('[data-edit-vend]').forEach(b=>{b.onclick=()=>{const v=data.vendedores.find(x=>x.id==b.dataset.editVend);modal={type:'nuevo-vend',vend:v};render();};});
