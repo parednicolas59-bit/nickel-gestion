@@ -182,7 +182,7 @@ window.addEventListener('online', async () => {
 </script>
 <script>
 const SK='nick_v5';
-const APP_VERSION='v14.11b';
+const APP_VERSION='v14.11c';
 // Aviso de versión nueva: compara con el index.html publicado (sin caché)
 (function(){
   const base=location.href.split('#')[0].split('?')[0];
@@ -366,11 +366,49 @@ let _fbUnsubscribe=null;
 let _fbInitialized=false;
 let _guardando=false;
 
-async function initApp(){
-  document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando...</div></div></div>';
+// ===== No pisar lo que el usuario está cargando cuando llegan cambios de otro dispositivo =====
+let _renderPend=false;
+function _usuarioOcupado(){
+  if(modal)return true;
+  const a=document.activeElement;
+  if(a&&/^(INPUT|TEXTAREA)$/.test(a.tagName)&&a.closest&&a.closest('#root')&&a.value!=='')return true;
+  const ins=document.querySelectorAll('#root .content input:not([type=checkbox]):not([type=radio]):not([type=hidden]), #root .content textarea');
+  for(const i of ins){if(i.value!==i.defaultValue)return true;}
+  return false;
+}
+function _avisoCambios(mostrar){
+  let el=document.getElementById('aviso-cambios');
+  if(!mostrar){if(el)el.remove();return;}
+  if(el)return;
+  el=document.createElement('div');el.id='aviso-cambios';
+  el.style.cssText='position:fixed;bottom:14px;right:14px;z-index:99998;background:#1e293b;border:1px solid #38bdf8;color:#e2e8f0;font:500 12px system-ui,sans-serif;padding:8px 12px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+  el.textContent='🔄 Hay cambios de otro usuario — se actualiza cuando termines lo que estás cargando';
+  document.body.appendChild(el);
+}
+function renderSeguro(){
+  if(!currentUser)return;
+  if(_usuarioOcupado()){_renderPend=true;_avisoCambios(true);}
+  else{_renderPend=false;_avisoCambios(false);render();}
+}
+setInterval(()=>{if(_renderPend&&currentUser&&!_usuarioOcupado()){_renderPend=false;_avisoCambios(false);render();}},1500);
 
-  // Parchear _fbSave para activar flag mientras guarda
-  if(window._fbSave){
+let _initEnCurso=false,_initConFirebase=false,_fbSaveParcheado=false;
+async function initApp(){
+  // Evitar que el sistema arranque dos veces (resetea la pantalla)
+  if(_initEnCurso)return;
+  if(_initConFirebase)return;
+  const conFirebase=!!window._firebaseReady;
+  if(_fbInitialized&&!conFirebase)return;
+  _initEnCurso=true;
+  try{await _initApp(conFirebase);}finally{_initEnCurso=false;}
+}
+async function _initApp(conFirebase){
+  const yaIniciado=_fbInitialized;
+  if(!yaIniciado)document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#0f172a"><div style="text-align:center;color:#94a3b8"><div style="font-size:20px;font-weight:500;color:#fff;margin-bottom:8px">NickGestión</div><div style="font-size:13px">Conectando...</div></div></div>';
+
+  // Parchear _fbSave: leer Firebase y mezclar antes de escribir
+  if(window._fbSave&&!_fbSaveParcheado){
+    _fbSaveParcheado=true;
     const _orig=window._fbSave;
     window._fbSave=async function(d){
       try{
@@ -380,7 +418,7 @@ async function initApp(){
             const c=mergeDatos(d,r);
             d._lastSaved=Math.max(d._lastSaved||0,(r._lastSaved||0)+1);
             try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
-            if(c>0&&currentUser&&!modal)render();
+            if(c>0)renderSeguro();
           }
         }
       }catch(e){console.error('merge antes de guardar',e);}
@@ -395,6 +433,7 @@ async function initApp(){
       new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),6000))
     ]);
     if(fbData){
+      if(_fbInitialized)mergeDatos(fbData,data);
       data=fbData;
       try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
     } else {
@@ -406,9 +445,10 @@ async function initApp(){
   }
 
   _fbInitialized=true;
-  render();
+  if(conFirebase)_initConFirebase=true;
+  if(!yaIniciado)render();else if(currentUser)renderSeguro();
 
-  if(window._fbListen){
+  if(window._fbListen&&!_fbUnsubscribe){
     _fbUnsubscribe=window._fbListen((newData)=>{
       if(!_fbInitialized)return;
       const tsNuevo=newData._lastSaved||0;
@@ -429,8 +469,8 @@ async function initApp(){
       if(!data.nextId.galicia)data.nextId.galicia=1;
       data.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
       try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
-      if(_cambios>0)save(data);
-      if(currentUser)render();
+      if(_cambios>0){const now=Date.now();window._mergeSaves=(window._mergeSaves||[]).filter(t=>now-t<30000);if(window._mergeSaves.length<5){window._mergeSaves.push(now);save(data);}}
+      renderSeguro();
     });
   }
 }
