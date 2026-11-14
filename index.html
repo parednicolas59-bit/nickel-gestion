@@ -182,7 +182,7 @@ window.addEventListener('online', async () => {
 </script>
 <script>
 const SK='nick_v5';
-const APP_VERSION='v14.11d';
+const APP_VERSION='v14.11e';
 // Aviso de versión nueva: compara con el index.html publicado (sin caché)
 (function(){
   const base=location.href.split('#')[0].split('?')[0];
@@ -304,7 +304,7 @@ function registrarIngreso(prod,qty,origen){
 // ===== Sincronización segura entre dispositivos =====
 // Mezcla en W (versión que queda) lo que L tiene y W no: ventas, ingresos de stock, productos y contactos,
 // aplicando el efecto en el stock de lo que se agrega. Devuelve la cantidad de cambios.
-function _claveVenta(v){if(!v._k)v._k=v.ts?('t'+v.ts+'|'+(v.cliente||'')):('i'+v.id+'|'+(v.fecha||'')+'|'+(v.cliente||'')+'|'+(v.total||0));return v._k;}
+function _claveVenta(v){if(!v._k)v._k=v.ts?('t'+v.ts):('i'+v.id+'|'+(v.fecha||''));return v._k;}
 function _claveIng(x){return x.ts+'|'+x.pid+'|'+x.q;}
 function mergeDatos(W,L){
   if(!W||!L)return 0;let n=0;const _mot={};const _r=(k)=>{n++;_mot[k]=(_mot[k]||0)+1;};window._ultimoMerge=_mot;
@@ -354,7 +354,7 @@ function mergeDatos(W,L){
   return n;
 }
 function save(d){
-  d._lastSaved=Math.max(Date.now(),(d._lastSaved||0)+1);
+  d._lastSaved=Math.max(Date.now(),(d._lastSaved||0)+1);d._wts=d._lastSaved;d._v=APP_VERSION;
   try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
   if(window._firebaseReady&&window._fbSave)window._fbSave(d);
 }
@@ -368,6 +368,15 @@ let _guardando=false;
 
 // ===== No pisar lo que el usuario está cargando cuando llegan cambios de otro dispositivo =====
 let _renderPend=false;
+function _avisoVersionVieja(mostrar){
+  let el=document.getElementById('aviso-version-vieja');
+  if(!mostrar){if(el)el.remove();return;}
+  if(el)return;
+  el=document.createElement('div');el.id='aviso-version-vieja';
+  el.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99997;background:#dc2626;color:#fff;font:600 13px system-ui,sans-serif;padding:9px 14px;text-align:center';
+  el.textContent='⚠️ Hay otra compu, celular o pestaña con una VERSIÓN VIEJA del sistema abierta y guardando datos. Buscala y recargala (Ctrl+F5) o cerrala. Este aviso se va solo cuando no quede ninguna.';
+  document.body.appendChild(el);
+}
 function _usuarioOcupado(){
   if(modal)return true;
   const a=document.activeElement;
@@ -417,7 +426,7 @@ async function _initApp(conFirebase){
           if(r){
             const c=mergeDatos(d,r);
             console.log('[sync] guardando',new Date().toLocaleTimeString(),'mezcla:',c,JSON.stringify(window._ultimoMerge||{}));
-            d._lastSaved=Math.max(d._lastSaved||0,(r._lastSaved||0)+1);
+            d._lastSaved=Math.max(d._lastSaved||0,(r._lastSaved||0)+1);d._wts=d._lastSaved;d._v=APP_VERSION;
             try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}
             if(c>0)renderSeguro();
           }
@@ -461,6 +470,10 @@ async function _initApp(conFirebase){
       const tsActual=data._lastSaved||0;
       if(tsNuevo<=tsActual)return;
       // Mezclar lo que este dispositivo tiene y Firebase no (ventas, ingresos, productos, contactos) con su efecto en stock
+      const _viejo=!!newData._lastSaved&&newData._wts!==newData._lastSaved;
+      _avisoVersionVieja(_viejo);
+      if(_viejo)window._pausaMergeHasta=Date.now()+120000;
+      if(_viejo)console.warn('[sync] ⚠️ Guardó un dispositivo con una VERSIÓN VIEJA del sistema',new Date().toLocaleTimeString());
       const _cambios=mergeDatos(newData,data);
       console.log('[sync] recibido de otro dispositivo',new Date().toLocaleTimeString(),'cambios:',_cambios,JSON.stringify(window._ultimoMerge||{}));
       data=newData;
@@ -476,7 +489,7 @@ async function _initApp(conFirebase){
       if(!data.nextId.galicia)data.nextId.galicia=1;
       data.productos.forEach(p=>{if(p.costo===undefined)p.costo=0;if(p.proveedorId===undefined)p.proveedorId=null;});
       try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){}
-      if(_cambios>0){const now=Date.now();window._mergeSaves=(window._mergeSaves||[]).filter(t=>now-t<30000);if(window._mergeSaves.length<5){window._mergeSaves.push(now);save(data);}}
+      if(_cambios>0&&Date.now()>(window._pausaMergeHasta||0)){const now=Date.now();window._mergeSaves=(window._mergeSaves||[]).filter(t=>now-t<60000);if(window._mergeSaves.length<3){window._mergeSaves.push(now);save(data);}}
       renderSeguro();
     });
   }
@@ -491,7 +504,7 @@ const getCat=id=>data.categorias.find(c=>c.id==id);
 const getVend=id=>data.vendedores.find(v=>v.id==id);
 const getProd=cod=>data.productos.find(p=>p.codigo===cod.trim());
 const getProdById=id=>data.productos.find(p=>p.id==id);
-function calcCom(venta){const v=getVend(venta.vendedorId);if(!v)return 0;return venta.items.reduce((s,i)=>{const pct=(v.comisiones&&v.comisiones[i.categoriaId])||0;return s+(i.precio*i.qty*pct/100);},0);}
+function calcCom(venta){if(!venta||venta.estado==='cancelado')return 0;const v=getVend(venta.vendedorId);if(!v)return 0;return venta.items.reduce((s,i)=>{const pct=(v.comisiones&&v.comisiones[i.categoriaId])||0;return s+(i.precio*i.qty*pct/100);},0);}
 
 function mostrarToast(msg,color){
   let t=document.getElementById('_toast');
@@ -520,7 +533,7 @@ function renderLogin(){
   </div></div>`;
 }
 function bindLogin(){
-  const go=()=>{const e=document.getElementById('l-email').value.trim(),p=document.getElementById('l-pass').value;const u=data.users.find(u=>u.email===e&&u.password===p);if(u){currentUser=u;carrito=[];render();}else{document.getElementById('l-err').style.display='block';}};
+  const go=()=>{const e=document.getElementById('l-email').value.trim(),p=document.getElementById('l-pass').value;const u=data.users.find(u=>u.email===e&&u.password===p);if(u){currentUser=u;carrito=[];modal=null;tab='dashboard';render();}else{document.getElementById('l-err').style.display='block';}};
   document.getElementById('l-btn').onclick=go;
   document.getElementById('l-pass').onkeydown=e=>{if(e.key==='Enter')go();};
 }
@@ -533,6 +546,7 @@ function renderApp(){
   const tabsVendedor=['ventas','productos','contactos','cobranza-credivip','cobranza-rapicuota','cobranza-pagares','financiera'];
   if(tieneCaja&&currentUser.role!=='admin')tabsVendedor.push('caja');
   const tabs=currentUser.role==='admin'?allTabs:tabsVendedor;
+  if(!tabs.includes(tab))tab=tabs[0];
   return`<div style="position:relative;min-height:600px">
     <div class="topbar">
       <span class="logo">Nick<span>Gestión</span></span><span title="Versión del sistema" style="font-size:10px;color:#64748b;margin-left:6px">${APP_VERSION}</span><span id="sync-indicator" style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#4ade80;margin-left:4px">● En línea</span>
@@ -627,7 +641,8 @@ window.copiarPedido=function(){
   let txt='📦 *LISTA DE PEDIDO — Nickcel*\n📅 '+fecha+'\n\n';
   sinStock.forEach((p,i)=>{const qty=document.getElementById('qty-pedido-'+p.id)?.value||1;txt+=(i+1)+'. '+p.nombre+(p.codigo?' ('+p.codigo+')':'')+' — Cant: '+qty+'\n';});
   txt+='\nTotal: '+sinStock.length+' producto'+(sinStock.length>1?'s':'')+' a reponer';
-  navigator.clipboard.writeText(txt).then(()=>mostrarToast('✅ Lista copiada')).catch(()=>mostrarToast('No se pudo copiar'));
+  const _copiaVieja=()=>{try{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();mostrarToast(ok?'✅ Lista copiada':'No se pudo copiar');}catch(e){mostrarToast('No se pudo copiar');}};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>mostrarToast('✅ Lista copiada')).catch(_copiaVieja);else _copiaVieja();
 };
 
 window.imprimirPedido=function(){
@@ -925,6 +940,8 @@ function drawCharts(){
   if(ce)new Chart(ce,{type:'doughnut',data:{labels:['Cobradas','Pendientes','Canceladas'],datasets:[{data:[data.ventas.filter(v=>v.estado==='cobrado').length,data.ventas.filter(v=>v.estado==='pendiente').length,data.ventas.filter(v=>v.estado==='cancelado').length],backgroundColor:['rgba(34,197,94,0.7)','rgba(245,158,11,0.7)','rgba(239,68,68,0.7)'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11},padding:10}}}}});
 }
 
+const mpSubtipoLabel={transferencia:'🏦 Transf.',debito:'💳 Déb.',credito:'💳 Créd.',qr:'📱 QR'};
+const mpBadge=(mp,sub)=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='tarjeta-nbch'?'rgba(167,122,255,0.2)':mp==='tarjeta-santander'?'rgba(234,67,53,0.15)':mp==='tarjeta-galicia'?'rgba(255,77,77,0.18)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='credil'?'rgba(45,212,191,0.16)':mp==='mercadopago'?'rgba(0,174,243,0.18)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='tarjeta'?'#a78bfa':mp==='tarjeta-nbch'?'#c4b5fd':mp==='tarjeta-santander'?'#f87171':mp==='tarjeta-galicia'?'#ff4d4d':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='credil'?'#2dd4bf':mp==='mercadopago'?'#00aef3':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='tarjeta'?'💳 Tarjeta':mp==='tarjeta-nbch'?'💳 Tarjeta NBCH':mp==='tarjeta-santander'?'💳 Santander':mp==='tarjeta-galicia'?'💳 Yolo/Galicia':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='credil'?'🟢 Credil':mp==='mercadopago'?'💙 MP'+(sub?' '+mpSubtipoLabel[sub]:''):mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span>`;
 function renderVentas(){
   const _mesCurr=window._mesVentas||mesActual();
   const _ventasMes=data.ventas.filter(v=>v.mes===_mesCurr);
@@ -936,8 +953,6 @@ function renderVentas(){
   const vRapicuota=currentUser.role==='admin'?_ventasMes.filter(v=>v.estado!=='cancelado'&&v.medioPago==='rapicuota').reduce((s,v)=>s+v.total,0):0;
   const vCredil=currentUser.role==='admin'?getCredilPendientes().reduce((s,v)=>s+v.total,0):0;
   const vNickcel=currentUser.role==='admin'?_ventasMes.filter(v=>v.estado!=='cancelado'&&v.medioPago==='nickcel-pagares').reduce((s,v)=>s+(v.total-v.cobrado),0):0;
-  const mpSubtipoLabel={transferencia:'🏦 Transf.',debito:'💳 Déb.',credito:'💳 Créd.',qr:'📱 QR'};
-  const mpBadge=(mp,sub)=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${mp==='tarjeta'?'rgba(139,92,246,0.15)':mp==='tarjeta-nbch'?'rgba(167,122,255,0.2)':mp==='tarjeta-santander'?'rgba(234,67,53,0.15)':mp==='tarjeta-galicia'?'rgba(255,77,77,0.18)':mp==='credivip'?'rgba(245,158,11,0.15)':mp==='rapicuota'?'rgba(139,92,246,0.2)':mp==='credil'?'rgba(45,212,191,0.16)':mp==='mercadopago'?'rgba(0,174,243,0.18)':mp==='nickcel-pagares'?'rgba(30,143,207,0.15)':'rgba(34,197,94,0.12)'};color:${mp==='tarjeta'?'#a78bfa':mp==='tarjeta-nbch'?'#c4b5fd':mp==='tarjeta-santander'?'#f87171':mp==='tarjeta-galicia'?'#ff4d4d':mp==='credivip'?'#fbbf24':mp==='rapicuota'?'#c4b5fd':mp==='credil'?'#2dd4bf':mp==='mercadopago'?'#00aef3':mp==='nickcel-pagares'?'#7dd3fc':'#4ade80'}">${mp==='tarjeta'?'💳 Tarjeta':mp==='tarjeta-nbch'?'💳 Tarjeta NBCH':mp==='tarjeta-santander'?'💳 Santander':mp==='tarjeta-galicia'?'💳 Yolo/Galicia':mp==='credivip'?'🟠 CrediVIP':mp==='rapicuota'?'🟣 Rapicuota':mp==='credil'?'🟢 Credil':mp==='mercadopago'?'💙 MP'+(sub?' '+mpSubtipoLabel[sub]:''):mp==='nickcel-pagares'?'📄 Nickcel Pag.':'💵 Efectivo'}</span>`;
   return`<div>
     <div class="section-header"><span style="font-size:17px;font-weight:500">Ventas</span>${selectorMes('_mesVentas',_mesCurr)}<button class="btn primary" id="nueva-venta-btn">+ Nueva venta manual</button><button class="btn" id="devolucion-btn">Devolución</button></div>
     ${currentUser.role!=='admin'?(()=>{const mias=_ventasMes.filter(v=>currentUser.vendedorId!=null&&v.vendedorId==currentUser.vendedorId&&v.estado!=='cancelado');const com=mias.reduce((s,v)=>s+calcCom(v),0);return`<div class="metrics">
